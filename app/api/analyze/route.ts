@@ -1,0 +1,100 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
+
+// Receives { apiKey, payload } where payload is the compact JSON
+// produced by lib/simulation.seasonToCompactJSON.
+export async function POST(req: NextRequest) {
+  let body: { apiKey?: string; payload?: string; model?: string; mode?: 'pl' | 'cl' };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const apiKey = body.apiKey?.trim();
+  const payload = body.payload;
+  const model = body.model || 'gpt-4o-mini';
+  const mode = body.mode === 'cl' ? 'cl' : 'pl';
+
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Missing API key' }, { status: 400 });
+  }
+  if (!payload) {
+    return NextResponse.json({ error: 'Missing season payload' }, { status: 400 });
+  }
+
+  const sharedPrimeRules = `CRUCIAL CONTEXT — read this carefully and never violate it:
+- Each player in the XI is at the PEAK of the era shown in their "from" field (e.g. "Thierry Henry from Arsenal 00-05" means peak-form 2004 Henry, not 2025 Henry).
+- ALL players are simultaneously in their prime in this fantasy campaign. NEVER mention any player being old, retired, past it, declining, out of position because of age, or anything that implies they're not at the rating shown. Their listed overall rating IS their current ability.
+- The team is not a historical real-life side — it is a fantasy mash-up. Do not say things like "this XI finished 4th in real life" because the team did not exist.
+- The 'ovr' field is each player's prime ability (1-99 FIFA-style). Refer to "rating", "level", or "quality", not "age".`;
+
+  const plPrompt = `You are a passionate football journalist writing for a Premier League digest. You receive a JSON snapshot of a fan's simulated Premier League season with a hand-picked all-time fantasy XI.
+
+${sharedPrimeRules}
+
+Write an immersive 4-paragraph season verdict (around 250-350 words total). Cover:
+1. Headline of the season — final position and the overall feeling of the campaign.
+2. The MVP and standout performers — name them and be vivid about their goals/assists.
+3. Tactical read of how the XI fitted together (formation, ATT/DEF/OVR balance, surprising contributors from defence or midfield).
+4. A final dramatic verdict and a one-line prediction for next season.
+
+Style: punchy sentences, vivid imagery, no markdown headings, no bullet points, no section labels. Pure flowing prose, blank line between paragraphs.`;
+
+  const clPrompt = `You are a passionate Champions League correspondent for European football magazines. You receive a JSON snapshot of a fan's simulated UEFA Champions League campaign with a hand-picked all-time fantasy XI.
+
+${sharedPrimeRules}
+
+UEFA Champions League format used in this sim:
+- 16 elite European clubs in 4 groups of 4. Top 2 from each group advance.
+- Single-leg knockouts from the Quarter-finals onward, penalty shootouts if level after 90.
+- The 'playerStage' field tells you exactly how far this XI got: group / quarter-finals / semi-finals / final (= runner-up) / champion.
+- The 'knockoutPath' array shows every KO match including pens.
+- The eventual 'champion' and 'runnerUp' may not be the player's team.
+
+Write an immersive 4-paragraph campaign briefing (around 250-350 words total). Cover:
+1. Headline of the run — which stage they reached, the European atmosphere, the trajectory through the bracket.
+2. The MVP and standout European nights — be vivid about specific goals, knockout drama, penalty shootouts if any.
+3. Tactical read of how the XI handled different opponents in groups and knockouts — formation, ATT/DEF/OVR balance, depth.
+4. A final verdict on the campaign and a one-line aim for next year's tournament.
+
+Style: punchy sentences, vivid imagery, evoke European nights and continental glory. No markdown headings, no bullet points, no section labels. Pure flowing prose, blank line between paragraphs.`;
+
+  const systemPrompt = mode === 'cl' ? clPrompt : plPrompt;
+
+  try {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.85,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Here is the season JSON:\n\n${payload}` },
+        ],
+      }),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return NextResponse.json(
+        { error: `OpenAI ${resp.status}: ${errText.slice(0, 400)}` },
+        { status: 502 },
+      );
+    }
+
+    const data = await resp.json();
+    const content: string = data?.choices?.[0]?.message?.content ?? '';
+    return NextResponse.json({ analysis: content });
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Network error: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 },
+    );
+  }
+}
