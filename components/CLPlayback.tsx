@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState, useEffect } from 'react';
 import { CLResult, CLKnockoutTie } from '@/lib/championsLeague';
-import { MatchResult } from '@/lib/simulation';
+import { MatchResult, TeamSnapshot } from '@/lib/simulation';
 import { getTeam } from '@/data';
 
 interface Props {
@@ -68,7 +68,7 @@ export default function CLPlayback({ result, onDone }: Props) {
         <div className="space-y-2 max-h-[520px] overflow-y-auto pr-2 no-scrollbar">
           <AnimatePresence initial={false}>
             {feedSteps.slice().reverse().map(s => (
-              <StepRow key={s.key} step={s} playerTeamId={playerTeamId} />
+              <StepRow key={s.key} step={s} playerTeamId={playerTeamId} playerTeam={result.playerTeam} />
             ))}
           </AnimatePresence>
         </div>
@@ -169,13 +169,18 @@ function describeStage(step: QueueStep | undefined): string {
 
 // ---------- match rows ----------
 
-function StepRow({ step, playerTeamId }: { step: QueueStep; playerTeamId: string }) {
+function StepRow({ step, playerTeamId, playerTeam }: {
+  step: QueueStep;
+  playerTeamId: string;
+  playerTeam: TeamSnapshot;
+}) {
   if (step.kind === 'group') {
     return (
       <MatchCard
         match={step.match}
         title={`Group ${step.groupLetter} · MD${step.matchday}`}
         playerTeamId={playerTeamId}
+        playerTeam={playerTeam}
       />
     );
   }
@@ -192,6 +197,7 @@ function StepRow({ step, playerTeamId }: { step: QueueStep; playerTeamId: string
         match={match}
         title={title}
         playerTeamId={playerTeamId}
+        playerTeam={playerTeam}
         shootout={isLastLeg ? tie.shootout : undefined}
         isKO
       />
@@ -233,17 +239,22 @@ function MatchCard({
   match,
   title,
   playerTeamId,
+  playerTeam,
   shootout,
   isKO,
 }: {
   match: MatchResult;
   title: string;
   playerTeamId: string;
+  playerTeam: TeamSnapshot;
   shootout?: { home: number; away: number };
   isKO?: boolean;
 }) {
-  const home = getTeam(match.home.teamId);
-  const away = getTeam(match.away.teamId);
+  const resolve = (teamId: string) =>
+    teamId === playerTeam.id ? playerTeam : getTeam(teamId);
+
+  const home = resolve(match.home.teamId);
+  const away = resolve(match.away.teamId);
   const isPlayerMatch =
     match.home.teamId === playerTeamId || match.away.teamId === playerTeamId;
 
@@ -268,7 +279,8 @@ function MatchCard({
       </div>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-          <span className="truncate text-sm text-right">{home?.name}</span>
+          <span className="sm:hidden truncate text-xs text-right">{home?.shortName ?? home?.name}</span>
+          <span className="hidden sm:block truncate text-sm text-right">{home?.name}</span>
           <ColorTag color={home?.colors.primary ?? '#444'} />
         </div>
         <div className="font-display text-xl tabular-nums px-3 min-w-[68px] text-center">
@@ -276,7 +288,8 @@ function MatchCard({
         </div>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <ColorTag color={away?.colors.primary ?? '#444'} />
-          <span className="truncate text-sm">{away?.name}</span>
+          <span className="sm:hidden truncate text-xs">{away?.shortName ?? away?.name}</span>
+          <span className="hidden sm:block truncate text-sm">{away?.name}</span>
         </div>
       </div>
       {match.scorers.length > 0 && (

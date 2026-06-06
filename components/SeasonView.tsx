@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import { MatchResult, SeasonResult, TableRow } from '@/lib/simulation';
+import { MatchResult, SeasonResult, TableRow, TeamSnapshot } from '@/lib/simulation';
 import { getTeam } from '@/data';
 
 interface Props {
@@ -70,7 +70,7 @@ export default function SeasonView({ season, onDone }: Props) {
         <div className="space-y-3 max-h-[260px] sm:max-h-[460px] overflow-y-auto pr-2 no-scrollbar">
           <AnimatePresence initial={false}>
             {season.fixtures.slice(0, matchIdx + 1).reverse().map(m => (
-              <MatchRow key={`${m.matchday}-${m.home.teamId}`} match={m} playerTeamId={playerTeamId} />
+              <MatchRow key={`${m.matchday}-${m.home.teamId}`} match={m} playerTeamId={playerTeamId} playerTeam={season.playerTeam} />
             ))}
           </AnimatePresence>
         </div>
@@ -102,9 +102,16 @@ export default function SeasonView({ season, onDone }: Props) {
   );
 }
 
-function MatchRow({ match, playerTeamId }: { match: MatchResult; playerTeamId: string }) {
-  const home = getTeam(match.home.teamId);
-  const away = getTeam(match.away.teamId);
+function MatchRow({ match, playerTeamId, playerTeam }: {
+  match: MatchResult;
+  playerTeamId: string;
+  playerTeam: TeamSnapshot;
+}) {
+  const resolve = (teamId: string) =>
+    teamId === playerTeam.id ? playerTeam : getTeam(teamId);
+
+  const home = resolve(match.home.teamId);
+  const away = resolve(match.away.teamId);
   const isPlayerMatch =
     match.home.teamId === playerTeamId || match.away.teamId === playerTeamId;
 
@@ -119,7 +126,8 @@ function MatchRow({ match, playerTeamId }: { match: MatchResult; playerTeamId: s
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
-          <span className="truncate text-xs sm:text-sm text-right">{home?.shortName ?? home?.name}</span>
+          <span className="sm:hidden truncate text-xs text-right">{home?.shortName ?? home?.name}</span>
+          <span className="hidden sm:block truncate text-sm text-right">{home?.name}</span>
           <ColorTag color={home?.colors.primary ?? '#444'} />
         </div>
         <div className="font-display text-lg tabular-nums px-2 min-w-[56px] text-center">
@@ -127,7 +135,8 @@ function MatchRow({ match, playerTeamId }: { match: MatchResult; playerTeamId: s
         </div>
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <ColorTag color={away?.colors.primary ?? '#444'} />
-          <span className="truncate text-xs sm:text-sm">{away?.shortName ?? away?.name}</span>
+          <span className="sm:hidden truncate text-xs">{away?.shortName ?? away?.name}</span>
+          <span className="hidden sm:block truncate text-sm">{away?.name}</span>
         </div>
       </div>
       {isPlayerMatch && match.scorers.length > 0 && (
