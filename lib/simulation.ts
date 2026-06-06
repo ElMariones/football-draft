@@ -1,4 +1,4 @@
-import { TEAMS, getTeam } from '@/data';
+import { TEAMS, PL_TEAMS, getTeam } from '@/data';
 import { EraKey, Player, Position, Team, TeamEra } from '@/data/types';
 import { randomEra } from './randomizer';
 import { rand, shuffle } from './random';
@@ -251,8 +251,8 @@ export function simulateMatch(
 // ---------- season sim ----------
 
 function generateRivals(playerTeamId: string): TeamSnapshot[] {
-  // Each real PL team appears at most once, with a single randomly chosen era.
-  const pool = TEAMS.filter(t => t.id !== playerTeamId);
+  // Only Premier League clubs — slice to the other 19 teams in a 20-team league.
+  const pool = PL_TEAMS.filter(t => t.id !== playerTeamId);
   const shuffled = shuffle([...pool]).slice(0, 19);
   return shuffled.map(t => snapshotTeam(t, randomEra(t)));
 }

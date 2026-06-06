@@ -27,7 +27,7 @@ export default function CLPlayback({ result, onDone }: Props) {
 
   useEffect(() => {
     if (!autoplay || stepIdx >= queue.length) return;
-    const isHidden = queue[stepIdx]?.kind === 'ko' && (queue[stepIdx] as KOStep).hidden;
+    const isHidden = queue[stepIdx]?.hidden ?? false;
     const delay = isHidden ? HIDDEN_INTERVAL_MS : VISIBLE_INTERVAL_MS;
     const t = setTimeout(() => setStepIdx(i => i + 1), delay);
     return () => clearTimeout(t);
@@ -35,7 +35,7 @@ export default function CLPlayback({ result, onDone }: Props) {
 
   const visibleSteps = queue.slice(0, stepIdx + 1);
   // Feed only shows non-hidden steps
-  const feedSteps = visibleSteps.filter(s => s.kind === 'group' || !(s as KOStep).hidden);
+  const feedSteps = visibleSteps.filter(s => !s.hidden);
   const lastFeedStep = feedSteps[feedSteps.length - 1];
   const allDone = stepIdx >= queue.length;
   const playerTeamId = result.playerTeam.id;
@@ -111,6 +111,7 @@ type GroupStep = {
   matchday: number;
   match: MatchResult;
   groupLetter: string;
+  hidden: boolean;
 };
 
 type KOStep = {
@@ -128,18 +129,21 @@ function buildQueue(result: CLResult): QueueStep[] {
   const out: QueueStep[] = [];
   const playerTeamId = result.playerTeam.id;
 
-  // Only the player's group in the match feed.
+  // Player's group: only the player's own matches are visible.
+  // Non-player group matches tick silently (hidden) to keep the table accurate.
   const playerGroup = result.groups.find(g => g.teamIds.includes(playerTeamId))!;
   playerGroup.matches
     .slice()
     .sort((a, b) => a.matchday - b.matchday)
     .forEach((m, i) => {
+      const playerInMatch = m.home.teamId === playerTeamId || m.away.teamId === playerTeamId;
       out.push({
         key: `g-${playerGroup.letter}-${m.matchday}-${i}`,
         kind: 'group',
         matchday: m.matchday,
         match: m,
         groupLetter: playerGroup.letter,
+        hidden: !playerInMatch,
       });
     });
 

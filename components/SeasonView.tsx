@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MatchResult, SeasonResult, TableRow } from '@/lib/simulation';
 import { getTeam } from '@/data';
 
@@ -17,15 +17,6 @@ export default function SeasonView({ season, onDone }: Props) {
   const [matchIdx, setMatchIdx] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
   const playerTeamId = season.playerTeam.id;
-
-  // Build a lookup from teamId → era label for display.
-  const teamEraMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const r of season.table) {
-      map[r.teamId] = r.era;
-    }
-    return map;
-  }, [season]);
 
   // Recompute progressive table.
   const progressiveTable = useMemo(() => {
@@ -76,10 +67,10 @@ export default function SeasonView({ season, onDone }: Props) {
           </div>
         </div>
 
-        <div className="space-y-3 max-h-[460px] overflow-y-auto pr-2 no-scrollbar">
+        <div className="space-y-3 max-h-[260px] sm:max-h-[460px] overflow-y-auto pr-2 no-scrollbar">
           <AnimatePresence initial={false}>
             {season.fixtures.slice(0, matchIdx + 1).reverse().map(m => (
-              <MatchRow key={`${m.matchday}-${m.home.teamId}`} match={m} playerTeamId={playerTeamId} teamEraMap={teamEraMap} />
+              <MatchRow key={`${m.matchday}-${m.home.teamId}`} match={m} playerTeamId={playerTeamId} />
             ))}
           </AnimatePresence>
         </div>
@@ -111,54 +102,38 @@ export default function SeasonView({ season, onDone }: Props) {
   );
 }
 
-function MatchRow({ match, playerTeamId, teamEraMap }: { match: MatchResult; playerTeamId: string; teamEraMap: Record<string, string> }) {
+function MatchRow({ match, playerTeamId }: { match: MatchResult; playerTeamId: string }) {
   const home = getTeam(match.home.teamId);
   const away = getTeam(match.away.teamId);
   const isPlayerMatch =
     match.home.teamId === playerTeamId || match.away.teamId === playerTeamId;
-  const homeEra = teamEraMap[match.home.teamId];
-  const awayEra = teamEraMap[match.away.teamId];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: -8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.35 }}
-      className={`relative rounded-xl p-3 border transition-colors ${
-        isPlayerMatch
-          ? 'bg-gold/10 border-gold/40'
-          : 'bg-white/5 border-white/10'
+      className={`relative rounded-xl px-3 py-2 border transition-colors ${
+        isPlayerMatch ? 'bg-gold/10 border-gold/40' : 'bg-white/5 border-white/10'
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-          <div className="text-right min-w-0">
-            <span className="truncate text-sm block">{home?.name}</span>
-            {homeEra && homeEra !== 'all-time' && (
-              <span className="text-[10px] text-white/40">({homeEra})</span>
-            )}
-          </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+          <span className="truncate text-xs sm:text-sm text-right">{home?.shortName ?? home?.name}</span>
           <ColorTag color={home?.colors.primary ?? '#444'} />
         </div>
-        <div className="font-display text-xl tabular-nums px-3 min-w-[68px] text-center">
-          {match.home.goals} – {match.away.goals}
+        <div className="font-display text-lg tabular-nums px-2 min-w-[56px] text-center">
+          {match.home.goals}–{match.away.goals}
         </div>
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <ColorTag color={away?.colors.primary ?? '#444'} />
-          <div className="min-w-0">
-            <span className="truncate text-sm block">{away?.name}</span>
-            {awayEra && awayEra !== 'all-time' && (
-              <span className="text-[10px] text-white/40">({awayEra})</span>
-            )}
-          </div>
+          <span className="truncate text-xs sm:text-sm">{away?.shortName ?? away?.name}</span>
         </div>
       </div>
-      {match.scorers.length > 0 && (
-        <div className="mt-2 text-[11px] text-white/60 flex flex-wrap gap-x-3 gap-y-0.5 pl-1">
+      {isPlayerMatch && match.scorers.length > 0 && (
+        <div className="mt-1 text-[10px] text-white/50 flex flex-wrap gap-x-2 gap-y-0.5">
           {match.scorers.map((s, i) => (
-            <span key={i}>
-              ⚽ {s.playerName} <span className="opacity-50">{s.minute}&apos;</span>
-            </span>
+            <span key={i}>⚽ {s.playerName} <span className="opacity-60">{s.minute}&apos;</span></span>
           ))}
         </div>
       )}
@@ -171,48 +146,51 @@ function ColorTag({ color }: { color: string }) {
 }
 
 function LeagueTable({ rows, highlightTeamId }: { rows: TableRow[]; highlightTeamId: string }) {
+  const playerPos = rows.findIndex(r => r.teamId === highlightTeamId);
+
   return (
     <div className="text-sm">
-      <div className="grid grid-cols-[24px_1fr_28px_28px_28px_36px_36px] gap-2 text-[10px] tracking-widest uppercase text-white/40 pb-1 border-b border-white/10">
+      {/* Mobile: compact columns. Desktop: full columns. */}
+      <div className="grid grid-cols-[20px_1fr_28px_32px_32px] sm:grid-cols-[24px_1fr_28px_28px_28px_36px_36px] gap-x-1 sm:gap-x-2 text-[10px] tracking-widest uppercase text-white/40 pb-1 border-b border-white/10">
         <div>#</div>
         <div>Team</div>
         <div className="text-center">P</div>
-        <div className="text-center">W</div>
-        <div className="text-center">D</div>
+        <div className="text-center hidden sm:block">W</div>
+        <div className="text-center hidden sm:block">D</div>
         <div className="text-center">GD</div>
         <div className="text-center">Pts</div>
       </div>
-      {rows.map((row, i) => {
-        const team = getTeam(row.teamId);
-        const isYou = row.teamId === highlightTeamId;
-        const eraLabel = row.era && row.era !== 'all-time' ? ` (${row.era})` : '';
-        return (
-          <motion.div
-            key={row.teamId}
-            layout
-            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-            className={`grid grid-cols-[24px_1fr_28px_28px_28px_36px_36px] gap-2 items-center py-1.5 px-0.5 rounded ${
-              isYou ? 'bg-gold/15 border-l-2 border-gold' : ''
-            }`}
-          >
-            <div className="text-xs text-white/40 tabular-nums">{i + 1}</div>
-            <div className="flex items-center gap-2 min-w-0">
-              <ColorTag color={team?.colors.primary ?? '#444'} />
-              <div className="min-w-0">
-                <span className="truncate text-xs sm:text-sm block">{row.name}</span>
-                {eraLabel && (
-                  <span className="text-[9px] text-white/35 block">{eraLabel}</span>
-                )}
+      {/* On mobile: cap at 260px so it doesn't dominate the page */}
+      <div className="max-h-[260px] overflow-y-auto no-scrollbar sm:max-h-none">
+        {rows.map((row, i) => {
+          const team = getTeam(row.teamId);
+          const isYou = row.teamId === highlightTeamId;
+          // On mobile: only render top 6, bottom 3, and player's row ± 1
+          const nearPlayer = playerPos >= 0 && Math.abs(i - playerPos) <= 1;
+          const showOnMobile = i < 6 || i >= rows.length - 3 || nearPlayer;
+          return (
+            <motion.div
+              key={row.teamId}
+              layout
+              transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+              className={`grid grid-cols-[20px_1fr_28px_32px_32px] sm:grid-cols-[24px_1fr_28px_28px_28px_36px_36px] gap-x-1 sm:gap-x-2 items-center py-1 sm:py-1.5 px-0.5 rounded ${
+                isYou ? 'bg-gold/15 border-l-2 border-gold' : ''
+              } ${!showOnMobile ? 'hidden sm:grid' : ''}`}
+            >
+              <div className="text-[10px] text-white/40 tabular-nums">{i + 1}</div>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <ColorTag color={team?.colors.primary ?? '#444'} />
+                <span className="truncate text-[11px] sm:text-sm">{row.shortName || row.name}</span>
               </div>
-            </div>
-            <div className="text-center text-xs tabular-nums">{row.played}</div>
-            <div className="text-center text-xs tabular-nums">{row.won}</div>
-            <div className="text-center text-xs tabular-nums">{row.drawn}</div>
-            <div className="text-center text-xs tabular-nums">{row.gd > 0 ? `+${row.gd}` : row.gd}</div>
-            <div className="text-center font-bold tabular-nums">{row.points}</div>
-          </motion.div>
-        );
-      })}
+              <div className="text-center text-[11px] tabular-nums">{row.played}</div>
+              <div className="text-center text-[11px] tabular-nums hidden sm:block">{row.won}</div>
+              <div className="text-center text-[11px] tabular-nums hidden sm:block">{row.drawn}</div>
+              <div className="text-center text-[11px] tabular-nums">{row.gd > 0 ? `+${row.gd}` : row.gd}</div>
+              <div className="text-center text-[11px] font-bold tabular-nums">{row.points}</div>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }
