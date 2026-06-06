@@ -94,7 +94,7 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -24 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+          className="grid grid-cols-2 gap-2"
         >
           {teamEra.players.map((p, i) => {
             const fits = eligibleSlotIndices(xi, p.position).length > 0;

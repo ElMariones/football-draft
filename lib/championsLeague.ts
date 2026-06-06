@@ -25,12 +25,14 @@ export interface CLGroup {
 
 export interface CLKnockoutTie {
   round: 'quarter-finals' | 'semi-finals' | 'final';
-  home: TeamSnapshot;
+  home: TeamSnapshot;      // home in leg1; for the final: "home" side at neutral
   away: TeamSnapshot;
-  match: MatchResult;
-  // Optional shootout if the 90-minute match was level.
+  leg1: MatchResult;
+  leg2?: MatchResult;      // two-legged rounds only (QF, SF); absent for final
   shootout?: { home: number; away: number };
   winner: TeamSnapshot;
+  aggHome: number;         // home team aggregate goals
+  aggAway: number;         // away team aggregate goals
 }
 
 export interface CLResult {
@@ -144,26 +146,30 @@ function playKO(
   round: 'quarter-finals' | 'semi-finals' | 'final',
   matchday: number,
 ): CLKnockoutTie {
-  const m = simulateMatch(home, away, matchday);
-  if (m.home.goals !== m.away.goals) {
-    return {
-      round,
-      home,
-      away,
-      match: m,
-      winner: m.home.goals > m.away.goals ? home : away,
-    };
+  // Final is a single leg at a neutral venue.
+  if (round === 'final') {
+    const leg1 = simulateMatch(home, away, matchday);
+    const aggHome = leg1.home.goals;
+    const aggAway = leg1.away.goals;
+    if (aggHome !== aggAway) {
+      return { round, home, away, leg1, aggHome, aggAway, winner: aggHome > aggAway ? home : away };
+    }
+    const so = shootoutWinner(home, away);
+    return { round, home, away, leg1, aggHome, aggAway, shootout: so.score, winner: so.winner };
   }
-  // Level after 90 — straight to penalties.
+
+  // Two-legged tie: leg1 at home's ground, leg2 at away's ground.
+  const leg1 = simulateMatch(home, away, matchday);
+  const leg2 = simulateMatch(away, home, matchday + 1);
+  // aggHome = home team's total: leg1 home goals + leg2 away goals
+  const aggHome = leg1.home.goals + leg2.away.goals;
+  const aggAway = leg1.away.goals + leg2.home.goals;
+
+  if (aggHome !== aggAway) {
+    return { round, home, away, leg1, leg2, aggHome, aggAway, winner: aggHome > aggAway ? home : away };
+  }
   const so = shootoutWinner(home, away);
-  return {
-    round,
-    home,
-    away,
-    match: m,
-    shootout: so.score,
-    winner: so.winner,
-  };
+  return { round, home, away, leg1, leg2, aggHome, aggAway, shootout: so.score, winner: so.winner };
 }
 
 // ---------- main entry ----------
@@ -190,9 +196,7 @@ export function simulateCLSeason(playerTeam: TeamSnapshot): CLResult {
     }
   });
 
-  // Aggregate goals/assists across the entire tournament for top scorers + MVP.
-  type Counter = { goals: number; assists: number; teamId: string };
-  const counter: Record<string, Counter> = {};
+  // Collect all group matches for scorer tallying.
   const allMatches: MatchResult[] = [];
   groups.forEach(g => allMatches.push(...g.matches));
 
@@ -213,7 +217,8 @@ export function simulateCLSeason(playerTeam: TeamSnapshot): CLResult {
     const tie = playKO(h, a, 'quarter-finals', i + 1);
     knockoutTies.push(tie);
     qfWinners.push(tie.winner);
-    allMatches.push(tie.match);
+    allMatches.push(tie.leg1);
+    if (tie.leg2) allMatches.push(tie.leg2);
   });
 
   // SF: QF1 winner vs QF2 winner, QF3 winner vs QF4 winner
@@ -226,18 +231,22 @@ export function simulateCLSeason(playerTeam: TeamSnapshot): CLResult {
     const tie = playKO(h, a, 'semi-finals', i + 1);
     knockoutTies.push(tie);
     sfWinners.push(tie.winner);
-    allMatches.push(tie.match);
+    allMatches.push(tie.leg1);
+    if (tie.leg2) allMatches.push(tie.leg2);
   });
 
-  // Final at neutral venue (treat the first as home for animation purposes).
+  // Final at neutral venue (single leg).
   const finalTie = playKO(sfWinners[0], sfWinners[1], 'final', 1);
   knockoutTies.push(finalTie);
-  allMatches.push(finalTie.match);
+  allMatches.push(finalTie.leg1);
 
   const champion = finalTie.winner;
   const runnerUp = champion === sfWinners[0] ? sfWinners[1] : sfWinners[0];
 
   // Tally goal scorers/assists across every match.
+  type Counter = { goals: number; assists: number; teamId: string };
+  const counter: Record<string, Counter> = {};
+
   for (const m of allMatches) {
     for (const s of m.scorers) {
       const k = `${s.teamId}::${s.playerName}`;
@@ -267,7 +276,8 @@ export function simulateCLSeason(playerTeam: TeamSnapshot): CLResult {
         (t.home.id === playerTeam.id || t.away.id === playerTeam.id),
     );
     if (myQF) {
-      playerMatches.push(myQF.match);
+      playerMatches.push(myQF.leg1);
+      if (myQF.leg2) playerMatches.push(myQF.leg2);
       if (myQF.winner.id !== playerTeam.id) {
         playerEliminator =
           myQF.home.id === playerTeam.id ? myQF.away : myQF.home;
@@ -278,7 +288,8 @@ export function simulateCLSeason(playerTeam: TeamSnapshot): CLResult {
             (t.home.id === playerTeam.id || t.away.id === playerTeam.id),
         );
         if (mySF) {
-          playerMatches.push(mySF.match);
+          playerMatches.push(mySF.leg1);
+          if (mySF.leg2) playerMatches.push(mySF.leg2);
           if (mySF.winner.id !== playerTeam.id) {
             playerEliminator =
               mySF.home.id === playerTeam.id ? mySF.away : mySF.home;
@@ -286,7 +297,7 @@ export function simulateCLSeason(playerTeam: TeamSnapshot): CLResult {
             playerStage = 'final';
             const myFinal = knockoutTies.find(t => t.round === 'final');
             if (myFinal) {
-              playerMatches.push(myFinal.match);
+              playerMatches.push(myFinal.leg1);
               if (myFinal.winner.id === playerTeam.id) {
                 playerStage = 'champion';
               } else {
@@ -392,7 +403,13 @@ export function clSeasonToCompactJSON(s: CLResult): string {
       round: t.round,
       home: t.home.name,
       away: t.away.name,
-      score: `${t.match.home.goals}-${t.match.away.goals}` +
+      ...(t.leg2
+        ? {
+            leg1: `${t.leg1.home.goals}-${t.leg1.away.goals}`,
+            leg2: `${t.leg2.home.goals}-${t.leg2.away.goals}`,
+          }
+        : {}),
+      agg: `${t.aggHome}-${t.aggAway}` +
         (t.shootout ? ` (pens ${t.shootout.home}-${t.shootout.away})` : ''),
       winner: t.winner.name,
     })),

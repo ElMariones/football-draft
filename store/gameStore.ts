@@ -341,7 +341,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     console.log('[FootballDraft] startSeason mode=', mode, 'complete?', xiComplete(xi));
     if (!xiComplete(xi)) return;
     try {
-      const name = teamName.trim() || 'My XI';
+      const name = teamName.trim() || 'Drafted Team';
       const initials = name
         .split(/\s+/)
         .map(w => w[0])

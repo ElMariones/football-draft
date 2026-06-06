@@ -1,8 +1,8 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
-import { CLResult, CLKnockoutTie, CLGroup } from '@/lib/championsLeague';
+import { useMemo, useState, useEffect } from 'react';
+import { CLResult, CLKnockoutTie } from '@/lib/championsLeague';
 import { MatchResult } from '@/lib/simulation';
 import { getTeam } from '@/data';
 
@@ -11,12 +11,8 @@ interface Props {
   onDone: () => void;
 }
 
-const MATCH_INTERVAL_MS = 900;
-
-type Stage =
-  | { kind: 'group'; matchdayIdx: number }   // 0..5
-  | { kind: 'ko'; tieIdx: number }           // 0..6
-  | { kind: 'done' };
+const VISIBLE_INTERVAL_MS = 900;
+const HIDDEN_INTERVAL_MS = 280;   // bracket-only ticks run faster
 
 const ROUND_LABEL: Record<string, string> = {
   'quarter-finals': 'Quarter-final',
@@ -25,31 +21,29 @@ const ROUND_LABEL: Record<string, string> = {
 };
 
 export default function CLPlayback({ result, onDone }: Props) {
-  // Track playback as: stepIdx in the overall match queue (group matches in
-  // matchday order, then knockout ties in order).
   const queue = useMemo(() => buildQueue(result), [result]);
   const [stepIdx, setStepIdx] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
 
   useEffect(() => {
-    if (!autoplay) return;
-    if (stepIdx >= queue.length) return;
-    const t = setTimeout(() => setStepIdx(i => i + 1), MATCH_INTERVAL_MS);
+    if (!autoplay || stepIdx >= queue.length) return;
+    const isHidden = queue[stepIdx]?.kind === 'ko' && (queue[stepIdx] as KOStep).hidden;
+    const delay = isHidden ? HIDDEN_INTERVAL_MS : VISIBLE_INTERVAL_MS;
+    const t = setTimeout(() => setStepIdx(i => i + 1), delay);
     return () => clearTimeout(t);
-  }, [stepIdx, autoplay, queue.length]);
+  }, [stepIdx, autoplay, queue]);
 
   const visibleSteps = queue.slice(0, stepIdx + 1);
-  const lastVisible = visibleSteps[visibleSteps.length - 1];
+  // Feed only shows non-hidden steps
+  const feedSteps = visibleSteps.filter(s => s.kind === 'group' || !(s as KOStep).hidden);
+  const lastFeedStep = feedSteps[feedSteps.length - 1];
   const allDone = stepIdx >= queue.length;
   const playerTeamId = result.playerTeam.id;
 
-  // Build progressive group tables for the bar on the right side.
   const liveGroups = useMemo(
     () => buildLiveGroups(result, visibleSteps),
     [result, stepIdx],
   );
-
-  const stageHeader = describeStage(lastVisible);
 
   return (
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-6">
@@ -57,7 +51,7 @@ export default function CLPlayback({ result, onDone }: Props) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="text-[10px] tracking-[0.4em] text-cl uppercase font-display">
-              {stageHeader}
+              {describeStage(lastFeedStep)}
             </div>
             <h3 className="font-display text-2xl">Champions League</h3>
           </div>
@@ -73,7 +67,7 @@ export default function CLPlayback({ result, onDone }: Props) {
 
         <div className="space-y-2 max-h-[520px] overflow-y-auto pr-2 no-scrollbar">
           <AnimatePresence initial={false}>
-            {visibleSteps.slice().reverse().map((s, i) => (
+            {feedSteps.slice().reverse().map(s => (
               <StepRow key={s.key} step={s} playerTeamId={playerTeamId} />
             ))}
           </AnimatePresence>
@@ -111,41 +105,65 @@ export default function CLPlayback({ result, onDone }: Props) {
 
 // ---------- queue builder ----------
 
-type QueueStep =
-  | { key: string; kind: 'group'; matchday: number; match: MatchResult; groupLetter: string }
-  | { key: string; kind: 'ko'; tie: CLKnockoutTie; tieIdx: number };
+type GroupStep = {
+  key: string;
+  kind: 'group';
+  matchday: number;
+  match: MatchResult;
+  groupLetter: string;
+};
+
+type KOStep = {
+  key: string;
+  kind: 'ko';
+  tie: CLKnockoutTie;
+  tieIdx: number;
+  leg: 1 | 2;
+  hidden: boolean;   // true = advance bracket but don't show in feed
+};
+
+type QueueStep = GroupStep | KOStep;
 
 function buildQueue(result: CLResult): QueueStep[] {
   const out: QueueStep[] = [];
-  // Group matches are 12 per group × 4 = 48. They were generated unordered;
-  // bucket by matchday so playback advances 8 games per matchday.
-  const flat: { groupLetter: string; m: MatchResult }[] = [];
-  result.groups.forEach(g => {
-    g.matches.forEach(m => flat.push({ groupLetter: g.letter, m }));
-  });
-  flat.sort((a, b) => a.m.matchday - b.m.matchday);
-  flat.forEach(({ groupLetter, m }, i) => {
-    out.push({
-      key: `g-${groupLetter}-${m.matchday}-${i}`,
-      kind: 'group',
-      matchday: m.matchday,
-      match: m,
-      groupLetter,
+  const playerTeamId = result.playerTeam.id;
+
+  // Only the player's group in the match feed.
+  const playerGroup = result.groups.find(g => g.teamIds.includes(playerTeamId))!;
+  playerGroup.matches
+    .slice()
+    .sort((a, b) => a.matchday - b.matchday)
+    .forEach((m, i) => {
+      out.push({
+        key: `g-${playerGroup.letter}-${m.matchday}-${i}`,
+        kind: 'group',
+        matchday: m.matchday,
+        match: m,
+        groupLetter: playerGroup.letter,
+      });
     });
-  });
+
+  // KO ties: each leg is its own step.
+  // Ties that don't involve the player are hidden (bracket-only).
   result.knockout.forEach((tie, i) => {
-    out.push({ key: `ko-${i}`, kind: 'ko', tie, tieIdx: i });
+    const playerInvolved = tie.home.id === playerTeamId || tie.away.id === playerTeamId;
+    out.push({ key: `ko-${i}-leg1`, kind: 'ko', tie, tieIdx: i, leg: 1, hidden: !playerInvolved });
+    if (tie.leg2) {
+      out.push({ key: `ko-${i}-leg2`, kind: 'ko', tie, tieIdx: i, leg: 2, hidden: !playerInvolved });
+    }
   });
+
   return out;
 }
 
 function describeStage(step: QueueStep | undefined): string {
-  if (!step) return 'Group Stage · Matchday 1';
+  if (!step) return 'Group Stage';
   if (step.kind === 'group') return `Group Stage · Matchday ${step.matchday}`;
-  return ROUND_LABEL[step.tie.round] ?? step.tie.round;
+  if (step.tie.round === 'final') return 'Final';
+  return `${ROUND_LABEL[step.tie.round]} · Leg ${step.leg}`;
 }
 
-// ---------- match row ----------
+// ---------- match rows ----------
 
 function StepRow({ step, playerTeamId }: { step: QueueStep; playerTeamId: string }) {
   if (step.kind === 'group') {
@@ -157,15 +175,53 @@ function StepRow({ step, playerTeamId }: { step: QueueStep; playerTeamId: string
       />
     );
   }
+
   const tie = step.tie;
+  const roundLabel = ROUND_LABEL[tie.round] ?? tie.round;
+  const match = step.leg === 1 ? tie.leg1 : tie.leg2!;
+  const title = tie.round === 'final' ? 'Final' : `${roundLabel} · Leg ${step.leg}`;
+  const isLastLeg = step.leg === 2 || tie.round === 'final';
+
   return (
-    <MatchCard
-      match={tie.match}
-      title={ROUND_LABEL[tie.round] ?? tie.round}
-      playerTeamId={playerTeamId}
-      shootout={tie.shootout}
-      isKO
-    />
+    <>
+      <MatchCard
+        match={match}
+        title={title}
+        playerTeamId={playerTeamId}
+        shootout={isLastLeg ? tie.shootout : undefined}
+        isKO
+      />
+      {isLastLeg && tie.leg2 && (
+        <AggregateRow tie={tie} playerTeamId={playerTeamId} />
+      )}
+    </>
+  );
+}
+
+function AggregateRow({ tie, playerTeamId }: { tie: CLKnockoutTie; playerTeamId: string }) {
+  const playerInvolved = tie.home.id === playerTeamId || tie.away.id === playerTeamId;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-lg px-3 py-1.5 flex items-center justify-between text-[11px] border ${
+        playerInvolved ? 'bg-cl/10 border-cl/30' : 'bg-white/3 border-white/10'
+      }`}
+    >
+      <span className="text-white/50 font-display tracking-wider">
+        {ROUND_LABEL[tie.round]} · AGG
+      </span>
+      <span className="font-display text-sm">
+        {tie.home.shortName}&nbsp;
+        <strong>{tie.aggHome}–{tie.aggAway}</strong>
+        &nbsp;{tie.away.shortName}
+        {tie.shootout && (
+          <span className="text-cl text-[10px] ml-2">
+            pens {tie.shootout.home}-{tie.shootout.away}
+          </span>
+        )}
+      </span>
+    </motion.div>
   );
 }
 
@@ -238,61 +294,55 @@ function ColorTag({ color }: { color: string }) {
 
 // ---------- live groups ----------
 
+interface LiveGroupRow {
+  teamId: string;
+  name: string;
+  shortName: string;
+  pts: number;
+  gd: number;
+  gf: number;
+}
+
 interface LiveGroup {
   letter: string;
-  rows: Array<{
-    teamId: string;
-    name: string;
-    shortName: string;
-    pts: number;
-    gd: number;
-    pos: number;
-  }>;
+  rows: Array<LiveGroupRow & { pos: number }>;
 }
 
 function buildLiveGroups(result: CLResult, visible: QueueStep[]): LiveGroup[] {
-  const groupRows: Record<string, Record<string, {
-    teamId: string;
-    name: string;
-    shortName: string;
-    pts: number;
-    gd: number;
-    gf: number;
-  }>> = {};
-  result.groups.forEach(g => {
-    groupRows[g.letter] = {};
+  const playerGroupLetter = result.groups.find(g =>
+    g.teamIds.includes(result.playerTeam.id),
+  )!.letter;
+
+  return result.groups.map(g => {
+    if (g.letter !== playerGroupLetter) {
+      return {
+        letter: g.letter,
+        rows: g.table.map((r, i) => ({
+          teamId: r.teamId, name: r.name, shortName: r.shortName,
+          pts: r.points, gd: r.gd, gf: r.gf, pos: i + 1,
+        })),
+      };
+    }
+
+    const rows: Record<string, LiveGroupRow> = {};
     g.teamIds.forEach(id => {
       const r = g.table.find(x => x.teamId === id)!;
-      groupRows[g.letter][id] = {
-        teamId: id,
-        name: r.name,
-        shortName: r.shortName,
-        pts: 0,
-        gd: 0,
-        gf: 0,
-      };
+      rows[id] = { teamId: id, name: r.name, shortName: r.shortName, pts: 0, gd: 0, gf: 0 };
     });
-  });
-  for (const step of visible) {
-    if (step.kind !== 'group') continue;
-    const g = groupRows[step.groupLetter];
-    const h = g[step.match.home.teamId];
-    const a = g[step.match.away.teamId];
-    if (!h || !a) continue;
-    h.gf += step.match.home.goals; a.gf += step.match.away.goals;
-    h.gd += step.match.home.goals - step.match.away.goals;
-    a.gd += step.match.away.goals - step.match.home.goals;
-    if (step.match.home.goals > step.match.away.goals) h.pts += 3;
-    else if (step.match.home.goals < step.match.away.goals) a.pts += 3;
-    else { h.pts++; a.pts++; }
-  }
-  return result.groups.map(g => {
-    const sorted = Object.values(groupRows[g.letter])
-      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
-    return {
-      letter: g.letter,
-      rows: sorted.map((r, i) => ({ ...r, pos: i + 1 })),
-    };
+    for (const step of visible) {
+      if (step.kind !== 'group') continue;
+      const h = rows[step.match.home.teamId];
+      const a = rows[step.match.away.teamId];
+      if (!h || !a) continue;
+      h.gf += step.match.home.goals; a.gf += step.match.away.goals;
+      h.gd += step.match.home.goals - step.match.away.goals;
+      a.gd += step.match.away.goals - step.match.home.goals;
+      if (step.match.home.goals > step.match.away.goals) h.pts += 3;
+      else if (step.match.home.goals < step.match.away.goals) a.pts += 3;
+      else { h.pts++; a.pts++; }
+    }
+    const sorted = Object.values(rows).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+    return { letter: g.letter, rows: sorted.map((r, i) => ({ ...r, pos: i + 1 })) };
   });
 }
 
@@ -309,17 +359,11 @@ function GroupBox({ group, playerTeamId }: { group: LiveGroup; playerTeamId: str
           <motion.div
             key={r.teamId}
             layout
-            className={`flex items-center justify-between text-[11px] py-0.5 rounded px-1 ${
-              isYou ? 'bg-cl/25' : ''
-            }`}
+            className={`flex items-center justify-between text-[11px] py-0.5 rounded px-1 ${isYou ? 'bg-cl/25' : ''}`}
           >
-            <span className={`tabular-nums w-3 ${advances ? 'text-cl' : 'text-white/30'}`}>
-              {r.pos}
-            </span>
+            <span className={`tabular-nums w-3 ${advances ? 'text-cl' : 'text-white/30'}`}>{r.pos}</span>
             <span className="flex-1 mx-1 truncate">{r.shortName}</span>
-            <span className="tabular-nums text-white/60 w-6 text-right">
-              {r.gd > 0 ? `+${r.gd}` : r.gd}
-            </span>
+            <span className="tabular-nums text-white/60 w-6 text-right">{r.gd > 0 ? `+${r.gd}` : r.gd}</span>
             <span className="tabular-nums font-bold w-6 text-right">{r.pts}</span>
           </motion.div>
         );
@@ -341,21 +385,42 @@ function BracketBox({
   queue: QueueStep[];
   playerTeamId: string;
 }) {
-  // Determine which knockout ties have been "revealed" so far.
-  const revealedTieIdxs = new Set<number>();
+  // Count group steps so we know when the group stage is fully done.
+  const totalGroupSteps = queue.filter(s => s.kind === 'group').length;
+  const shownGroupSteps = queue.slice(0, stepIdx + 1).filter(s => s.kind === 'group').length;
+  const groupDone = shownGroupSteps >= totalGroupSteps;
+
+  // Track which legs are revealed per tie index.
+  const revealedLegs = new Map<number, Set<1 | 2>>();
   queue.slice(0, stepIdx + 1).forEach(s => {
-    if (s.kind === 'ko') revealedTieIdxs.add(s.tieIdx);
+    if (s.kind === 'ko') {
+      if (!revealedLegs.has(s.tieIdx)) revealedLegs.set(s.tieIdx, new Set());
+      revealedLegs.get(s.tieIdx)!.add(s.leg);
+    }
   });
+
+  function legs(t: CLKnockoutTie) {
+    const idx = result.knockout.indexOf(t);
+    const set = revealedLegs.get(idx) ?? new Set<1 | 2>();
+    return { leg1: set.has(1), leg2: set.has(2) };
+  }
+
+  // A tie is fully resolved when its last leg has been revealed.
+  function resolved(t: CLKnockoutTie): boolean {
+    const { leg1, leg2 } = legs(t);
+    return t.round === 'final' ? leg1 : leg2;
+  }
 
   const qfs = result.knockout.filter(t => t.round === 'quarter-finals');
   const sfs = result.knockout.filter(t => t.round === 'semi-finals');
   const fin = result.knockout.find(t => t.round === 'final');
 
-  // Map tie → index in result.knockout for revealed lookup.
-  function rev(t: CLKnockoutTie): boolean {
-    const idx = result.knockout.indexOf(t);
-    return revealedTieIdxs.has(idx);
-  }
+  // Teams visible rules: group done → QF; QF pair resolved → SF; both SF resolved → final.
+  const sfTeams = [
+    resolved(qfs[0]) && resolved(qfs[1]),
+    resolved(qfs[2]) && resolved(qfs[3]),
+  ];
+  const finalTeams = sfTeams[0] && sfTeams[1] && sfs.every(t => resolved(t));
 
   return (
     <div className="glass p-4 cl-glass">
@@ -364,17 +429,31 @@ function BracketBox({
       </div>
       <div className="grid grid-cols-3 gap-2 text-[11px]">
         <Column title="QF">
-          {qfs.map((t, i) => (
-            <TieRow key={i} tie={t} revealed={rev(t)} playerTeamId={playerTeamId} />
-          ))}
+          {qfs.map((t, i) => {
+            const { leg1, leg2 } = legs(t);
+            return (
+              <TieRow key={i} tie={t} teamsVisible={groupDone}
+                leg1Revealed={leg1} leg2Revealed={leg2} playerTeamId={playerTeamId} />
+            );
+          })}
         </Column>
         <Column title="SF">
-          {sfs.map((t, i) => (
-            <TieRow key={i} tie={t} revealed={rev(t)} playerTeamId={playerTeamId} />
-          ))}
+          {sfs.map((t, i) => {
+            const { leg1, leg2 } = legs(t);
+            return (
+              <TieRow key={i} tie={t} teamsVisible={sfTeams[i] ?? false}
+                leg1Revealed={leg1} leg2Revealed={leg2} playerTeamId={playerTeamId} />
+            );
+          })}
         </Column>
         <Column title="FINAL">
-          {fin && <TieRow tie={fin} revealed={rev(fin)} playerTeamId={playerTeamId} />}
+          {fin && (() => {
+            const { leg1 } = legs(fin);
+            return (
+              <TieRow tie={fin} teamsVisible={finalTeams}
+                leg1Revealed={leg1} leg2Revealed={leg1} playerTeamId={playerTeamId} />
+            );
+          })()}
         </Column>
       </div>
     </div>
@@ -392,47 +471,77 @@ function Column({ title, children }: { title: string; children: React.ReactNode 
 
 function TieRow({
   tie,
-  revealed,
+  teamsVisible,
+  leg1Revealed,
+  leg2Revealed,
   playerTeamId,
 }: {
   tie: CLKnockoutTie;
-  revealed: boolean;
+  teamsVisible: boolean;
+  leg1Revealed: boolean;
+  leg2Revealed: boolean;
   playerTeamId: string;
 }) {
   const playerInside = tie.home.id === playerTeamId || tie.away.id === playerTeamId;
+  const fullyRevealed = tie.round === 'final' ? leg1Revealed : leg2Revealed;
+  const partiallyRevealed = leg1Revealed && !leg2Revealed && tie.round !== 'final';
+
   return (
-    <div
-      className={`rounded-md border p-1.5 ${
-        playerInside ? 'border-cl/60 bg-cl/10' : 'border-white/10 bg-black/30'
-      }`}
-    >
-      <Line side={tie.home} won={revealed && tie.winner.id === tie.home.id} revealed={revealed} score={revealed ? tie.match.home.goals : undefined} />
-      <Line side={tie.away} won={revealed && tie.winner.id === tie.away.id} revealed={revealed} score={revealed ? tie.match.away.goals : undefined} />
-      {revealed && tie.shootout && (
+    <div className={`rounded-md border p-1.5 ${
+      playerInside && teamsVisible ? 'border-cl/60 bg-cl/10' : 'border-white/10 bg-black/30'
+    }`}>
+      <TieLine side={tie.home} won={fullyRevealed && tie.winner.id === tie.home.id}
+        fullyRevealed={fullyRevealed} visible={teamsVisible}
+        score={fullyRevealed ? tie.aggHome : undefined} />
+      <TieLine side={tie.away} won={fullyRevealed && tie.winner.id === tie.away.id}
+        fullyRevealed={fullyRevealed} visible={teamsVisible}
+        score={fullyRevealed ? tie.aggAway : undefined} />
+      {fullyRevealed && tie.shootout && (
         <div className="text-[9px] text-cl text-center mt-0.5">
           pens {tie.shootout.home}-{tie.shootout.away}
+        </div>
+      )}
+      {partiallyRevealed && teamsVisible && (
+        <div className="text-[9px] text-white/30 text-center mt-0.5">
+          Leg 1: {tie.leg1.home.goals}-{tie.leg1.away.goals}
         </div>
       )}
     </div>
   );
 }
 
-function Line({
+function TieLine({
   side,
   won,
-  revealed,
+  fullyRevealed,
+  visible,
   score,
 }: {
-  side: { id: string; shortName: string; name: string; colors: { primary: string } };
+  side: { id: string; shortName: string; colors: { primary: string } };
   won: boolean;
-  revealed: boolean;
+  fullyRevealed: boolean;
+  visible: boolean;
   score?: number;
 }) {
+  if (!visible) {
+    return (
+      <div className="flex items-center gap-1.5 py-0.5 opacity-25">
+        <span className="w-1.5 h-3 rounded-full inline-block bg-white/40" />
+        <span className="flex-1 text-[10px]">TBD</span>
+      </div>
+    );
+  }
   return (
-    <div className={`flex items-center gap-1.5 py-0.5 ${won ? 'text-cl font-bold' : revealed ? 'text-white/50' : 'text-white/80'}`}>
+    <motion.div
+      initial={{ opacity: 0, x: -4 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={`flex items-center gap-1.5 py-0.5 ${
+        won ? 'text-cl font-bold' : fullyRevealed ? 'text-white/50' : 'text-white/80'
+      }`}
+    >
       <span className="w-1.5 h-3 rounded-full inline-block" style={{ background: side.colors.primary }} />
       <span className="flex-1 truncate text-[10px]">{side.shortName}</span>
-      {revealed && <span className="font-display tabular-nums w-3 text-right">{score}</span>}
-    </div>
+      {fullyRevealed && <span className="font-display tabular-nums w-3 text-right">{score}</span>}
+    </motion.div>
   );
 }

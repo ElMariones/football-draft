@@ -618,7 +618,7 @@ function LandingPanel({
           type="text"
           value={teamName}
           onChange={e => setTeamName(e.target.value.slice(0, 40))}
-          placeholder="My XI"
+          placeholder="Drafted Team"
           className={`w-full rounded-xl bg-white/5 border border-white/15 px-4 py-3 text-base focus:outline-none placeholder-white/30 ${
             isCL ? 'focus:border-cl/70' : 'focus:border-gold/70'
           }`}
