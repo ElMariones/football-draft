@@ -6,7 +6,7 @@ import { useGameStore, TOTAL_PICKS } from '@/store/gameStore';
 import { getTeam } from '@/data';
 import { ERAS } from '@/data/eras';
 import { Formation } from '@/data/types';
-import { getApiKey } from '@/lib/storage';
+import { getApiKey, getModel } from '@/lib/storage';
 import { seasonToCompactJSON } from '@/lib/simulation';
 import { clSeasonToCompactJSON } from '@/lib/championsLeague';
 import {
@@ -95,6 +95,7 @@ export default function HomePage() {
     setAnalysisError(null);
     try {
       const apiKey = getApiKey();
+      const model = getModel();
       const payload =
         mode === 'cl' && clResult
           ? clSeasonToCompactJSON(clResult)
@@ -104,7 +105,7 @@ export default function HomePage() {
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, payload, mode, language }),
+        body: JSON.stringify({ apiKey, payload, mode, language, model }),
       });
       const json = await res.json();
       if (!res.ok || !json.analysis) throw new Error(json?.error || 'Unknown error');

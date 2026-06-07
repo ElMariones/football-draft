@@ -141,6 +141,8 @@ export const en = {
     cancel: 'Cancel',
     saved: 'Saved ✓',
     save: 'Save',
+    modelLabel: 'Analysis Model',
+    modelHint: 'More powerful models give richer analysis but cost more per request.',
   },
   difficulty: {
     easy:   { label: 'Easy',    tagline: '1 + 1 per pick',  description: 'Each pick comes with 1 team reroll and 1 era reroll. Lots of safety.' },
@@ -319,6 +321,8 @@ export const es: typeof en = {
     cancel: 'Cancelar',
     saved: 'Guardado ✓',
     save: 'Guardar',
+    modelLabel: 'Modelo de análisis',
+    modelHint: 'Los modelos más potentes dan análisis más ricos pero cuestan más por petición.',
   },
   difficulty: {
     easy:   { label: 'Fácil',   tagline: '1 + 1 por selección', description: 'Cada selección incluye 1 cambio de equipo y 1 de era. Sin presión.' },
