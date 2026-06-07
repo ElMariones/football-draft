@@ -31,6 +31,8 @@ import CLFinalResults from '@/components/CLFinalResults';
 import AuthMenu from '@/components/AuthMenu';
 import Link from 'next/link';
 import ShareButton from '@/components/ShareButton';
+import PressConference from '@/components/PressConference';
+import PressConferenceSummary from '@/components/PressConferenceSummary';
 import { useT } from '@/lib/i18n';
 import { useSession } from 'next-auth/react';
 
@@ -39,14 +41,14 @@ export default function HomePage() {
     phase, mode, difficulty, hardcore, formation, teamName, xi, pickIndex,
     currentSpin, selectedPlayerIdx,
     pickRerolls, globalRerolls, rerolling,
-    season, clResult, aiAnalysis, apiKeyPresent, simulationError,
+    season, clResult, aiAnalysis, pressSummary, apiKeyPresent, simulationError,
     savedSeasonId, setSavedSeasonId,
     setMode, setDifficulty, setFormation, setTeamName,
     setApiKeyPresent, setPhase, setHardcore,
     startSpin, finishSpin, rerollTeam, rerollEra,
     rerollTeamAvailable, rerollEraAvailable,
     selectPlayer, cancelSelection, assignToSlot, undoLastPick,
-    autoFillXI, startSeason, setAnalysis, reset,
+    autoFillXI, startSeason, setAnalysis, setPressSummary, reset,
     language, setLanguage,
   } = useGameStore();
 
@@ -165,6 +167,12 @@ export default function HomePage() {
   const diffCfg = DIFFICULTIES[difficulty];
   const rerollT = rerollTeamAvailable();
   const rerollE = rerollEraAvailable();
+
+  const seasonPayloadForAI = useMemo(() => {
+    if (mode === 'cl' && clResult) return clSeasonToCompactJSON(clResult);
+    if (season) return seasonToCompactJSON(season);
+    return '';
+  }, [mode, clResult, season]);
 
   async function requestAnalysis() {
     if (!season && !clResult) return;
@@ -491,6 +499,15 @@ export default function HomePage() {
                 analyzing={analyzing}
                 analysisDisabled={!apiKeyPresent}
               />
+              {apiKeyPresent && (
+                <div className="mt-3 flex justify-center">
+                  <PressConference
+                    payload={seasonPayloadForAI}
+                    mode={mode}
+                    onDone={setPressSummary}
+                  />
+                </div>
+              )}
               {!apiKeyPresent && (
                 <div className="mt-3 text-center text-sm text-white/60">
                   <button onClick={() => setShowKeyModal(true)} className="underline hover:text-white">
@@ -530,6 +547,15 @@ export default function HomePage() {
                 analyzing={analyzing}
                 analysisDisabled={!apiKeyPresent}
               />
+              {apiKeyPresent && (
+                <div className="mt-3 flex justify-center">
+                  <PressConference
+                    payload={seasonPayloadForAI}
+                    mode="cl"
+                    onDone={setPressSummary}
+                  />
+                </div>
+              )}
               {!apiKeyPresent && (
                 <div className="mt-3 text-center text-sm text-white/60">
                   <button onClick={() => setShowKeyModal(true)} className="underline hover:text-white">
@@ -569,6 +595,23 @@ export default function HomePage() {
                 <FantasyTeamBanner playerTeam={season.playerTeam} mode={mode} />
               )}
               <AIAnalysisView analysis={aiAnalysis} />
+            </motion.section>
+          )}
+
+          {/* ============= PRESS CONFERENCE SUMMARY ============= */}
+          {phase === 'press-conference' && pressSummary && (
+            <motion.section
+              key="press-conference"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {mode === 'cl' && clResult && (
+                <FantasyTeamBanner playerTeam={clResult.playerTeam} mode="cl" />
+              )}
+              {(mode === 'pl' || mode === 'll') && season && (
+                <FantasyTeamBanner playerTeam={season.playerTeam} mode={mode} />
+              )}
+              <PressConferenceSummary summary={pressSummary} />
             </motion.section>
           )}
         </div>

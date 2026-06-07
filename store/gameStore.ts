@@ -34,7 +34,8 @@ export type Phase =
   | 'roster-complete'
   | 'simulating'
   | 'finished'
-  | 'analysis';
+  | 'analysis'
+  | 'press-conference';
 
 const TOTAL_PICKS = 11;
 
@@ -67,6 +68,7 @@ interface GameState {
   season: SeasonResult | null;
   clResult: CLResult | null;
   aiAnalysis: string | null;
+  pressSummary: string | null;
   apiKeyPresent: boolean;
   simulationError: string | null;
   savedSeasonId: string | null;
@@ -93,6 +95,7 @@ interface GameState {
   startSeason: (defaultTeamName?: string) => void;
   setSeason: (s: SeasonResult) => void;
   setAnalysis: (a: string) => void;
+  setPressSummary: (s: string) => void;
   setApiKeyPresent: (b: boolean) => void;
   setSavedSeasonId: (id: string | null) => void;
   reset: () => void;
@@ -127,6 +130,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   season: null,
   clResult: null,
   aiAnalysis: null,
+  pressSummary: null,
   apiKeyPresent: false,
   simulationError: null,
   savedSeasonId: null,
@@ -403,6 +407,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setSeason: season => set({ season, phase: 'finished' }),
   setAnalysis: aiAnalysis => set({ aiAnalysis, phase: 'analysis' }),
+  setPressSummary: pressSummary => set({ pressSummary, phase: 'press-conference' }),
   setApiKeyPresent: apiKeyPresent => set({ apiKeyPresent }),
 
   reset: () => {
@@ -420,6 +425,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       season: null,
       clResult: null,
       aiAnalysis: null,
+      pressSummary: null,
       simulationError: null,
       savedSeasonId: null,
     });
