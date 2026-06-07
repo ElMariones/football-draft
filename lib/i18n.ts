@@ -163,6 +163,15 @@ export const en = {
     account: 'Account',
     history: 'My Seasons',
   },
+  leaderboard: {
+    title: 'Leaderboard',
+    open: 'Leaderboard',
+    byOverall: 'By Squad Rating',
+    byResults: 'By Results',
+    loading: 'Loading…',
+    empty: 'No runs yet. Be the first to climb this board.',
+    anonymous: 'Anonymous',
+  },
   history: {
     title: 'Your Seasons',
     empty: 'No saved runs yet. Finish a season while signed in and it will appear here.',
@@ -369,6 +378,15 @@ export const es: typeof en = {
     signOut: 'Cerrar sesión',
     account: 'Cuenta',
     history: 'Mis temporadas',
+  },
+  leaderboard: {
+    title: 'Clasificación',
+    open: 'Clasificación',
+    byOverall: 'Por valoración',
+    byResults: 'Por resultados',
+    loading: 'Cargando…',
+    empty: 'Aún no hay partidas. Sé el primero en escalar esta tabla.',
+    anonymous: 'Anónimo',
   },
   history: {
     title: 'Tus temporadas',

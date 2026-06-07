@@ -83,6 +83,14 @@ export const seasons = pgTable('seasons', {
   payload: jsonb('payload').notNull(),
   // XI snapshot for quick listing without parsing the full payload.
   xiSummary: jsonb('xiSummary').notNull(),
+  // Aggregates for the public leaderboard — denormalised so we don't parse
+  // jsonb on every query. Computed in POST /api/seasons; nullable for rows
+  // saved before this column existed (backfilled lazily).
+  overall: integer('overall'),
+  wins: integer('wins'),
+  draws: integer('draws'),
+  losses: integer('losses'),
+  points: integer('points'),                  // null for CL
 });
 
 export type SeasonRow = typeof seasons.$inferSelect;

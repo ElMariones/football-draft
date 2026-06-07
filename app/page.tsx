@@ -29,6 +29,7 @@ import ApiKeyModal from '@/components/ApiKeyModal';
 import CLPlayback from '@/components/CLPlayback';
 import CLFinalResults from '@/components/CLFinalResults';
 import AuthMenu from '@/components/AuthMenu';
+import Link from 'next/link';
 import { useT } from '@/lib/i18n';
 import { useSession } from 'next-auth/react';
 
@@ -259,6 +260,13 @@ export default function HomePage() {
             >
               {language === 'en' ? 'ES' : 'EN'}
             </button>
+            <Link
+              href="/leaderboard"
+              className="btn-ghost text-sm"
+              title={t.leaderboard.title}
+            >
+              🏆
+            </Link>
             <button
               onClick={() => setShowKeyModal(true)}
               className="btn-ghost text-sm relative"

@@ -3,6 +3,9 @@ import { desc, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { seasons } from '@/lib/db/schema';
+import { computeAggregates } from '@/lib/leaderboardAggregates';
+import type { SeasonResult } from '@/lib/simulation';
+import type { CLResult } from '@/lib/championsLeague';
 
 export const runtime = 'nodejs';
 
@@ -60,6 +63,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  // Compute leaderboard aggregates from the payload at write time so the
+  // /api/leaderboard query can sort without parsing jsonb. Tolerate failures —
+  // a malformed payload shouldn't block the save.
+  let agg: ReturnType<typeof computeAggregates> | null = null;
+  try {
+    agg = computeAggregates(mode, body.payload as SeasonResult | CLResult);
+  } catch {
+    agg = null;
+  }
+
   const [row] = await db
     .insert(seasons)
     .values({
@@ -71,6 +84,11 @@ export async function POST(req: Request) {
       clStage: typeof body.clStage === 'string' ? body.clStage : null,
       payload: body.payload as object,
       xiSummary: body.xiSummary as object,
+      overall: agg?.overall ?? null,
+      wins: agg?.wins ?? null,
+      draws: agg?.draws ?? null,
+      losses: agg?.losses ?? null,
+      points: agg?.points ?? null,
     })
     .returning({ id: seasons.id });
 
