@@ -104,7 +104,7 @@ export default function HomePage() {
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, payload, mode }),
+        body: JSON.stringify({ apiKey, payload, mode, language }),
       });
       const json = await res.json();
       if (!res.ok || !json.analysis) throw new Error(json?.error || 'Unknown error');
