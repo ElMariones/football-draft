@@ -30,7 +30,7 @@ export async function GET(req: Request) {
           SELECT DISTINCT ON (s."userId")
             s.id, s."userId", s.mode, s."teamName", s.formation, s."clStage",
             s.overall, s.wins, s.draws, s.losses, s.points, s."createdAt",
-            u.name AS user_name, u.image AS user_image,
+            COALESCE(u.nickname, u.name) AS user_name, u.image AS user_image,
             CASE s."clStage"
               WHEN 'champion'       THEN 4
               WHEN 'final'          THEN 3
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
           SELECT DISTINCT ON (s."userId")
             s.id, s."userId", s.mode, s."teamName", s.formation, s."finalPosition",
             s.overall, s.wins, s.draws, s.losses, s.points, s."createdAt",
-            u.name AS user_name, u.image AS user_image
+            COALESCE(u.nickname, u.name) AS user_name, u.image AS user_image
           FROM seasons s
           JOIN "user" u ON s."userId" = u.id
           WHERE s.mode = ${mode} AND s.overall IS NOT NULL
@@ -83,7 +83,7 @@ export async function GET(req: Request) {
         SELECT DISTINCT ON (s."userId")
           s.id, s."userId", s.mode, s."teamName", s.formation, s."finalPosition", s."clStage",
           s.overall, s.wins, s.draws, s.losses, s.points, s."createdAt",
-          u.name AS user_name, u.image AS user_image
+          COALESCE(u.nickname, u.name) AS user_name, u.image AS user_image
         FROM seasons s
         JOIN "user" u ON s."userId" = u.id
         WHERE s.mode = ${mode} AND s.overall IS NOT NULL

@@ -30,6 +30,7 @@ import CLPlayback from '@/components/CLPlayback';
 import CLFinalResults from '@/components/CLFinalResults';
 import AuthMenu from '@/components/AuthMenu';
 import Link from 'next/link';
+import ShareButton from '@/components/ShareButton';
 import { useT } from '@/lib/i18n';
 import { useSession } from 'next-auth/react';
 
@@ -39,6 +40,7 @@ export default function HomePage() {
     currentSpin, selectedPlayerIdx,
     pickRerolls, globalRerolls, rerolling,
     season, clResult, aiAnalysis, apiKeyPresent, simulationError,
+    savedSeasonId, setSavedSeasonId,
     setMode, setDifficulty, setFormation, setTeamName,
     setApiKeyPresent, setPhase, setHardcore,
     startSpin, finishSpin, rerollTeam, rerollEra,
@@ -126,11 +128,15 @@ export default function HomePage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    }).catch(() => {
-      // Non-fatal: history just won't have this run.
-      savedSeasonRef.current = null;
-    });
-  }, [sessionStatus, mode, season, clResult, xi]);
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.id) setSavedSeasonId(json.id);
+      })
+      .catch(() => {
+        savedSeasonRef.current = null;
+      });
+  }, [sessionStatus, mode, season, clResult, xi, setSavedSeasonId]);
 
   const teamItems = useMemo(
     () => MODES[mode].pool.map(t => ({
@@ -496,10 +502,16 @@ export default function HomePage() {
               {analysisError && (
                 <div className="mt-3 text-center text-sm text-red-300">{analysisError}</div>
               )}
-              <div className="mt-6 text-center text-xs text-white/40">
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-white/40">
                 <button onClick={downloadJson} className="underline hover:text-white/80">
                   {t.postSim.downloadSeason}
                 </button>
+                <ShareButton
+                  seasonId={savedSeasonId}
+                  mode={mode}
+                  teamName={season.playerTeam.name}
+                  result={`#${season.finalPosition}`}
+                />
               </div>
             </motion.section>
           )}
@@ -529,10 +541,16 @@ export default function HomePage() {
               {analysisError && (
                 <div className="mt-3 text-center text-sm text-red-300">{analysisError}</div>
               )}
-              <div className="mt-6 text-center text-xs text-white/40">
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-white/40">
                 <button onClick={downloadJson} className="underline hover:text-white/80">
                   {t.postSim.downloadCampaign}
                 </button>
+                <ShareButton
+                  seasonId={savedSeasonId}
+                  mode="cl"
+                  teamName={clResult.playerTeam.name}
+                  result={clResult.playerStage === 'champion' ? 'Champions' : clResult.playerStage}
+                />
               </div>
             </motion.section>
           )}

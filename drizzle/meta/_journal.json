@@ -15,6 +15,13 @@
       "when": 1780845960847,
       "tag": "0001_leaderboard_aggregates",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780861560218,
+      "tag": "0002_slippery_warbound",
+      "breakpoints": true
     }
   ]
 }

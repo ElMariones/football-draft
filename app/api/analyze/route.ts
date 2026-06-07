@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { decryptString } from '@/lib/crypto';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,16 @@ export const runtime = 'nodejs';
 // If the user is logged in and did not send an apiKey, falls back to their
 // stored encrypted key (decrypted server-side, never sent to the browser).
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 requests per hour per IP
+  const forwarded = req.headers.get('x-forwarded-for');
+  const ip = forwarded?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
+  const rateCheck = checkRateLimit(`analyze:${ip}`);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: `Rate limit exceeded. Try again in ${rateCheck.resetIn}s (max 10/hour).` },
+      { status: 429 },
+    );
+  }
   let body: { apiKey?: string; payload?: string; model?: string; mode?: 'pl' | 'cl' | 'll'; language?: string };
   try {
     body = await req.json();

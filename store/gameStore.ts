@@ -69,6 +69,7 @@ interface GameState {
   aiAnalysis: string | null;
   apiKeyPresent: boolean;
   simulationError: string | null;
+  savedSeasonId: string | null;
 
   setLanguage: (l: Language) => void;
   setMode: (m: Mode) => void;
@@ -93,6 +94,7 @@ interface GameState {
   setSeason: (s: SeasonResult) => void;
   setAnalysis: (a: string) => void;
   setApiKeyPresent: (b: boolean) => void;
+  setSavedSeasonId: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -127,6 +129,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   aiAnalysis: null,
   apiKeyPresent: false,
   simulationError: null,
+  savedSeasonId: null,
+
+  setSavedSeasonId: savedSeasonId => set({ savedSeasonId }),
 
   setLanguage: language => {
     localStorage.setItem('football-draft-lang', language);
@@ -416,6 +421,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       clResult: null,
       aiAnalysis: null,
       simulationError: null,
+      savedSeasonId: null,
     });
   },
 }));

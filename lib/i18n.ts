@@ -162,6 +162,7 @@ export const en = {
     signOut: 'Sign out',
     account: 'Account',
     history: 'My Seasons',
+    setNickname: 'Set nickname',
   },
   leaderboard: {
     title: 'Leaderboard',
@@ -219,6 +220,8 @@ export const en = {
     unlockVerdict: 'to unlock the AI verdict.',
     downloadSeason: 'Download season JSON',
     downloadCampaign: 'Download campaign JSON',
+    share: 'Share',
+    copied: 'Copied!',
   },
   error: {
     title: 'SOMETHING BROKE',
@@ -378,6 +381,7 @@ export const es: typeof en = {
     signOut: 'Cerrar sesión',
     account: 'Cuenta',
     history: 'Mis temporadas',
+    setNickname: 'Establecer apodo',
   },
   leaderboard: {
     title: 'Clasificación',
@@ -435,6 +439,8 @@ export const es: typeof en = {
     unlockVerdict: 'para desbloquear el veredicto de IA.',
     downloadSeason: 'Descargar JSON de temporada',
     downloadCampaign: 'Descargar JSON de campaña',
+    share: 'Compartir',
+    copied: '¡Copiado!',
   },
   error: {
     title: 'ALGO FALLÓ',

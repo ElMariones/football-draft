@@ -22,6 +22,8 @@ export const users = pgTable('user', {
   // App-specific: encrypted OpenAI key + selected model. Never returned to the client.
   encryptedApiKey: text('encryptedApiKey'),
   openaiModel: text('openaiModel'),
+  // Custom display name for leaderboard/sharing (distinct from Google profile name).
+  nickname: text('nickname'),
 });
 
 export const accounts = pgTable(
