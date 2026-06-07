@@ -32,12 +32,12 @@ import { useT } from '@/lib/i18n';
 
 export default function HomePage() {
   const {
-    phase, mode, difficulty, formation, teamName, xi, pickIndex,
+    phase, mode, difficulty, hardcore, formation, teamName, xi, pickIndex,
     currentSpin, selectedPlayerIdx,
     pickRerolls, globalRerolls, rerolling,
     season, clResult, aiAnalysis, apiKeyPresent, simulationError,
     setMode, setDifficulty, setFormation, setTeamName,
-    setApiKeyPresent, setPhase,
+    setApiKeyPresent, setPhase, setHardcore,
     startSpin, finishSpin, rerollTeam, rerollEra,
     rerollTeamAvailable, rerollEraAvailable,
     selectPlayer, cancelSelection, assignToSlot, undoLastPick,
@@ -216,10 +216,12 @@ export default function HomePage() {
                   <LandingPanel
                     mode={mode}
                     difficulty={difficulty}
+                    hardcore={hardcore}
                     formation={formation}
                     teamName={teamName}
                     setMode={setMode}
                     setDifficulty={setDifficulty}
+                    setHardcore={setHardcore}
                     setFormation={setFormation}
                     setTeamName={setTeamName}
                     onSpin={startSpin}
@@ -562,10 +564,12 @@ function RerollButton({
 function LandingPanel({
   mode,
   difficulty,
+  hardcore,
   formation,
   teamName,
   setMode,
   setDifficulty,
+  setHardcore,
   setFormation,
   setTeamName,
   onSpin,
@@ -573,10 +577,12 @@ function LandingPanel({
 }: {
   mode: Mode;
   difficulty: keyof typeof DIFFICULTIES;
+  hardcore: boolean;
   formation: Formation;
   teamName: string;
   setMode: (m: Mode) => void;
   setDifficulty: (d: keyof typeof DIFFICULTIES) => void;
+  setHardcore: (h: boolean) => void;
   setFormation: (f: Formation) => void;
   setTeamName: (n: string) => void;
   onSpin: () => void;
@@ -646,6 +652,36 @@ function LandingPanel({
         </div>
         <DifficultyPicker value={difficulty} onChange={setDifficulty} />
       </div>
+
+      <button
+        type="button"
+        onClick={() => setHardcore(!hardcore)}
+        className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 transition-colors text-left ${
+          hardcore
+            ? 'border-red-500/50 bg-red-500/10'
+            : 'border-white/10 bg-white/5 hover:bg-white/10'
+        }`}
+      >
+        <div>
+          <div className={`font-display text-sm ${hardcore ? 'text-red-400' : 'text-white/80'}`}>
+            {t.landing.hardcore}
+          </div>
+          <div className="text-[10px] text-white/45 mt-0.5 max-w-[260px]">
+            {t.landing.hardcoreDesc}
+          </div>
+        </div>
+        <div
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ml-3 ${
+            hardcore ? 'bg-red-500' : 'bg-white/20'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              hardcore ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </div>
+      </button>
 
       <div className="flex flex-col items-center pt-2 gap-2">
         <motion.button

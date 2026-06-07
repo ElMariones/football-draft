@@ -25,6 +25,8 @@ export const en = {
     difficulty: 'Difficulty',
     spinPick1: 'SPIN PICK 1',
     autoFill: '⚡ Auto-fill XI (debug)',
+    hardcore: 'Hardcore Mode',
+    hardcoreDesc: 'Player ratings are hidden during the draft. Trust your knowledge, not the numbers.',
   },
   draft: {
     yourXI: 'Your XI',
@@ -205,6 +207,8 @@ export const es: typeof en = {
     difficulty: 'Dificultad',
     spinPick1: 'GIRAR SELECCIÓN 1',
     autoFill: '⚡ Rellenar XI (debug)',
+    hardcore: 'Modo Extremo',
+    hardcoreDesc: 'Las valoraciones están ocultas durante el draft. Confía en tu conocimiento, no en los números.',
   },
   draft: {
     yourXI: 'Tu XI',

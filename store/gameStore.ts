@@ -53,6 +53,7 @@ interface GameState {
   language: Language;
   mode: Mode;
   difficulty: Difficulty;
+  hardcore: boolean;
   formation: Formation;
   teamName: string;
   xi: DraftSlot[];
@@ -72,6 +73,7 @@ interface GameState {
   setLanguage: (l: Language) => void;
   setMode: (m: Mode) => void;
   setDifficulty: (d: Difficulty) => void;
+  setHardcore: (h: boolean) => void;
   setFormation: (f: Formation) => void;
   setTeamName: (n: string) => void;
   setPhase: (p: Phase) => void;
@@ -109,6 +111,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   language: detectLanguage(),
   mode: 'pl',
   difficulty: 'normal',
+  hardcore: false,
   formation: DEFAULT_FORMATION,
   teamName: '',
   xi: buildEmptyXI(DEFAULT_FORMATION),
@@ -129,6 +132,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     localStorage.setItem('football-draft-lang', language);
     set({ language });
   },
+
+  setHardcore: hardcore => set({ hardcore }),
 
   setMode: mode => {
     // Only allow before drafting starts. Changing mode resets the XI.

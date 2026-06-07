@@ -9,6 +9,7 @@ interface Props {
   secondaryColor?: string;
   highlighted?: boolean;
   size?: 'sm' | 'md';
+  hideOvr?: boolean;
 }
 
 function ratingTier(overall: number): 'gold' | 'silver' | 'bronze' {
@@ -33,6 +34,11 @@ const TIER_STYLES = {
     text: '#2a1402',
     border: '1px solid rgba(196, 122, 64, 0.6)',
   },
+  hidden: {
+    bg: 'linear-gradient(135deg, #1e2130 0%, #252a3a 50%, #1a1e2c 100%)',
+    text: '#6b7280',
+    border: '1px solid rgba(255,255,255,0.12)',
+  },
 };
 
 export default function PlayerCard({
@@ -41,8 +47,9 @@ export default function PlayerCard({
   secondaryColor,
   highlighted,
   size = 'md',
+  hideOvr = false,
 }: Props) {
-  const tier = ratingTier(player.overall);
+  const tier = hideOvr ? 'hidden' : ratingTier(player.overall);
   const style = TIER_STYLES[tier];
   const isCompact = size === 'sm';
 
@@ -70,7 +77,9 @@ export default function PlayerCard({
         <div className="absolute top-0.5 left-1 text-[10px] font-bold leading-none">
           {player.position}
         </div>
-        <div className="text-3xl sm:text-4xl leading-none mt-2">{player.overall}</div>
+        <div className={`leading-none mt-2 ${isCompact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}>
+          {hideOvr ? '?' : player.overall}
+        </div>
         <div
           className="absolute bottom-0 inset-x-0 h-1.5 rounded-b-xl"
           style={{ background: primaryColor }}

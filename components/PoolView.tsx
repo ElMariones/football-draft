@@ -5,6 +5,7 @@ import { Player, Team, EraKey } from '@/data/types';
 import { ERAS } from '@/data/eras';
 import { eligibleSlotIndices, DraftSlot } from '@/lib/draft';
 import { useT } from '@/lib/i18n';
+import { useGameStore } from '@/store/gameStore';
 
 interface Props {
   team: Team;
@@ -17,6 +18,7 @@ interface Props {
 
 export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolling }: Props) {
   const t = useT();
+  const hideOvr = useGameStore(s => s.hardcore);
   const teamEra = team.eras[era];
   if (!teamEra) return null;
   const eraLabel = ERAS.find(e => e.key === era)?.label ?? era;
@@ -105,6 +107,7 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
                 noSlotLabel={t.pool.noSlot}
                 onClick={() => fits && onSelect(i)}
                 index={i}
+                hideOvr={hideOvr}
               />
             );
           })}
@@ -115,7 +118,7 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
 }
 
 function PoolPlayerCard({
-  player, fits, selected, canFillLabel, noSlotLabel, onClick, index,
+  player, fits, selected, canFillLabel, noSlotLabel, onClick, index, hideOvr,
 }: {
   player: Player;
   fits: boolean;
@@ -124,7 +127,16 @@ function PoolPlayerCard({
   noSlotLabel: string;
   onClick: () => void;
   index: number;
+  hideOvr: boolean;
 }) {
+  const tierClass = hideOvr
+    ? 'bg-gradient-to-br from-slate-700 to-slate-900 text-slate-400'
+    : player.overall >= 85
+    ? 'bg-gradient-to-br from-yellow-200 to-yellow-600 text-black'
+    : player.overall >= 75
+    ? 'bg-gradient-to-br from-white to-gray-400 text-black'
+    : 'bg-gradient-to-br from-orange-300 to-orange-700 text-black';
+
   return (
     <motion.button
       type="button"
@@ -144,17 +156,11 @@ function PoolPlayerCard({
       }`}
     >
       <div
-        className={`flex flex-col items-center justify-center rounded-md font-display ${
-          player.overall >= 85
-            ? 'bg-gradient-to-br from-yellow-200 to-yellow-600 text-black'
-            : player.overall >= 75
-            ? 'bg-gradient-to-br from-white to-gray-400 text-black'
-            : 'bg-gradient-to-br from-orange-300 to-orange-700 text-black'
-        }`}
+        className={`flex flex-col items-center justify-center rounded-md font-display ${tierClass}`}
         style={{ width: 42, height: 50 }}
       >
         <div className="text-[8px] font-bold leading-none mt-1">{player.position}</div>
-        <div className="text-xl leading-none">{player.overall}</div>
+        <div className="text-xl leading-none">{hideOvr ? '?' : player.overall}</div>
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold truncate">{player.name}</div>

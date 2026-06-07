@@ -2,7 +2,10 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { DraftSlot } from '@/lib/draft';
+import { useGameStore } from '@/store/gameStore';
 import PlayerCard from './PlayerCard';
+
+const DRAFT_PHASES = new Set(['idle', 'spinning', 'reveal', 'placing', 'roster-complete']);
 
 interface Props {
   xi: DraftSlot[];
@@ -18,6 +21,7 @@ export default function FantasyXIBoard({
   placing = false,
 }: Props) {
   const set = new Set(highlightedSlots);
+  const hideOvr = useGameStore(s => s.hardcore && DRAFT_PHASES.has(s.phase));
 
   return (
     <div className="relative w-full mx-auto aspect-[2/3]">
@@ -79,6 +83,7 @@ export default function FantasyXIBoard({
                     primaryColor="#FFD700"
                     secondaryColor="#0a0a0f"
                     size="sm"
+                    hideOvr={hideOvr}
                   />
                 </motion.div>
               ) : (
