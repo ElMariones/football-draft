@@ -250,10 +250,9 @@ export function simulateMatch(
 
 // ---------- season sim ----------
 
-function generateRivals(playerTeamId: string): TeamSnapshot[] {
-  // Only Premier League clubs — slice to the other 19 teams in a 20-team league.
-  const pool = PL_TEAMS.filter(t => t.id !== playerTeamId);
-  const shuffled = shuffle([...pool]).slice(0, 19);
+function generateRivals(playerTeamId: string, pool: import('@/data/types').Team[] = PL_TEAMS): TeamSnapshot[] {
+  const eligible = pool.filter(t => t.id !== playerTeamId);
+  const shuffled = shuffle([...eligible]).slice(0, 19);
   return shuffled.map(t => snapshotTeam(t, randomEra(t)));
 }
 
@@ -380,8 +379,11 @@ export function buildFantasySnapshot(
 }
 
 // Runs a full season for any pre-built TeamSnapshot.
-export function simulateSeasonForSnapshot(playerTeam: TeamSnapshot): SeasonResult {
-  const rivals = generateRivals(playerTeam.id);
+export function simulateSeasonForSnapshot(
+  playerTeam: TeamSnapshot,
+  pool?: import('@/data/types').Team[],
+): SeasonResult {
+  const rivals = generateRivals(playerTeam.id, pool);
   const all = [playerTeam, ...rivals];
 
   const fixtures = buildFixtures(all);

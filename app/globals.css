@@ -100,3 +100,30 @@ body.cl-mode {
   border-color: rgba(61, 169, 252, 0.25) !important;
   background: linear-gradient(180deg, rgba(12, 45, 82, 0.35), rgba(10, 10, 15, 0.5)) !important;
 }
+
+/* Champions League shimmer */
+.ll-shimmer {
+  background: linear-gradient(90deg, #C8102E 0%, #FF6B85 50%, #C8102E 100%);
+  background-size: 1000px 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+/* La Liga theme overlay */
+.ll-mode body,
+body.ll-mode {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(200, 16, 46, 0.15), transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(90, 0, 20, 0.3), transparent 55%),
+    #0f0508 !important;
+}
+
+.text-ll { color: #C8102E; }
+.bg-ll { background-color: #C8102E; }
+
+.ll-glass {
+  border-color: rgba(200, 16, 46, 0.25) !important;
+  background: linear-gradient(180deg, rgba(90, 0, 20, 0.3), rgba(10, 10, 15, 0.5)) !important;
+}

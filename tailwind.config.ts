@@ -22,6 +22,10 @@ const config: Config = {
           dark: '#0C2D52',
           light: '#A0D8FF',
         },
+        ll: {
+          DEFAULT: '#C8102E',
+          dark: '#7B0A1E',
+        },
       },
       fontFamily: {
         display: ['"Bebas Neue"', 'Impact', 'sans-serif'],

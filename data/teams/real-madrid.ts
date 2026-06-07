@@ -47,7 +47,7 @@ export const realMadrid: Team = {
         { name: 'Steve McManaman', position: 'RM', overall: 83 },
         { name: 'Fernando Redondo', position: 'CM', overall: 89 },
         { name: 'Clarence Seedorf', position: 'CM', overall: 85 },
-        { name: 'Raúl', position: 'LM', overall: 90 },
+        { name: 'Raúl', position: 'ST', overall: 90 },
         { name: 'Predrag Mijatović', position: 'ST', overall: 85 },
         { name: 'Davor Šuker', position: 'ST', overall: 86 },
         { name: 'Iker Casillas', position: 'GK', overall: 80 },

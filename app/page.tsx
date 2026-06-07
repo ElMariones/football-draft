@@ -49,8 +49,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
+    document.body.classList.remove('cl-mode', 'll-mode');
     if (mode === 'cl') document.body.classList.add('cl-mode');
-    else document.body.classList.remove('cl-mode');
+    else if (mode === 'll') document.body.classList.add('ll-mode');
   }, [mode]);
 
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -368,14 +369,14 @@ export default function HomePage() {
             </motion.section>
           )}
 
-          {/* ============= PL SEASON PLAYBACK ============= */}
-          {phase === 'simulating' && mode === 'pl' && season && (
+          {/* ============= PL / LL SEASON PLAYBACK ============= */}
+          {phase === 'simulating' && (mode === 'pl' || mode === 'll') && season && (
             <motion.section
               key="simulating-pl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <FantasyTeamBanner playerTeam={season.playerTeam} mode="pl" />
+              <FantasyTeamBanner playerTeam={season.playerTeam} mode={mode} />
               <SeasonView season={season} onDone={() => setPhase('finished')} />
             </motion.section>
           )}
@@ -392,14 +393,14 @@ export default function HomePage() {
             </motion.section>
           )}
 
-          {/* ============= PL FINISHED ============= */}
-          {phase === 'finished' && mode === 'pl' && season && (
+          {/* ============= PL / LL FINISHED ============= */}
+          {phase === 'finished' && (mode === 'pl' || mode === 'll') && season && (
             <motion.section
               key="finished-pl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <FantasyTeamBanner playerTeam={season.playerTeam} mode="pl" />
+              <FantasyTeamBanner playerTeam={season.playerTeam} mode={mode} />
               <FinalResults
                 season={season}
                 onRequestAnalysis={requestAnalysis}
@@ -468,8 +469,8 @@ export default function HomePage() {
               {mode === 'cl' && clResult && (
                 <FantasyTeamBanner playerTeam={clResult.playerTeam} mode="cl" />
               )}
-              {mode === 'pl' && season && (
-                <FantasyTeamBanner playerTeam={season.playerTeam} mode="pl" />
+              {(mode === 'pl' || mode === 'll') && season && (
+                <FantasyTeamBanner playerTeam={season.playerTeam} mode={mode} />
               )}
               <AIAnalysisView analysis={aiAnalysis} />
             </motion.section>
@@ -590,10 +591,13 @@ function LandingPanel({
 }) {
   const t = useT();
   const isCL = mode === 'cl';
+  const isLL = mode === 'll';
   const ctaClass = isCL
     ? 'bg-gradient-to-r from-cl to-cl-dark text-white shadow-[0_0_30px_rgba(61,169,252,0.4)] hover:shadow-[0_0_50px_rgba(61,169,252,0.7)]'
+    : isLL
+    ? 'bg-gradient-to-r from-[#C8102E] to-[#7B0A1E] text-white shadow-[0_0_30px_rgba(200,16,46,0.4)] hover:shadow-[0_0_50px_rgba(200,16,46,0.7)]'
     : 'bg-gradient-to-r from-gold to-gold-dark text-black shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:shadow-[0_0_50px_rgba(255,215,0,0.7)]';
-  const headlineClass = isCL ? 'cl-shimmer' : 'shimmer';
+  const headlineClass = isCL ? 'cl-shimmer' : isLL ? 'll-shimmer' : 'shimmer';
 
   return (
     <motion.div
@@ -607,13 +611,13 @@ function LandingPanel({
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           className="text-6xl sm:text-7xl mb-2"
         >
-          {isCL ? '⭐' : '⚽'}
+          {isCL ? '⭐' : isLL ? '🔴' : '⚽'}
         </motion.div>
         <h1 className={`font-display text-4xl sm:text-6xl leading-none mb-2 ${headlineClass}`}>
-          {isCL ? t.landing.headingCL : t.landing.headingPL}
+          {isCL ? t.landing.headingCL : isLL ? t.landing.headingLL : t.landing.headingPL}
         </h1>
         <p className="max-w-md mx-auto text-white/70 text-sm">
-          {isCL ? t.landing.descCL : t.landing.descPL}
+          {isCL ? t.landing.descCL : isLL ? t.landing.descLL : t.landing.descPL}
         </p>
       </div>
 
@@ -634,7 +638,7 @@ function LandingPanel({
           onChange={e => setTeamName(e.target.value.slice(0, 40))}
           placeholder={t.landing.teamNamePlaceholder}
           className={`w-full rounded-xl bg-white/5 border border-white/15 px-4 py-3 text-base focus:outline-none placeholder-white/30 ${
-            isCL ? 'focus:border-cl/70' : 'focus:border-gold/70'
+            isCL ? 'focus:border-cl/70' : isLL ? 'focus:border-[#C8102E]/70' : 'focus:border-gold/70'
           }`}
         />
       </div>
@@ -865,13 +869,14 @@ function FantasyTeamBanner({
 }) {
   const t = useT();
   const isCL = mode === 'cl';
+  const isLL = mode === 'll';
   return (
     <motion.div
       initial={{ opacity: 0, y: -16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={`relative overflow-hidden rounded-3xl mb-2 border ${
-        isCL ? 'border-cl/40' : 'border-gold/30'
+        isCL ? 'border-cl/40' : isLL ? 'border-[#C8102E]/30' : 'border-gold/30'
       }`}
     >
       <div
@@ -879,6 +884,8 @@ function FantasyTeamBanner({
         style={{
           background: isCL
             ? 'linear-gradient(135deg, rgba(61,169,252,0.25) 0%, rgba(12,45,82,0.4) 50%, #050b18 100%)'
+            : isLL
+            ? 'linear-gradient(135deg, rgba(200,16,46,0.25) 0%, rgba(90,0,20,0.4) 50%, #0a0a0f 100%)'
             : 'linear-gradient(135deg, rgba(255,215,0,0.25) 0%, rgba(255,215,0,0.05) 50%, #0a0a0f 100%)',
         }}
       />
@@ -888,18 +895,20 @@ function FantasyTeamBanner({
         style={{
           background: isCL
             ? 'radial-gradient(circle at top right, rgba(61,169,252,0.3), transparent 60%)'
+            : isLL
+            ? 'radial-gradient(circle at top right, rgba(200,16,46,0.25), transparent 60%)'
             : 'radial-gradient(circle at top right, rgba(255,215,0,0.25), transparent 60%)',
         }}
       />
       <div className="relative px-5 sm:px-8 py-5 sm:py-7 flex items-center gap-4 sm:gap-6">
         <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center font-display text-2xl sm:text-3xl shadow-xl bg-black/60 ${
-          isCL ? 'text-cl' : 'text-gold'
+          isCL ? 'text-cl' : isLL ? 'text-[#C8102E]' : 'text-gold'
         }`}>
           {playerTeam.shortName}
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] sm:text-xs tracking-[0.3em] text-white/70 uppercase">
-            {isCL ? t.banner.clLabel : t.banner.plLabel}
+            {isCL ? t.banner.clLabel : isLL ? t.banner.llLabel : t.banner.plLabel}
           </div>
           <div className="font-display text-2xl sm:text-4xl text-white truncate">
             {playerTeam.name}

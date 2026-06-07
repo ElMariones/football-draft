@@ -1,10 +1,10 @@
 import { FORMATION_LAYOUTS } from '@/data/formations';
 import { EraKey, Formation, Player, Position, Team } from '@/data/types';
-import { PL_TEAMS, CL_TEAMS } from '@/data';
+import { PL_TEAMS, CL_TEAMS, LL_TEAMS } from '@/data';
 
 // ---------- competition mode ----------
 
-export type Mode = 'pl' | 'cl';
+export type Mode = 'pl' | 'cl' | 'll';
 
 export interface ModeConfig {
   id: Mode;
@@ -31,6 +31,14 @@ export const MODES: Record<Mode, ModeConfig> = {
     description: 'Draft from European royalty — the top 6 English plus Real, Barça, Bayern, Juve, Milan and more. Conquer Europe through groups and a single-leg KO bracket.',
     pool: CL_TEAMS,
     primary: '#3DA9FC',
+  },
+  ll: {
+    id: 'll',
+    label: 'La Liga',
+    tagline: '20 clubs · 38 games',
+    description: 'Draft from the 20 Spanish La Liga clubs across the eras. Play a full 38-game Spanish season.',
+    pool: LL_TEAMS,
+    primary: '#C8102E',
   },
 };
 

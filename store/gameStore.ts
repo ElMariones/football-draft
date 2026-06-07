@@ -370,6 +370,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         colors:
           mode === 'cl'
             ? { primary: '#3DA9FC', secondary: '#0a0a0f' }
+            : mode === 'll'
+            ? { primary: '#C8102E', secondary: '#FFFFFF' }
             : undefined,
       });
       if (mode === 'cl') {
@@ -380,7 +382,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         });
         set({ clResult, season: null, phase: 'simulating', simulationError: null });
       } else {
-        const season = simulateSeasonForSnapshot(snapshot);
+        const season = simulateSeasonForSnapshot(snapshot, MODES[mode].pool);
         console.log('[FootballDraft] PL simulated', {
           fixtures: season.fixtures.length,
           finalPosition: season.finalPosition,

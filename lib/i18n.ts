@@ -16,8 +16,10 @@ export const en = {
   landing: {
     headingPL: 'BUILD YOUR XI',
     headingCL: 'CONQUER EUROPE',
+    headingLL: 'DOMINA LA LIGA',
     descPL: 'Spin for a Premier League side. Pick one player. Repeat 11 times to forge your fantasy XI, then play out a full season.',
     descCL: 'Spin for a European giant. Pick one player. Repeat 11 times, then group stage and knockouts await.',
+    descLL: 'Spin for a Spanish La Liga side. Pick one player. Repeat 11 times to build your fantasy XI, then play a full 38-game season in Spain.',
     competition: 'Competition',
     teamName: 'Team Name',
     teamNamePlaceholder: 'Drafted Team',
@@ -154,6 +156,7 @@ export const en = {
   mode: {
     pl: { label: 'Premier League',   tagline: '20 teams · 38 games',           description: 'Draft from any of the 20 Premier League clubs across every era. Play a full 38-game league season.' },
     cl: { label: 'Champions League', tagline: '16 clubs · groups + knockouts', description: 'Draft from European royalty — the top 6 English plus Real, Barça, Bayern, Juve, Milan and more. Conquer Europe through groups and a single-leg KO bracket.' },
+    ll: { label: 'La Liga',          tagline: '20 clubs · 38 games',           description: 'Draft from the 20 Spanish La Liga clubs across the eras — from Real Madrid\'s Galácticos to Celta\'s Aspas generation. Play a full 38-game Spanish season.' },
   },
   formations: {
     '4-3-3':  'Classic three-up-top',
@@ -171,6 +174,7 @@ export const en = {
   banner: {
     clLabel: 'Champions League · all-time XI',
     plLabel: 'All-time fantasy XI',
+    llLabel: 'La Liga · all-time XI',
     formation: 'FORMATION',
     att: 'ATT', def: 'DEF', ovr: 'OVR',
   },
@@ -198,8 +202,10 @@ export const es: typeof en = {
   landing: {
     headingPL: 'FORMA TU XI',
     headingCL: 'CONQUISTA EUROPA',
+    headingLL: 'DOMINA LA LIGA',
     descPL: 'Gira para obtener un equipo de la Premier League. Elige un jugador. Repite 11 veces para forjar tu XI fantasy y juega una temporada completa.',
     descCL: 'Gira para obtener un gigante europeo. Elige un jugador. Repite 11 veces y enfréntate a la fase de grupos y las eliminatorias.',
+    descLL: 'Gira para obtener un equipo de La Liga española. Elige un jugador. Repite 11 veces y juega una temporada completa de 38 partidos en España.',
     competition: 'Competición',
     teamName: 'Nombre del equipo',
     teamNamePlaceholder: 'Mi equipo',
@@ -336,6 +342,7 @@ export const es: typeof en = {
   mode: {
     pl: { label: 'Premier League',   tagline: '20 equipos · 38 partidos',        description: 'Elige entre los 20 clubes de la Premier League a través de todas las eras. Juega una temporada completa de 38 partidos.' },
     cl: { label: 'Champions League', tagline: '16 clubes · grupos + eliminatorias', description: 'Elige entre la realeza europea — el top 6 inglés más Real, Barça, Bayern, Juve, Milán y más. Conquista Europa en grupos y eliminatorias.' },
+    ll: { label: 'La Liga',          tagline: '20 clubes · 38 partidos',          description: 'Elige entre los 20 clubes de La Liga española — desde los Galácticos del Real Madrid hasta la generación de Aspas en el Celta. Juega una temporada completa.' },
   },
   formations: {
     '4-3-3':  'El clásico tres arriba',
@@ -353,6 +360,7 @@ export const es: typeof en = {
   banner: {
     clLabel: 'Champions League · XI histórico',
     plLabel: 'XI fantasy histórico',
+    llLabel: 'La Liga · XI histórico',
     formation: 'FORMACIÓN',
     att: 'ATQ', def: 'DEF', ovr: 'GLB',
   },

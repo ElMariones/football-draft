@@ -33,6 +33,23 @@ import { acMilan } from './teams/ac-milan';
 import { interMilan } from './teams/inter-milan';
 import { psg } from './teams/psg';
 import { porto } from './teams/porto';
+import { athleticBilbao } from './teams/athletic-bilbao';
+import { valencia } from './teams/valencia';
+import { sevilla } from './teams/sevilla';
+import { espanyol } from './teams/espanyol';
+import { realSociedad } from './teams/real-sociedad';
+import { realBetis } from './teams/real-betis';
+import { celtaDeVigo } from './teams/celta-de-vigo';
+import { villarreal } from './teams/villarreal';
+import { mallorca } from './teams/mallorca';
+import { malaga } from './teams/malaga';
+import { osasuna } from './teams/osasuna';
+import { getafe } from './teams/getafe';
+import { rayoVallecano } from './teams/rayo-vallecano';
+import { almeria } from './teams/almeria';
+import { oviedo } from './teams/oviedo';
+import { levante } from './teams/levante';
+import { alaves } from './teams/alaves';
 
 // All 20 Premier League teams — the pool used by Premier League mode.
 export const PL_TEAMS: Team[] = [
@@ -85,9 +102,40 @@ export const CL_TEAMS: Team[] = [
   ...EUROPEAN_TEAMS,
 ];
 
+// All 20 La Liga clubs — the pool used by La Liga mode.
+// Real Madrid, Barcelona, and Atlético are shared with CL_TEAMS.
+export const LL_TEAMS: Team[] = [
+  realMadrid,
+  barcelona,
+  atleticoMadrid,
+  athleticBilbao,
+  valencia,
+  sevilla,
+  espanyol,
+  realSociedad,
+  realBetis,
+  celtaDeVigo,
+  villarreal,
+  mallorca,
+  malaga,
+  osasuna,
+  getafe,
+  rayoVallecano,
+  almeria,
+  oviedo,
+  levante,
+  alaves,
+];
+
 // Backwards-compatible: TEAMS is the union of every club (used as the
-// authoritative `getTeam(id)` lookup table).
-export const TEAMS: Team[] = [...PL_TEAMS, ...EUROPEAN_TEAMS];
+// authoritative `getTeam(id)` lookup table). Deduped by id — LL shares
+// Real Madrid, Barcelona, and Atlético with EUROPEAN_TEAMS.
+const seen = new Set<string>();
+export const TEAMS: Team[] = [...PL_TEAMS, ...EUROPEAN_TEAMS, ...LL_TEAMS].filter(t => {
+  if (seen.has(t.id)) return false;
+  seen.add(t.id);
+  return true;
+});
 
 export function getTeam(id: string): Team | undefined {
   return TEAMS.find(t => t.id === id);

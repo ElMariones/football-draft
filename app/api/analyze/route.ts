@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 // Receives { apiKey, payload } where payload is the compact JSON
 // produced by lib/simulation.seasonToCompactJSON.
 export async function POST(req: NextRequest) {
-  let body: { apiKey?: string; payload?: string; model?: string; mode?: 'pl' | 'cl'; language?: string };
+  let body: { apiKey?: string; payload?: string; model?: string; mode?: 'pl' | 'cl' | 'll'; language?: string };
   try {
     body = await req.json();
   } catch {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const apiKey = body.apiKey?.trim();
   const payload = body.payload;
   const model = body.model || 'gpt-4o-mini';
-  const mode = body.mode === 'cl' ? 'cl' : 'pl';
+  const mode = body.mode === 'cl' ? 'cl' : body.mode === 'll' ? 'll' : 'pl';
   const isES = body.language === 'es';
 
   if (!apiKey) {
@@ -93,8 +93,34 @@ Escribe un informe de campaña en 4 párrafos (entre 250 y 350 palabras en total
 
 Estilo: frases directas, imágenes vívidas, evoca las noches europeas y la gloria continental. Sin encabezados markdown, sin viñetas, sin etiquetas de sección. Prosa fluida y continua, línea en blanco entre párrafos. Responde siempre en español.`;
 
+  const llPromptEN = `You are a passionate football journalist writing for a Spanish football digest. You receive a JSON snapshot of a fan's simulated La Liga season with a hand-picked all-time fantasy XI built from legendary Spanish league clubs.
+
+${sharedPrimeRules}
+
+Write an immersive 4-paragraph season verdict (around 250-350 words total). Cover:
+1. Headline of the season — final position and the overall feeling of the campaign in Spain.
+2. The MVP and standout performers — name them and be vivid about their goals/assists. Reference any iconic La Liga players by their club legacy.
+3. Tactical read of how the XI fitted together (formation, ATT/DEF/OVR balance, surprising contributors from defence or midfield).
+4. A final dramatic verdict and a one-line prediction for next season. Reference the Spanish football spirit.
+
+Style: punchy sentences, vivid imagery, evoke the passion of Spanish football. No markdown headings, no bullet points, no section labels. Pure flowing prose, blank line between paragraphs. Answer in English.`;
+
+  const llPromptES = `Eres un apasionado periodista de fútbol que escribe para una revista española. Recibes un JSON con los datos de una temporada simulada de La Liga con un XI fantasy de todos los tiempos construido a partir de legendarios clubes de la liga española.
+
+${sharedPrimeRules}
+
+Escribe un veredicto de temporada en 4 párrafos (entre 250 y 350 palabras en total). Cubre:
+1. El titular de la temporada — la posición final y el sabor general de la campaña en la Liga española.
+2. El MVP y los destacados — nómbralos y describe con viveza sus goles y asistencias. Menciona el legado de los jugadores icónicos de La Liga.
+3. Lectura táctica de cómo encajó el XI (formación, equilibrio ATQ/DEF/GLB, contribuciones sorprendentes desde la defensa o el centro del campo).
+4. Un veredicto final dramático y una frase de predicción para la próxima temporada. Evoca el espíritu del fútbol español.
+
+Estilo: frases directas, imágenes vívidas, evoca la pasión del fútbol español. Sin encabezados markdown, sin viñetas, sin etiquetas de sección. Prosa fluida y continua, línea en blanco entre párrafos. Responde siempre en español.`;
+
   const systemPrompt = mode === 'cl'
     ? (isES ? clPromptES : clPromptEN)
+    : mode === 'll'
+    ? (isES ? llPromptES : llPromptEN)
     : (isES ? plPromptES : plPromptEN);
 
   try {
