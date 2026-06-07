@@ -17,6 +17,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
     }),
   ],
+  // Explicit secret — Auth.js v5 auto-reads AUTH_SECRET, but being explicit
+  // makes the missing-env failure mode obvious in deploy logs.
+  secret: process.env.AUTH_SECRET,
+  // Required when deploying behind a custom domain on Vercel without AUTH_URL set.
+  // (Vercel-hosted Auth.js needs to know whether to trust the incoming Host header.)
+  trustHost: true,
   session: { strategy: 'database' },
   callbacks: {
     // Expose the user id on the client session so the store can use it.
