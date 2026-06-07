@@ -1,152 +1,53 @@
 # Football Draft ⚽
 
-Spin a Premier League team. Pick one player. Do it 11 times. Then watch your fantasy XI play a full 38-game season and get an AI-written verdict.
+Spin the wheel. Get a random club from a random era. Pick one player. Do it eleven times — that's your fantasy XI. Then watch them play a full 38-game season and get an AI-written verdict on how it all went.
 
-## Stack
+## What you can do
 
-- **Next.js 14** (App Router) + TypeScript
-- **Tailwind CSS** for styling
-- **Framer Motion** for animations
-- **Zustand** for game state
-- **OpenAI** (`gpt-4o-mini`) for end-of-season analysis (server route, user-supplied key)
+### Three competitions
 
-## Run it
+- **Premier League** — 20 English clubs across every era. Full 38-game league season.
+- **La Liga** — 20 Spanish clubs from the Real Madrid Galácticos to Aspas-era Celta. Full Spanish season.
+- **Champions League** — 16 European giants. Group stage, single-leg knockouts, penalty shootouts.
 
-```bash
-npm install
-npm run dev
-```
+Each comes with its own pool of legendary teams and historic squads — pick the era and the players are who you'd expect from that side at that moment in time.
 
-Open http://localhost:3000.
-
-## How it plays
+### Draft your XI
 
 1. Pick a difficulty:
    - **Easy** — 1 team reroll + 1 era reroll *per pick*.
-   - **Normal** — 3 team rerolls + 3 era rerolls shared across the whole 11-pick draft.
+   - **Normal** — 3 team rerolls + 3 era rerolls shared across the whole draft.
    - **Sandbox** — unlimited rerolls.
-2. Hit SPIN. Two reels (team + era) settle on a Premier League side from a random era. Their full XI is shown on the left; your empty 4-3-3 fantasy pitch is on the right.
-3. Optional: spend a reroll to change the team (keeping the era) or the era (keeping the team).
-4. Click a player you like. Compatible empty slots on your XI glow gold. Click a slot to place them.
-5. Repeat until your XI is full.
-6. Click **Start Season** and watch all 38 matchdays animate, with a live league table re-sorting between rounds.
-7. See the headline result (position, W/D/L, points), MVP, league top scorers, and per-player stats.
-8. Click **Get AI Season Analysis** and your season JSON goes to `gpt-4o-mini`, which writes a 4-paragraph verdict.
+2. Optional: turn on **Hardcore mode** to hide player ratings during the draft. Trust your knowledge, not the numbers.
+3. Hit SPIN. Two reels settle on a club and an era. Their full XI shows up on the left, your empty pitch on the right.
+4. Optional: spend a reroll to change the team (keeping the era) or the era (keeping the team).
+5. Click a player. Compatible empty slots on your XI glow gold. Click a slot to place them.
+6. Repeat eleven times.
 
-## Project layout
+Formations available: 4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 4-5-1, 3-4-3.
 
-```
-app/
-  page.tsx              -- main screen, phase router
-  layout.tsx
-  globals.css
-  api/analyze/route.ts  -- OpenAI server proxy
+### Play the season
 
-components/
-  SpinWheel.tsx
-  DifficultyPicker.tsx
-  PoolView.tsx          -- the rolled team's XI (clickable to pick)
-  FantasyXIBoard.tsx    -- your XI with empty slots / placement highlights
-  Pitch.tsx             -- (kept for future reuse: full XI on a pitch)
-  PlayerCard.tsx
-  SeasonView.tsx        -- match-by-match playback + live table
-  FinalResults.tsx
-  AIAnalysisView.tsx
-  ApiKeyModal.tsx
+- **League modes**: all 38 matchdays animate, with the table re-sorting between rounds. You see your headline result — position, W/D/L, points — plus an MVP, league top scorers, and per-player stats.
+- **Champions League**: group stage, single-leg knockouts from the QFs, penalty shootouts where it matters, all the way to the final.
 
-data/
-  types.ts              -- Player / Team / TeamEra / Formation / EraKey
-  eras.ts               -- 7 era buckets: 90-95, 95-00, ..., 20-25
-  formations.ts         -- formation → 11 (x,y) slots on a 100x100 pitch
-  helpers.ts            -- eraTBD() placeholder helper
-  index.ts              -- TEAMS registry
-  teams/                -- one file per club (20 clubs)
+### Get an AI verdict
 
-lib/
-  randomizer.ts         -- spin / reroll logic
-  draft.ts              -- difficulty config, position compatibility, XI helpers
-  simulation.ts         -- Poisson match sim, season builder, fantasy XI snapshot
-  storage.ts            -- localStorage for API key
+Drop in your OpenAI API key (top-right gear) and get a 4-paragraph season analysis written like a football journalist. The prompt adapts to the competition — the La Liga verdict reads differently from the Champions League one.
 
-store/
-  gameStore.ts          -- Zustand state machine for the draft + season
-```
+### Sign in with Google (optional)
 
-## Difficulty modes
+Sign in to:
 
-Defined in `lib/draft.ts → DIFFICULTIES`:
+- **Save your seasons**. Every completed run gets saved to your account, with the full XI, table, top scorers, the lot. Browse them at any time under "My Seasons" and open one to relive it.
+- **Keep your OpenAI key on your account**, encrypted and re-used across devices.
 
-```ts
-easy:    perPick: { team: 1, era: 1 }
-normal:  global:  { team: 3, era: 3 }
-sandbox: perPick: { team: 999, era: 999 }
-```
+If you'd rather not sign in, you don't have to — the whole game works as a guest, history just doesn't persist between visits.
 
-To add a new mode, add an entry to `DIFFICULTIES` and to the `Difficulty` union. The store reads from this config automatically, no other code changes needed.
+### Languages
 
-## Position compatibility
+English and Spanish. The toggle is in the header. The AI verdict is generated in the language you've selected.
 
-`lib/draft.ts → COMPAT` maps each player position to the list of slot positions that player can fill. For example, an RM player can fill RM / RW / CAM / RB slots. Tune this list to make the draft tighter or more flexible.
+## Tech
 
-## Editing teams and eras
-
-Each team lives in its own file at `data/teams/<id>.ts`. Format:
-
-```ts
-import { Team } from '../types';
-import { eraTBD } from '../helpers';
-
-export const arsenal: Team = {
-  id: 'arsenal',
-  name: 'Arsenal',
-  shortName: 'ARS',
-  city: 'London',
-  colors: { primary: '#EF0107', secondary: '#FFFFFF' },
-  eras: {
-    '90-95': eraTBD('4-4-2', 80, 'Graham era'),
-    '00-05': {
-      formation: '4-4-2',
-      manager: 'Arsène Wenger',
-      notes: 'The Invincibles',
-      players: [
-        { name: 'Jens Lehmann',  position: 'GK', overall: 86 },
-        { name: 'Lauren',        position: 'RB', overall: 82 },
-        // ...exactly 11, in the order defined by FORMATION_LAYOUTS
-      ],
-    },
-    // ...
-  },
-};
-```
-
-The player array order must match the formation's slot order in `data/formations.ts`. Iconic eras are already filled in as examples; the rest use `eraTBD()` placeholders.
-
-### Adding a new team
-
-1. Create `data/teams/my-club.ts` exporting a `Team`.
-2. Import + add it to the `TEAMS` array in `data/index.ts`.
-
-### Adding a new era
-
-1. Add the new key to the `EraKey` union in `data/types.ts`.
-2. Add `{ key: '...', label: '...' }` to `ERAS` in `data/eras.ts`.
-
-### Adding a new formation (for the fantasy XI)
-
-1. Add the key to the `Formation` union in `data/types.ts`.
-2. Add an 11-slot layout to `FORMATION_LAYOUTS` in `data/formations.ts`.
-3. Change `DEFAULT_FORMATION` in `lib/draft.ts` (or add UI to let the user choose).
-
-## How a season runs
-
-1. `buildFantasySnapshot(xi, opts)` turns your 11 drafted players into a `TeamSnapshot` with attack/defense ratings derived from the XI.
-2. `simulateSeasonForSnapshot(snapshot)` builds a 20-team league: your snapshot + 19 random PL teams each from a random era.
-3. Round-robin (Berger circle method) → 38 matchdays.
-4. Each match: goals sampled from a Poisson distribution where λ depends on attack/defense ratios + home advantage. Goalscorers and assisters chosen via position-and-rating-weighted sampling.
-5. `SeasonView` plays back your 38 matches with smooth re-sorting of the live league table.
-6. `FinalResults` shows final position, MVP, top scorers, and per-player stats.
-7. AI verdict: `seasonToCompactJSON(season)` → POST to `/api/analyze` with `{ apiKey, payload }`. The route calls `gpt-4o-mini` and returns a 4-paragraph analysis.
-
-## API key
-
-Open Settings (top right gear) and paste your `sk-...` key. Stored in `localStorage` only and posted directly to the local proxy route. Never committed, never leaves your machine except on the OpenAI call.
+Built with **Next.js 14** (App Router) + **TypeScript**, **Tailwind CSS**, **Framer Motion** for animations, **Zustand** for game state. Season simulation is custom — Poisson-distributed goals weighted by team attack/defense ratings, with position-and-rating-weighted goalscorer selection. The optional Google sign-in uses **Auth.js v5** with a **Neon Postgres** database via **Drizzle ORM**. AI season analysis is powered by **OpenAI** — bring your own key.

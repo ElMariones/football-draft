@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useGameStore, TOTAL_PICKS } from '@/store/gameStore';
 import { getTeam } from '@/data';
@@ -28,7 +28,9 @@ import AIAnalysisView from '@/components/AIAnalysisView';
 import ApiKeyModal from '@/components/ApiKeyModal';
 import CLPlayback from '@/components/CLPlayback';
 import CLFinalResults from '@/components/CLFinalResults';
+import AuthMenu from '@/components/AuthMenu';
 import { useT } from '@/lib/i18n';
+import { useSession } from 'next-auth/react';
 
 export default function HomePage() {
   const {
@@ -58,9 +60,76 @@ export default function HomePage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
+  const { status: sessionStatus } = useSession();
+  const savedSeasonRef = useRef<unknown>(null);
+
   useEffect(() => {
+    // Guest: local-only presence. Logged-in: also check server-stored key.
     setApiKeyPresent(!!getApiKey());
-  }, [setApiKeyPresent]);
+    if (sessionStatus === 'authenticated') {
+      fetch('/api/user/api-key')
+        .then(r => (r.ok ? r.json() : null))
+        .then(json => {
+          if (json?.present) setApiKeyPresent(true);
+        })
+        .catch(() => {});
+    }
+  }, [setApiKeyPresent, sessionStatus]);
+
+  // Auto-save completed runs when logged in. We dedupe by reference so the same
+  // result object isn't double-saved if effects re-run.
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated') return;
+    const completed = mode === 'cl' ? clResult : season;
+    if (!completed) return;
+    if (savedSeasonRef.current === completed) return;
+    savedSeasonRef.current = completed;
+
+    const xiSummary = xi
+      .filter(s => s.player)
+      .map(s => ({
+        slot: s.position,
+        name: s.player!.player.name,
+        position: s.player!.player.position,
+        overall: s.player!.player.overall,
+        teamId: s.player!.sourceTeamId,
+        teamName: s.player!.sourceTeamName,
+        era: s.player!.sourceEra,
+      }));
+
+    const body =
+      mode === 'cl' && clResult
+        ? {
+            mode,
+            teamName: clResult.playerTeam.name,
+            formation: clResult.playerTeam.formation,
+            finalPosition: null,
+            clStage: clResult.playerStage,
+            payload: clResult,
+            xiSummary,
+          }
+        : season
+        ? {
+            mode,
+            teamName: season.playerTeam.name,
+            formation: season.playerTeam.formation,
+            finalPosition: season.finalPosition,
+            clStage: null,
+            payload: season,
+            xiSummary,
+          }
+        : null;
+    if (!body) return;
+
+    fetch('/api/seasons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => {
+      // Non-fatal: history just won't have this run.
+      savedSeasonRef.current = null;
+    });
+  }, [sessionStatus, mode, season, clResult, xi]);
 
   const teamItems = useMemo(
     () => MODES[mode].pool.map(t => ({
@@ -199,6 +268,7 @@ export default function HomePage() {
                 <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-black" />
               )}
             </button>
+            <AuthMenu />
           </div>
         </header>
 

@@ -6,6 +6,12 @@ import { useGameStore } from '@/store/gameStore';
 
 export type Language = 'en' | 'es';
 
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
+}
+
 // ---------- english ----------
 
 export const en = {
@@ -139,14 +145,35 @@ export const en = {
   },
   apiKey: {
     title: 'OpenAI API Key',
-    description: "Paste your key to unlock AI-powered season analysis. Your key is stored only in your browser's local storage and sent directly to our server-side proxy to call OpenAI.",
+    description: "Paste your key to unlock AI-powered season analysis. If you're signed in, the key is encrypted and saved to your account; otherwise it stays in your browser's local storage.",
+    descriptionSignedIn: 'Signed in — your key is encrypted and stored on your account. It is never returned to the browser.',
     placeholder: 'sk-...',
+    placeholderStored: '•••••••••••• (stored)',
     clear: 'Clear',
     cancel: 'Cancel',
     saved: 'Saved ✓',
     save: 'Save',
     modelLabel: 'Analysis Model',
     modelHint: 'More powerful models give richer analysis but cost more per request.',
+  },
+  auth: {
+    signIn: 'Sign in',
+    signInTitle: 'Sign in with Google to save your runs',
+    signOut: 'Sign out',
+    account: 'Account',
+    history: 'My Seasons',
+  },
+  history: {
+    title: 'Your Seasons',
+    empty: 'No saved runs yet. Finish a season while signed in and it will appear here.',
+    backHome: '← Back to Draft',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this run? This cannot be undone.',
+    open: 'Open →',
+    finalPos: (n: number) => `Finished ${n}${ordinal(n)}`,
+    clStage: (s: string) => `Reached ${s}`,
+    notFound: 'Run not found.',
+    backToHistory: '← Back to My Seasons',
   },
   difficulty: {
     easy:   { label: 'Easy',    tagline: '1 + 1 per pick',  description: 'Each pick comes with 1 team reroll and 1 era reroll. Lots of safety.' },
@@ -325,14 +352,35 @@ export const es: typeof en = {
   },
   apiKey: {
     title: 'Clave API de OpenAI',
-    description: 'Pega tu clave para desbloquear el análisis de IA de la temporada. Tu clave se almacena solo en el almacenamiento local de tu navegador y se envía directamente a nuestro proxy para llamar a OpenAI.',
+    description: 'Pega tu clave para desbloquear el análisis de IA. Si has iniciado sesión, la clave se cifra y se guarda en tu cuenta; si no, queda solo en el almacenamiento local del navegador.',
+    descriptionSignedIn: 'Sesión iniciada — tu clave se cifra y se guarda en tu cuenta. Nunca se devuelve al navegador.',
     placeholder: 'sk-...',
+    placeholderStored: '•••••••••••• (guardada)',
     clear: 'Borrar',
     cancel: 'Cancelar',
     saved: 'Guardado ✓',
     save: 'Guardar',
     modelLabel: 'Modelo de análisis',
     modelHint: 'Los modelos más potentes dan análisis más ricos pero cuestan más por petición.',
+  },
+  auth: {
+    signIn: 'Iniciar sesión',
+    signInTitle: 'Inicia sesión con Google para guardar tus partidas',
+    signOut: 'Cerrar sesión',
+    account: 'Cuenta',
+    history: 'Mis temporadas',
+  },
+  history: {
+    title: 'Tus temporadas',
+    empty: 'Aún no hay partidas guardadas. Termina una temporada con sesión iniciada y aparecerá aquí.',
+    backHome: '← Volver al draft',
+    delete: 'Eliminar',
+    deleteConfirm: '¿Eliminar esta partida? No se puede deshacer.',
+    open: 'Abrir →',
+    finalPos: (n: number) => `Acabó ${n}º`,
+    clStage: (s: string) => `Llegó a ${s}`,
+    notFound: 'Partida no encontrada.',
+    backToHistory: '← Volver a mis temporadas',
   },
   difficulty: {
     easy:   { label: 'Fácil',   tagline: '1 + 1 por selección', description: 'Cada selección incluye 1 cambio de equipo y 1 de era. Sin presión.' },

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
+import { auth } from '@/auth';
+import { db } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { decryptString } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
 
-// Receives { apiKey, payload } where payload is the compact JSON
-// produced by lib/simulation.seasonToCompactJSON.
+// Receives { apiKey?, payload, model?, mode?, language? }.
+// If the user is logged in and did not send an apiKey, falls back to their
+// stored encrypted key (decrypted server-side, never sent to the browser).
 export async function POST(req: NextRequest) {
   let body: { apiKey?: string; payload?: string; model?: string; mode?: 'pl' | 'cl' | 'll'; language?: string };
   try {
@@ -12,11 +18,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const apiKey = body.apiKey?.trim();
+  let apiKey = body.apiKey?.trim();
   const payload = body.payload;
-  const model = body.model || 'gpt-4o-mini';
+  let model = body.model || 'gpt-4o-mini';
   const mode = body.mode === 'cl' ? 'cl' : body.mode === 'll' ? 'll' : 'pl';
   const isES = body.language === 'es';
+
+  if (!apiKey) {
+    // Fall back to the user's encrypted server-stored key if they're logged in.
+    // We swallow auth/db errors here so guest users can still use /api/analyze
+    // even when AUTH_SECRET / DATABASE_URL aren't configured in the environment.
+    try {
+      const session = await auth();
+      if (session?.user?.id) {
+        const [row] = await db
+          .select({ encryptedApiKey: users.encryptedApiKey, openaiModel: users.openaiModel })
+          .from(users)
+          .where(eq(users.id, session.user.id));
+        if (row?.encryptedApiKey) {
+          try {
+            apiKey = decryptString(row.encryptedApiKey);
+          } catch {
+            return NextResponse.json({ error: 'Stored API key could not be decrypted' }, { status: 500 });
+          }
+          if (!body.model && row.openaiModel) model = row.openaiModel;
+        }
+      }
+    } catch {
+      // Auth not configured — guest must supply apiKey in the body.
+    }
+  }
 
   if (!apiKey) {
     return NextResponse.json({ error: 'Missing API key' }, { status: 400 });
