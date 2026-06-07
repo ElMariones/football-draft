@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   analysis: string;
@@ -10,7 +11,7 @@ interface Props {
 export default function AIAnalysisView({ analysis }: Props) {
   const reset = useGameStore(s => s.reset);
   const setPhase = useGameStore(s => s.setPhase);
-  // Break into paragraphs for animation.
+  const t = useT();
   const paragraphs = analysis.split(/\n\s*\n/).filter(Boolean);
 
   return (
@@ -24,9 +25,9 @@ export default function AIAnalysisView({ analysis }: Props) {
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-gold/20 blur-3xl" />
         <div className="relative">
           <div className="font-display text-xs tracking-[0.4em] text-gold mb-1">
-            AI SEASON BRIEFING
+            {t.ai.label}
           </div>
-          <h3 className="font-display text-3xl mb-5">The Verdict</h3>
+          <h3 className="font-display text-3xl mb-5">{t.ai.verdict}</h3>
 
           <div className="space-y-4 text-white/90 leading-relaxed text-[15px]">
             {paragraphs.map((p, i) => (
@@ -45,10 +46,10 @@ export default function AIAnalysisView({ analysis }: Props) {
 
       <div className="flex flex-wrap justify-center gap-3">
         <button onClick={() => setPhase('finished')} className="btn-ghost">
-          ← Back to Stats
+          {t.ai.backToStats}
         </button>
         <button onClick={reset} className="btn-primary">
-          Spin Again →
+          {t.ai.spinAgain}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { EraKey, Formation } from '@/data/types';
 import { getTeam } from '@/data';
+import { Language, detectLanguage } from '@/lib/i18n';
 import { SeasonResult, buildFantasySnapshot, simulateSeasonForSnapshot } from '@/lib/simulation';
 import {
   DIFFICULTIES,
@@ -49,6 +50,7 @@ interface Rerolls {
 
 interface GameState {
   phase: Phase;
+  language: Language;
   mode: Mode;
   difficulty: Difficulty;
   formation: Formation;
@@ -67,6 +69,7 @@ interface GameState {
   apiKeyPresent: boolean;
   simulationError: string | null;
 
+  setLanguage: (l: Language) => void;
   setMode: (m: Mode) => void;
   setDifficulty: (d: Difficulty) => void;
   setFormation: (f: Formation) => void;
@@ -84,7 +87,7 @@ interface GameState {
   assignToSlot: (slotIdx: number) => void;
   undoLastPick: () => void;
   autoFillXI: () => void;
-  startSeason: () => void;
+  startSeason: (defaultTeamName?: string) => void;
   setSeason: (s: SeasonResult) => void;
   setAnalysis: (a: string) => void;
   setApiKeyPresent: (b: boolean) => void;
@@ -103,6 +106,7 @@ function freshGlobalRerolls(diff: Difficulty): Rerolls {
 
 export const useGameStore = create<GameState>((set, get) => ({
   phase: 'idle',
+  language: detectLanguage(),
   mode: 'pl',
   difficulty: 'normal',
   formation: DEFAULT_FORMATION,
@@ -120,6 +124,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   aiAnalysis: null,
   apiKeyPresent: false,
   simulationError: null,
+
+  setLanguage: language => {
+    localStorage.setItem('football-draft-lang', language);
+    set({ language });
+  },
 
   setMode: mode => {
     // Only allow before drafting starts. Changing mode resets the XI.
@@ -336,12 +345,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     console.log('[FootballDraft] Auto-filled XI for debug', xi);
   },
 
-  startSeason: () => {
+  startSeason: (defaultTeamName = 'Drafted Team') => {
     const { xi, formation, teamName, mode } = get();
     console.log('[FootballDraft] startSeason mode=', mode, 'complete?', xiComplete(xi));
     if (!xiComplete(xi)) return;
     try {
-      const name = teamName.trim() || 'Drafted Team';
+      const name = teamName.trim() || defaultTeamName;
       const initials = name
         .split(/\s+/)
         .map(w => w[0])

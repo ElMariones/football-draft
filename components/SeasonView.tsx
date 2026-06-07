@@ -4,21 +4,21 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { MatchResult, SeasonResult, TableRow, TeamSnapshot } from '@/lib/simulation';
 import { getTeam } from '@/data';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   season: SeasonResult;
   onDone: () => void;
 }
 
-// Replay pace per matchday.
 const MATCH_INTERVAL_MS = 800;
 
 export default function SeasonView({ season, onDone }: Props) {
+  const t = useT();
   const [matchIdx, setMatchIdx] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
   const playerTeamId = season.playerTeam.id;
 
-  // Recompute progressive table.
   const progressiveTable = useMemo(() => {
     return buildProgressiveTables(season.allFixtures, season.table.map(r => r.teamId), {
       idToName: Object.fromEntries(season.table.map(r => [r.teamId, r.name])),
@@ -42,27 +42,20 @@ export default function SeasonView({ season, onDone }: Props) {
 
   return (
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6">
-      {/* Match feed */}
       <div className="glass p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="text-xs tracking-[0.3em] text-white/50 uppercase">
-              Matchday {currentMatch?.matchday ?? season.fixtures.length}
+              {t.season.matchday(currentMatch?.matchday ?? season.fixtures.length)}
             </div>
-            <h3 className="font-display text-2xl">Season Playback</h3>
+            <h3 className="font-display text-2xl">{t.season.playback}</h3>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => setAutoplay(a => !a)}
-              className="btn-ghost text-sm"
-            >
-              {autoplay ? 'Pause' : 'Resume'}
+            <button onClick={() => setAutoplay(a => !a)} className="btn-ghost text-sm">
+              {autoplay ? t.season.pause : t.season.resume}
             </button>
-            <button
-              onClick={() => setMatchIdx(season.fixtures.length)}
-              className="btn-ghost text-sm"
-            >
-              Skip to End
+            <button onClick={() => setMatchIdx(season.fixtures.length)} className="btn-ghost text-sm">
+              {t.season.skipToEnd}
             </button>
           </div>
         </div>
@@ -70,7 +63,12 @@ export default function SeasonView({ season, onDone }: Props) {
         <div className="space-y-3 max-h-[260px] sm:max-h-[460px] overflow-y-auto pr-2 no-scrollbar">
           <AnimatePresence initial={false}>
             {season.fixtures.slice(0, matchIdx + 1).reverse().map(m => (
-              <MatchRow key={`${m.matchday}-${m.home.teamId}`} match={m} playerTeamId={playerTeamId} playerTeam={season.playerTeam} />
+              <MatchRow
+                key={`${m.matchday}-${m.home.teamId}`}
+                match={m}
+                playerTeamId={playerTeamId}
+                playerTeam={season.playerTeam}
+              />
             ))}
           </AnimatePresence>
         </div>
@@ -82,18 +80,17 @@ export default function SeasonView({ season, onDone }: Props) {
             className="mt-6 flex justify-end"
           >
             <button onClick={onDone} className="btn-primary">
-              See Final Results →
+              {t.season.seeFinalResults}
             </button>
           </motion.div>
         )}
       </div>
 
-      {/* Live table */}
       <div className="glass p-5 sm:p-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-display text-xl">League Table</h3>
+          <h3 className="font-display text-xl">{t.season.leagueTable}</h3>
           <div className="text-xs text-white/50">
-            Matchday {currentMatch?.matchday ?? '-'}
+            {t.season.matchday(currentMatch?.matchday ?? 1)}
           </div>
         </div>
         <LeagueTable rows={tableNow ?? season.table} highlightTeamId={playerTeamId} />
@@ -155,26 +152,25 @@ function ColorTag({ color }: { color: string }) {
 }
 
 function LeagueTable({ rows, highlightTeamId }: { rows: TableRow[]; highlightTeamId: string }) {
+  const t = useT();
+  const h = t.season.headers;
   const playerPos = rows.findIndex(r => r.teamId === highlightTeamId);
 
   return (
     <div className="text-sm">
-      {/* Mobile: compact columns. Desktop: full columns. */}
       <div className="grid grid-cols-[20px_1fr_28px_32px_32px] sm:grid-cols-[24px_1fr_28px_28px_28px_36px_36px] gap-x-1 sm:gap-x-2 text-[10px] tracking-widest uppercase text-white/40 pb-1 border-b border-white/10">
-        <div>#</div>
-        <div>Team</div>
-        <div className="text-center">P</div>
-        <div className="text-center hidden sm:block">W</div>
-        <div className="text-center hidden sm:block">D</div>
-        <div className="text-center">GD</div>
-        <div className="text-center">Pts</div>
+        <div>{h.pos}</div>
+        <div>{h.team}</div>
+        <div className="text-center">{h.played}</div>
+        <div className="text-center hidden sm:block">{h.won}</div>
+        <div className="text-center hidden sm:block">{h.drawn}</div>
+        <div className="text-center">{h.gd}</div>
+        <div className="text-center">{h.pts}</div>
       </div>
-      {/* On mobile: cap at 260px so it doesn't dominate the page */}
       <div className="max-h-[260px] overflow-y-auto no-scrollbar sm:max-h-none">
         {rows.map((row, i) => {
           const team = getTeam(row.teamId);
           const isYou = row.teamId === highlightTeamId;
-          // On mobile: only render top 6, bottom 3, and player's row ± 1
           const nearPlayer = playerPos >= 0 && Math.abs(i - playerPos) <= 1;
           const showOnMobile = i < 6 || i >= rows.length - 3 || nearPlayer;
           return (
@@ -204,7 +200,6 @@ function LeagueTable({ rows, highlightTeamId }: { rows: TableRow[]; highlightTea
   );
 }
 
-// Build a table snapshot per matchday (1..38) by replaying allFixtures.
 function buildProgressiveTables(
   fixtures: MatchResult[],
   teamIds: string[],

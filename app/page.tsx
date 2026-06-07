@@ -28,6 +28,7 @@ import AIAnalysisView from '@/components/AIAnalysisView';
 import ApiKeyModal from '@/components/ApiKeyModal';
 import CLPlayback from '@/components/CLPlayback';
 import CLFinalResults from '@/components/CLFinalResults';
+import { useT } from '@/lib/i18n';
 
 export default function HomePage() {
   const {
@@ -41,9 +42,11 @@ export default function HomePage() {
     rerollTeamAvailable, rerollEraAvailable,
     selectPlayer, cancelSelection, assignToSlot, undoLastPick,
     autoFillXI, startSeason, setAnalysis, reset,
+    language, setLanguage,
   } = useGameStore();
 
-  // Apply CL theme to <body> when in CL mode so background + colour scheme change.
+  const t = useT();
+
   useEffect(() => {
     if (typeof document === 'undefined') return;
     if (mode === 'cl') document.body.classList.add('cl-mode');
@@ -138,7 +141,6 @@ export default function HomePage() {
     phase === 'idle' || phase === 'spinning' ||
     phase === 'reveal' || phase === 'placing';
 
-  // Debug to browser console whenever phase or season presence flips.
   useEffect(() => {
     console.log('[FootballDraft] phase:', phase, 'season set?', !!season);
   }, [phase, season]);
@@ -165,7 +167,7 @@ export default function HomePage() {
                 Football Draft
               </div>
               <div className="text-[10px] tracking-[0.3em] text-white/40 uppercase">
-                Spin · Pick · Conquer
+                {t.nav.tagline}
               </div>
             </div>
           </motion.button>
@@ -173,12 +175,19 @@ export default function HomePage() {
             {inDraftingFlow && pickIndex < TOTAL_PICKS && (
               <DraftStatusBar
                 pickIndex={pickIndex}
-                diffCfg={diffCfg}
+                difficulty={difficulty}
                 formation={formation}
                 globalRerolls={globalRerolls}
                 pickRerolls={pickRerolls}
               />
             )}
+            <button
+              onClick={() => setLanguage(language === 'en' ? 'es' : 'en')}
+              className="btn-ghost text-xs font-display tracking-widest"
+              title="Switch language / Cambiar idioma"
+            >
+              {language === 'en' ? 'ES' : 'EN'}
+            </button>
             <button
               onClick={() => setShowKeyModal(true)}
               className="btn-ghost text-sm relative"
@@ -245,18 +254,18 @@ export default function HomePage() {
                     <div className="flex flex-wrap items-center gap-2 justify-end">
                       {phase === 'placing' && (
                         <button onClick={cancelSelection} className="btn-ghost text-sm">
-                          ← Change Player
+                          {t.draft.changePlayer}
                         </button>
                       )}
                       <RerollButton
-                        label="Team"
+                        label={t.draft.team}
                         count={diffCfg.perPick ? pickRerolls.team : globalRerolls.team}
                         disabled={!rerollT}
                         onClick={rerollTeam}
                         active={rerolling === 'team'}
                       />
                       <RerollButton
-                        label="Era"
+                        label={t.draft.era}
                         count={diffCfg.perPick ? pickRerolls.era : globalRerolls.era}
                         disabled={!rerollE}
                         onClick={rerollEra}
@@ -270,8 +279,7 @@ export default function HomePage() {
                         className="rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-gold flex items-center gap-2"
                       >
                         <span className="font-display text-base">→</span>
-                        Tap a glowing slot on your XI to place&nbsp;
-                        <strong className="font-display tracking-wide">{selectedPlayer?.name}</strong>
+                        {t.draft.tapToPlace(selectedPlayer?.name ?? '')}
                       </motion.div>
                     )}
                   </div>
@@ -302,32 +310,31 @@ export default function HomePage() {
               <div className="space-y-4">
                 <div className="glass p-6 text-center">
                   <div className="font-display text-xs tracking-[0.4em] text-gold mb-1">
-                    XI LOCKED IN
+                    {t.draft.xiLockedIn}
                   </div>
                   <div className="font-display text-4xl shimmer">
-                    {teamName.trim() || 'My XI'}
+                    {teamName.trim() || t.draft.defaultTeamName}
                   </div>
                   <p className="text-sm text-white/70 mt-2">
-                    11 players, picked from across the eras. Time to find out how
-                    they fare in a 38-game season.
+                    {mode === 'cl' ? t.draft.lockedDescCL : t.draft.lockedDescPL}
                   </p>
                   <div className="mt-5 flex flex-wrap justify-center gap-2">
                     <button onClick={undoLastPick} className="btn-ghost">
-                      ← Change Last Pick
+                      {t.draft.changeLastPick}
                     </button>
-                    <button onClick={startSeason} className="btn-primary">
-                      Start Season →
+                    <button onClick={() => startSeason(t.draft.defaultTeamName)} className="btn-primary">
+                      {t.draft.startSeason}
                     </button>
                   </div>
                   {simulationError && (
                     <div className="mt-3 text-xs text-red-300">
-                      Simulation error: {simulationError}
+                      {t.draft.simulationError(simulationError)}
                     </div>
                   )}
                 </div>
                 <div className="glass p-5">
                   <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2">
-                    Squad Origins
+                    {t.draft.squadOrigins}
                   </div>
                   <div className="space-y-1.5">
                     {xi.map((slot, i) => {
@@ -399,9 +406,9 @@ export default function HomePage() {
               {!apiKeyPresent && (
                 <div className="mt-3 text-center text-sm text-white/60">
                   <button onClick={() => setShowKeyModal(true)} className="underline hover:text-white">
-                    Add your OpenAI key
+                    {t.postSim.addKey}
                   </button>{' '}
-                  to unlock the AI verdict.
+                  {t.postSim.unlockVerdict}
                 </div>
               )}
               {analysisError && (
@@ -409,7 +416,7 @@ export default function HomePage() {
               )}
               <div className="mt-6 text-center text-xs text-white/40">
                 <button onClick={downloadJson} className="underline hover:text-white/80">
-                  Download season JSON
+                  {t.postSim.downloadSeason}
                 </button>
               </div>
             </motion.section>
@@ -432,9 +439,9 @@ export default function HomePage() {
               {!apiKeyPresent && (
                 <div className="mt-3 text-center text-sm text-white/60">
                   <button onClick={() => setShowKeyModal(true)} className="underline hover:text-white">
-                    Add your OpenAI key
+                    {t.postSim.addKey}
                   </button>{' '}
-                  to unlock the AI verdict.
+                  {t.postSim.unlockVerdict}
                 </div>
               )}
               {analysisError && (
@@ -442,7 +449,7 @@ export default function HomePage() {
               )}
               <div className="mt-6 text-center text-xs text-white/40">
                 <button onClick={downloadJson} className="underline hover:text-white/80">
-                  Download campaign JSON
+                  {t.postSim.downloadCampaign}
                 </button>
               </div>
             </motion.section>
@@ -467,7 +474,7 @@ export default function HomePage() {
         </div>
 
         <footer className="mt-16 mb-4 text-center text-xs text-white/30">
-          Built for fun. All trademarks belong to their respective owners.
+          {t.nav.footer}
         </footer>
       </main>
 
@@ -480,24 +487,26 @@ export default function HomePage() {
 
 function DraftStatusBar({
   pickIndex,
-  diffCfg,
+  difficulty,
   formation,
   pickRerolls,
   globalRerolls,
 }: {
   pickIndex: number;
-  diffCfg: typeof DIFFICULTIES[keyof typeof DIFFICULTIES];
+  difficulty: keyof typeof DIFFICULTIES;
   formation: Formation;
   pickRerolls: { team: number; era: number };
   globalRerolls: { team: number; era: number };
 }) {
+  const t = useT();
+  const diffCfg = DIFFICULTIES[difficulty];
   return (
     <div className="hidden sm:flex items-center gap-3 mr-2">
       <div className="text-xs tracking-widest uppercase text-white/40">
-        Pick {Math.min(pickIndex + 1, TOTAL_PICKS)} / {TOTAL_PICKS}
+        {t.draft.pick(Math.min(pickIndex + 1, TOTAL_PICKS), TOTAL_PICKS)}
       </div>
       <div className="font-display text-xs px-3 py-1 rounded-full border border-gold/40 text-gold uppercase tracking-widest">
-        {diffCfg.label}
+        {t.difficulty[difficulty].label}
       </div>
       <div className="text-[10px] tracking-widest uppercase text-white/40">
         {formation}
@@ -534,7 +543,6 @@ function RerollButton({
       className={`btn-ghost text-sm flex items-center gap-2 disabled:opacity-40 ${
         active ? 'shadow-[0_0_25px_rgba(255,215,0,0.5)] border-gold/60 text-gold' : ''
       }`}
-      title={`Reroll ${label.toLowerCase()}`}
     >
       <motion.span
         animate={active ? { rotate: 360 } : {}}
@@ -573,6 +581,7 @@ function LandingPanel({
   onSpin: () => void;
   onAutoFill: () => void;
 }) {
+  const t = useT();
   const isCL = mode === 'cl';
   const ctaClass = isCL
     ? 'bg-gradient-to-r from-cl to-cl-dark text-white shadow-[0_0_30px_rgba(61,169,252,0.4)] hover:shadow-[0_0_50px_rgba(61,169,252,0.7)]'
@@ -594,31 +603,29 @@ function LandingPanel({
           {isCL ? '⭐' : '⚽'}
         </motion.div>
         <h1 className={`font-display text-4xl sm:text-6xl leading-none mb-2 ${headlineClass}`}>
-          {isCL ? 'CONQUER EUROPE' : 'BUILD YOUR XI'}
+          {isCL ? t.landing.headingCL : t.landing.headingPL}
         </h1>
         <p className="max-w-md mx-auto text-white/70 text-sm">
-          {isCL
-            ? 'Spin for a European giant. Pick one player. Repeat 11 times, then group stage and knockouts await.'
-            : 'Spin for a Premier League side. Pick one player. Repeat 11 times to forge your fantasy XI, then play out a full season.'}
+          {isCL ? t.landing.descCL : t.landing.descPL}
         </p>
       </div>
 
       <div>
         <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2 pl-1">
-          Competition
+          {t.landing.competition}
         </div>
         <ModePicker value={mode} onChange={setMode} />
       </div>
 
       <div>
         <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2 pl-1">
-          Team Name
+          {t.landing.teamName}
         </div>
         <input
           type="text"
           value={teamName}
           onChange={e => setTeamName(e.target.value.slice(0, 40))}
-          placeholder="Drafted Team"
+          placeholder={t.landing.teamNamePlaceholder}
           className={`w-full rounded-xl bg-white/5 border border-white/15 px-4 py-3 text-base focus:outline-none placeholder-white/30 ${
             isCL ? 'focus:border-cl/70' : 'focus:border-gold/70'
           }`}
@@ -627,14 +634,14 @@ function LandingPanel({
 
       <div>
         <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2 pl-1">
-          Formation
+          {t.landing.formation}
         </div>
         <FormationPicker value={formation} onChange={setFormation} />
       </div>
 
       <div>
         <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2 pl-1">
-          Difficulty
+          {t.landing.difficulty}
         </div>
         <DifficultyPicker value={difficulty} onChange={setDifficulty} />
       </div>
@@ -646,14 +653,14 @@ function LandingPanel({
           onClick={onSpin}
           className={`px-10 py-4 rounded-full font-display text-2xl sm:text-3xl tracking-widest transition-shadow ${ctaClass}`}
         >
-          SPIN PICK 1
+          {t.landing.spinPick1}
         </motion.button>
         <button
           onClick={onAutoFill}
           className="text-[11px] tracking-widest uppercase text-white/40 hover:text-white/80 underline underline-offset-4"
           title="Skip the 11 manual picks and go straight to the season — useful for testing"
         >
-          ⚡ Auto-fill XI (debug)
+          {t.landing.autoFill}
         </button>
       </div>
     </motion.div>
@@ -667,10 +674,12 @@ function FormationPicker({
   value: Formation;
   onChange: (f: Formation) => void;
 }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
       {AVAILABLE_FORMATIONS.map(f => {
         const selected = f.id === value;
+        const tagline = t.formations[f.id] ?? f.tagline;
         return (
           <button
             key={f.id}
@@ -681,10 +690,10 @@ function FormationPicker({
                 ? 'border-gold bg-gold/10 shadow-[0_0_20px_rgba(255,215,0,0.3)]'
                 : 'border-white/10 bg-white/5 hover:bg-white/10'
             }`}
-            title={f.tagline}
+            title={tagline}
           >
             <div className="font-display text-base sm:text-lg">{f.label}</div>
-            <div className="text-[9px] text-white/40 truncate">{f.tagline}</div>
+            <div className="text-[9px] text-white/40 truncate">{tagline}</div>
           </button>
         );
       })}
@@ -701,6 +710,7 @@ function NextPickPanel({
   onSpin: () => void;
   onUndo: () => void;
 }) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -708,14 +718,14 @@ function NextPickPanel({
       className="glass p-6 sm:p-8 text-center"
     >
       <div className="font-display text-xs tracking-[0.4em] text-gold mb-2">
-        PICK {pickIndex + 1} / {TOTAL_PICKS}
+        {t.draft.pick(pickIndex + 1, TOTAL_PICKS)}
       </div>
       <div className="font-display text-3xl sm:text-4xl mb-4">
-        Spin for player #{pickIndex + 1}
+        {t.draft.spinForPlayer(pickIndex + 1)}
       </div>
       <div className="flex flex-wrap justify-center gap-2">
         <button onClick={onUndo} className="btn-ghost text-sm">
-          ← Undo Last Pick
+          {t.draft.undoLastPick}
         </button>
         <motion.button
           whileHover={{ scale: 1.04 }}
@@ -723,7 +733,7 @@ function NextPickPanel({
           onClick={onSpin}
           className="px-8 py-3 rounded-full font-display text-xl tracking-widest bg-gradient-to-r from-gold to-gold-dark text-black shadow-[0_0_25px_rgba(255,215,0,0.4)]"
         >
-          SPIN
+          {t.draft.spin}
         </motion.button>
       </div>
     </motion.div>
@@ -743,20 +753,21 @@ function SpinningPanel({
   era: string;
   onComplete: () => void;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-col items-center pt-4">
       <div className="font-display text-xl sm:text-2xl text-white/80 mb-1">
-        Drawing pick…
+        {t.draft.drawing}
       </div>
       <div className="text-[10px] tracking-[0.4em] text-white/40 uppercase mb-6">
-        Reels are spinning
+        {t.draft.reelsSpinning}
       </div>
       <div className="flex gap-3 sm:gap-6">
         <SpinWheel
           items={teamItems}
           targetKey={teamId}
           spinning
-          label="Team"
+          label={t.draft.team}
           height={210}
           durationMs={2800}
           onComplete={onComplete}
@@ -765,7 +776,7 @@ function SpinningPanel({
           items={eraItems}
           targetKey={era}
           spinning
-          label="Era"
+          label={t.draft.era}
           height={210}
           durationMs={2600}
         />
@@ -787,11 +798,12 @@ function FantasyXIPanel({
   onSlotClick: (i: number) => void;
   placing: boolean;
 }) {
+  const t = useT();
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
         <div className="font-display text-sm tracking-[0.3em] text-white/60 uppercase">
-          Your XI
+          {t.draft.yourXI}
         </div>
         <div className="text-xs text-white/50 tabular-nums">
           {drafted} / {TOTAL_PICKS}
@@ -814,6 +826,7 @@ function FantasyTeamBanner({
   playerTeam: { name: string; shortName: string; formation: string; attackRating: number; defenseRating: number; overallRating: number };
   mode: Mode;
 }) {
+  const t = useT();
   const isCL = mode === 'cl';
   return (
     <motion.div
@@ -849,19 +862,19 @@ function FantasyTeamBanner({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] sm:text-xs tracking-[0.3em] text-white/70 uppercase">
-            {isCL ? 'Champions League · all-time XI' : 'All-time fantasy XI'}
+            {isCL ? t.banner.clLabel : t.banner.plLabel}
           </div>
           <div className="font-display text-2xl sm:text-4xl text-white truncate">
             {playerTeam.name}
           </div>
           <div className="text-xs text-white/70 mt-1">
-            ATT <strong className="text-white">{playerTeam.attackRating}</strong> ·
-            &nbsp;DEF <strong className="text-white">{playerTeam.defenseRating}</strong> ·
-            &nbsp;OVR <strong className="text-white">{playerTeam.overallRating}</strong>
+            {t.banner.att} <strong className="text-white">{playerTeam.attackRating}</strong> ·
+            &nbsp;{t.banner.def} <strong className="text-white">{playerTeam.defenseRating}</strong> ·
+            &nbsp;{t.banner.ovr} <strong className="text-white">{playerTeam.overallRating}</strong>
           </div>
         </div>
         <div className="hidden sm:flex flex-col items-end gap-1 text-white">
-          <div className="font-display text-xs tracking-widest text-white/60">FORMATION</div>
+          <div className="font-display text-xs tracking-widest text-white/60">{t.banner.formation}</div>
           <div className="font-display text-2xl">{playerTeam.formation}</div>
         </div>
       </div>

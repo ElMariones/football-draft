@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { getApiKey, setApiKey, clearApiKey } from '@/lib/storage';
 import { useGameStore } from '@/store/gameStore';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   open: boolean;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function ApiKeyModal({ open, onClose }: Props) {
   const setApiKeyPresent = useGameStore(s => s.setApiKeyPresent);
+  const t = useT();
   const [value, setValue] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -52,28 +54,24 @@ export default function ApiKeyModal({ open, onClose }: Props) {
             onClick={e => e.stopPropagation()}
             className="glass w-full max-w-md p-6"
           >
-            <h3 className="font-display text-2xl mb-1">OpenAI API Key</h3>
-            <p className="text-sm text-white/70 mb-4">
-              Paste your key to unlock AI-powered season analysis. Your key is
-              stored only in your browser&apos;s local storage and sent directly to
-              our server-side proxy to call OpenAI.
-            </p>
+            <h3 className="font-display text-2xl mb-1">{t.apiKey.title}</h3>
+            <p className="text-sm text-white/70 mb-4">{t.apiKey.description}</p>
             <input
               type="password"
               value={value}
               onChange={e => setValue(e.target.value)}
-              placeholder="sk-..."
+              placeholder={t.apiKey.placeholder}
               className="w-full rounded-lg bg-black/50 border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-gold/70"
             />
             <div className="flex flex-wrap items-center gap-2 mt-4 justify-end">
               <button onClick={handleClear} className="btn-ghost text-sm">
-                Clear
+                {t.apiKey.clear}
               </button>
               <button onClick={onClose} className="btn-ghost text-sm">
-                Cancel
+                {t.apiKey.cancel}
               </button>
               <button onClick={handleSave} className="btn-primary text-sm">
-                {saved ? 'Saved ✓' : 'Save'}
+                {saved ? t.apiKey.saved : t.apiKey.save}
               </button>
             </div>
           </motion.div>

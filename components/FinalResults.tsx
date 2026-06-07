@@ -7,6 +7,7 @@ import { useGameStore } from '@/store/gameStore';
 import { FORMATION_LAYOUTS } from '@/data/formations';
 import { Formation } from '@/data/types';
 import PlayerCard from './PlayerCard';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   season: SeasonResult;
@@ -15,22 +16,13 @@ interface Props {
   analysisDisabled?: boolean;
 }
 
-function positionLabel(p: number): string {
-  if (p === 1) return 'CHAMPIONS';
-  if (p === 2) return 'RUNNERS-UP';
-  if (p <= 4) return 'CHAMPIONS LEAGUE';
-  if (p <= 7) return 'EUROPA / CONFERENCE';
-  if (p <= 17) return 'MID-TABLE';
-  return 'RELEGATED';
-}
-
 export default function FinalResults({ season, onRequestAnalysis, analyzing, analysisDisabled }: Props) {
   const reset = useGameStore(s => s.reset);
+  const t = useT();
   const row = season.table.find(t => t.teamId === season.playerTeam.id)!;
 
   return (
     <div className="space-y-6 mt-6">
-      {/* Headline result */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -43,27 +35,26 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,215,0,0.25),transparent_60%)]" />
         <div className="relative px-6 py-8 sm:px-10 sm:py-12 text-center">
           <div className="font-display text-xs tracking-[0.4em] text-gold mb-2">
-            FINAL POSITION
+            {t.results.finalPosition}
           </div>
           <div className="font-display text-8xl sm:text-9xl shimmer leading-none">
             #{season.finalPosition}
           </div>
           <div className="font-display text-xl tracking-widest text-white/90 mt-2">
-            {positionLabel(season.finalPosition)}
+            {t.results.positionLabel(season.finalPosition)}
           </div>
           <div className="mt-4 flex flex-wrap justify-center gap-3 text-sm">
-            <StatPill label="W" value={row.won} />
-            <StatPill label="D" value={row.drawn} />
-            <StatPill label="L" value={row.lost} />
-            <StatPill label="GF" value={row.gf} />
-            <StatPill label="GA" value={row.ga} />
-            <StatPill label="Pts" value={row.points} highlight />
+            <StatPill label={t.results.pills.w} value={row.won} />
+            <StatPill label={t.results.pills.d} value={row.drawn} />
+            <StatPill label={t.results.pills.l} value={row.lost} />
+            <StatPill label={t.results.pills.gf} value={row.gf} />
+            <StatPill label={t.results.pills.ga} value={row.ga} />
+            <StatPill label={t.results.pills.pts} value={row.points} highlight />
           </div>
         </div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* MVP */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -71,7 +62,7 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
           className="glass p-6 text-center"
         >
           <div className="font-display text-xs tracking-[0.3em] text-gold mb-1">
-            SEASON MVP
+            {t.results.seasonMvp}
           </div>
           <div className="font-display text-4xl text-white mb-2">
             {season.mvp.player.name}
@@ -80,13 +71,12 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
             {season.mvp.player.position} · OVR {season.mvp.player.overall}
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 max-w-md mx-auto">
-            <BigStat label="Goals" value={season.mvp.goals} />
-            <BigStat label="Assists" value={season.mvp.assists} />
-            <BigStat label="Rating" value={season.mvp.rating.toFixed(1)} />
+            <BigStat label={t.results.stats.goals} value={season.mvp.goals} />
+            <BigStat label={t.results.stats.assists} value={season.mvp.assists} />
+            <BigStat label={t.results.stats.rating} value={season.mvp.rating.toFixed(1)} />
           </div>
         </motion.div>
 
-        {/* Top scorers (league) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -94,15 +84,15 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
           className="glass p-6"
         >
           <div className="font-display text-xs tracking-[0.3em] text-white/50 mb-3">
-            LEAGUE TOP SCORERS
+            {t.results.topScorers}
           </div>
           <div className="space-y-2">
             {season.topScorers.slice(0, 8).map((s, i) => {
-              const t = getTeam(s.teamId);
+              const team = getTeam(s.teamId);
               return (
                 <div key={`${s.teamId}-${s.playerName}-${i}`} className="flex items-center gap-3 text-sm">
                   <div className="w-6 text-center font-display text-white/40">{i + 1}</div>
-                  <span className="w-1.5 h-6 rounded-full" style={{ background: t?.colors.primary }} />
+                  <span className="w-1.5 h-6 rounded-full" style={{ background: team?.colors.primary }} />
                   <div className="flex-1 min-w-0 truncate">{s.playerName}</div>
                   <div className="text-xs text-white/50 truncate hidden sm:block">{s.teamName}</div>
                   <div className="font-display text-lg tabular-nums w-10 text-right">{s.goals}</div>
@@ -113,7 +103,6 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
         </motion.div>
       </div>
 
-      {/* Squad formation pitch */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -121,7 +110,7 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
         className="glass p-6"
       >
         <div className="font-display text-xs tracking-[0.3em] text-white/50 mb-4">
-          YOUR SQUAD · {season.playerTeam.formation}
+          {t.results.yourSquad(season.playerTeam.formation)}
         </div>
         <PLSquadPitch season={season} />
       </motion.div>
@@ -131,12 +120,12 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
           onClick={onRequestAnalysis}
           disabled={analyzing || analysisDisabled}
           className="btn-primary"
-          title={analysisDisabled ? 'Add your OpenAI key in Settings' : ''}
+          title={analysisDisabled ? t.apiKey.title : ''}
         >
-          {analyzing ? 'Generating AI Analysis…' : 'Get AI Season Analysis'}
+          {analyzing ? t.results.analyzing : t.results.getAnalysis}
         </button>
         <button onClick={reset} className="btn-ghost">
-          Spin Again
+          {t.results.spinAgain}
         </button>
       </div>
     </div>
@@ -174,23 +163,26 @@ function PLSquadPitch({ season }: { season: SeasonResult }) {
         const stat = playerSquadStats?.[i];
         if (!slot) return null;
         return (
-          <motion.div
+          <div
             key={player.name}
-            initial={{ opacity: 0, scale: 0.5, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ delay: 0.08 + i * 0.06, type: 'spring', stiffness: 200, damping: 18 }}
             className="absolute -translate-x-1/2 -translate-y-1/2"
             style={{ top: `${100 - slot.y}%`, left: `${slot.x}%` }}
           >
-            <PlayerCard player={player} primaryColor="#FFD700" secondaryColor="#0a0a0f" size="sm" />
-            {stat && (stat.goals > 0 || stat.assists > 0) && (
-              <div className="text-[8px] text-center mt-0.5 text-yellow-300 font-bold leading-none">
-                {stat.goals > 0 ? `⚽${stat.goals}` : ''}
-                {stat.goals > 0 && stat.assists > 0 ? ' ' : ''}
-                {stat.assists > 0 ? `🅰${stat.assists}` : ''}
-              </div>
-            )}
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.08 + i * 0.06, type: 'spring', stiffness: 200, damping: 18 }}
+            >
+              <PlayerCard player={player} primaryColor="#FFD700" secondaryColor="#0a0a0f" size="sm" />
+              {stat && (stat.goals > 0 || stat.assists > 0) && (
+                <div className="text-[8px] text-center mt-0.5 text-yellow-300 font-bold leading-none">
+                  {stat.goals > 0 ? `⚽${stat.goals}` : ''}
+                  {stat.goals > 0 && stat.assists > 0 ? ' ' : ''}
+                  {stat.assists > 0 ? `🅰${stat.assists}` : ''}
+                </div>
+              )}
+            </motion.div>
+          </div>
         );
       })}
     </div>

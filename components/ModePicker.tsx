@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MODES, Mode } from '@/lib/draft';
+import { Mode } from '@/lib/draft';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   value: Mode;
@@ -11,10 +12,12 @@ interface Props {
 const ORDER: Mode[] = ['pl', 'cl'];
 
 export default function ModePicker({ value, onChange }: Props) {
+  const t = useT();
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {ORDER.map((id, i) => {
-        const cfg = MODES[id];
+        const cfg = t.mode[id];
         const selected = value === id;
         const isCL = id === 'cl';
         return (

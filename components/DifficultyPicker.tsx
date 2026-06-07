@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { DIFFICULTIES, Difficulty } from '@/lib/draft';
+import { Difficulty } from '@/lib/draft';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   value: Difficulty;
@@ -11,10 +12,12 @@ interface Props {
 const ORDER: Difficulty[] = ['easy', 'normal', 'sandbox'];
 
 export default function DifficultyPicker({ value, onChange }: Props) {
+  const t = useT();
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {ORDER.map((id, i) => {
-        const cfg = DIFFICULTIES[id];
+        const cfg = t.difficulty[id];
         const selected = value === id;
         return (
           <motion.button

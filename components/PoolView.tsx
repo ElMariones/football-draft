@@ -4,24 +4,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Player, Team, EraKey } from '@/data/types';
 import { ERAS } from '@/data/eras';
 import { eligibleSlotIndices, DraftSlot } from '@/lib/draft';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   team: Team;
   era: EraKey;
-  xi: DraftSlot[];                    // your fantasy XI (to compute eligibility)
+  xi: DraftSlot[];
   selectedIdx: number | null;
   onSelect: (idx: number) => void;
   rerolling?: 'team' | 'era' | null;
 }
 
 export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolling }: Props) {
+  const t = useT();
   const teamEra = team.eras[era];
   if (!teamEra) return null;
   const eraLabel = ERAS.find(e => e.key === era)?.label ?? era;
 
   return (
     <div className="space-y-3 relative">
-      {/* Header (re-animates on team change) */}
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={`header-${team.id}`}
@@ -62,7 +63,6 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
               )}
             </div>
           </div>
-          {/* Reroll flash */}
           <AnimatePresence>
             {rerolling && (
               <motion.div
@@ -72,8 +72,7 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
                 transition={{ duration: 0.4 }}
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  background:
-                    'radial-gradient(circle at center, rgba(255,215,0,0.55) 0%, transparent 65%)',
+                  background: 'radial-gradient(circle at center, rgba(255,215,0,0.55) 0%, transparent 65%)',
                   mixBlendMode: 'screen',
                 }}
               />
@@ -82,11 +81,8 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
         </motion.div>
       </AnimatePresence>
 
-      <p className="text-xs text-white/60 px-1">
-        Pick one player. Highlighted players fit at least one empty slot in your XI.
-      </p>
+      <p className="text-xs text-white/60 px-1">{t.pool.instruction}</p>
 
-      {/* Players list (re-animates whenever the pool changes) */}
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={`pool-${team.id}-${era}`}
@@ -105,6 +101,8 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
                 player={p}
                 fits={fits}
                 selected={selected}
+                canFillLabel={t.pool.canFill}
+                noSlotLabel={t.pool.noSlot}
                 onClick={() => fits && onSelect(i)}
                 index={i}
               />
@@ -117,15 +115,13 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
 }
 
 function PoolPlayerCard({
-  player,
-  fits,
-  selected,
-  onClick,
-  index,
+  player, fits, selected, canFillLabel, noSlotLabel, onClick, index,
 }: {
   player: Player;
   fits: boolean;
   selected: boolean;
+  canFillLabel: string;
+  noSlotLabel: string;
   onClick: () => void;
   index: number;
 }) {
@@ -163,7 +159,7 @@ function PoolPlayerCard({
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold truncate">{player.name}</div>
         <div className="text-[10px] text-white/50">
-          {fits ? 'Can fill a slot →' : 'No matching open slot'}
+          {fits ? canFillLabel : noSlotLabel}
         </div>
       </div>
     </motion.button>
