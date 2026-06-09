@@ -149,3 +149,4 @@ export * from './types';
 export * from './eras';
 export * from './formations';
 export * from './helpers';
+export * from './managers';

@@ -71,7 +71,8 @@ export async function POST(req: NextRequest) {
 - Each player in the XI is at the PEAK of the era shown in their "from" field (e.g. "Thierry Henry from Arsenal 00-05" means peak-form 2004 Henry, not 2025 Henry).
 - ALL players are simultaneously in their prime in this fantasy campaign. NEVER mention any player being old, retired, past it, declining, out of position because of age, or anything that implies they're not at the rating shown. Their listed overall rating IS their current ability.
 - The team is not a historical real-life side — it is a fantasy mash-up. Do not say things like "this XI finished 4th in real life" because the team did not exist.
-- The 'ovr' field is each player's prime ability (1-99 FIFA-style). Refer to "rating", "level", or "quality", not "age".`;
+- The 'ovr' field is each player's prime ability (1-99 FIFA-style). Refer to "rating", "level", or "quality", not "age".
+- The XI is coached by the manager in yourTeam.manager (name, 'ovr' rating on the same 1-99 scale, and 'drawnFrom' — the club and era they were drawn from, also at their peak). Weave the manager into the story by name: credit or blame their touchline influence, tactics, and man-management alongside the players.`;
 
   const plPromptEN = `You are a passionate football journalist writing for a Premier League digest. You receive a JSON snapshot of a fan's simulated Premier League season with a hand-picked all-time fantasy XI.
 

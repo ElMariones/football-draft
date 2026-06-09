@@ -6,6 +6,7 @@ import { useGameStore, TOTAL_PICKS } from '@/store/gameStore';
 import { getTeam } from '@/data';
 import { ERAS } from '@/data/eras';
 import { Formation } from '@/data/types';
+import { ManagerEntry } from '@/data/managers';
 import { getApiKey, getModel } from '@/lib/storage';
 import { seasonToCompactJSON } from '@/lib/simulation';
 import { clSeasonToCompactJSON } from '@/lib/championsLeague';
@@ -41,11 +42,13 @@ export default function HomePage() {
     phase, mode, difficulty, hardcore, formation, teamName, xi, pickIndex,
     currentSpin, selectedPlayerIdx,
     pickRerolls, globalRerolls, rerolling,
+    manager, managerWheel, managerSpinTarget,
     season, clResult, aiAnalysis, pressSummary, apiKeyPresent, simulationError,
     savedSeasonId, setSavedSeasonId,
     setMode, setDifficulty, setFormation, setTeamName,
     setApiKeyPresent, setPhase, setHardcore,
     startSpin, finishSpin, rerollTeam, rerollEra,
+    startManagerSpin, finishManagerSpin,
     rerollTeamAvailable, rerollEraAvailable,
     selectPlayer, cancelSelection, assignToSlot, undoLastPick,
     autoFillXI, startSeason, setAnalysis, setPressSummary, reset,
@@ -75,7 +78,7 @@ export default function HomePage() {
     if (typeof window === 'undefined' || window.innerWidth >= 1024) return;
     if (phase === 'placing') {
       xiPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (phase === 'idle' || phase === 'spinning') {
+    } else if (phase === 'idle' || phase === 'spinning' || phase === 'manager-spin') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [phase]);
@@ -237,7 +240,8 @@ export default function HomePage() {
 
   const inDraftingFlow =
     phase === 'idle' || phase === 'spinning' ||
-    phase === 'reveal' || phase === 'placing';
+    phase === 'reveal' || phase === 'placing' ||
+    phase === 'manager-spin' || phase === 'manager-spinning';
 
   return (
     <>
@@ -346,6 +350,16 @@ export default function HomePage() {
                     onComplete={finishSpin}
                   />
                 )}
+                {phase === 'manager-spin' && (
+                  <ManagerSpinPanel onSpin={startManagerSpin} onUndo={undoLastPick} />
+                )}
+                {phase === 'manager-spinning' && managerWheel && managerSpinTarget && (
+                  <ManagerSpinningPanel
+                    wheel={managerWheel}
+                    targetName={managerSpinTarget.name}
+                    onComplete={finishManagerSpin}
+                  />
+                )}
                 {(phase === 'reveal' || phase === 'placing') && currentTeam && currentSpin && (
                   <div className="space-y-3">
                     <PoolView
@@ -437,6 +451,9 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
+                {manager && (
+                  <ManagerCard manager={manager} hideOvr={hardcore} />
+                )}
                 <div className="glass p-5">
                   <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2">
                     {t.draft.squadOrigins}
@@ -974,6 +991,114 @@ function SpinningPanel({
   );
 }
 
+function ManagerSpinPanel({ onSpin, onUndo }: { onSpin: () => void; onUndo: () => void }) {
+  const t = useT();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass p-6 sm:p-8 text-center"
+    >
+      <div className="font-display text-xs tracking-[0.4em] text-gold mb-2">
+        {t.draft.finalSpin}
+      </div>
+      <div className="font-display text-3xl sm:text-4xl mb-2">
+        {t.draft.spinForManager}
+      </div>
+      <p className="text-sm text-white/60 max-w-sm mx-auto mb-5">
+        {t.draft.managerSpinDesc}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        <button onClick={onUndo} className="btn-ghost text-sm">
+          {t.draft.undoLastPick}
+        </button>
+        <motion.button
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          onClick={onSpin}
+          className="px-8 py-3 rounded-full font-display text-xl tracking-widest bg-gradient-to-r from-gold to-gold-dark text-black shadow-[0_0_25px_rgba(255,215,0,0.4)]"
+        >
+          {t.draft.spin}
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+function ManagerSpinningPanel({
+  wheel,
+  targetName,
+  onComplete,
+}: {
+  wheel: ManagerEntry[];
+  targetName: string;
+  onComplete: () => void;
+}) {
+  const t = useT();
+  const items = useMemo(
+    () => wheel.map(m => ({
+      key: m.name,
+      label: m.name,
+      sublabel: `${m.teamShort} · ${m.era}`,
+      color: m.color,
+    })),
+    [wheel],
+  );
+  return (
+    <div className="flex flex-col items-center pt-4">
+      <div className="font-display text-xl sm:text-2xl text-white/80 mb-1">
+        {t.draft.drawingManager}
+      </div>
+      <div className="text-[10px] tracking-[0.4em] text-white/40 uppercase mb-6">
+        {t.draft.finalSpin}
+      </div>
+      <SpinWheel
+        items={items}
+        targetKey={targetName}
+        spinning
+        wide
+        label={t.draft.manager}
+        height={252}
+        durationMs={3400}
+        onComplete={onComplete}
+      />
+    </div>
+  );
+}
+
+function ManagerCard({ manager, hideOvr }: { manager: ManagerEntry; hideOvr?: boolean }) {
+  const t = useT();
+  const tierClass = hideOvr
+    ? 'bg-gradient-to-br from-slate-700 to-slate-900 text-slate-400'
+    : manager.overall >= 85
+    ? 'bg-gradient-to-br from-yellow-200 to-yellow-600 text-black'
+    : manager.overall >= 75
+    ? 'bg-gradient-to-br from-white to-gray-400 text-black'
+    : 'bg-gradient-to-br from-orange-300 to-orange-700 text-black';
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.92, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 220, damping: 20 }}
+      className="glass p-5 flex items-center gap-4"
+    >
+      <div className={`w-14 h-16 rounded-xl flex flex-col items-center justify-center font-display flex-shrink-0 shadow-lg ${tierClass}`}>
+        <div className="text-[8px] font-bold leading-none mt-1">{t.banner.mgr}</div>
+        <div className="text-2xl leading-none">{hideOvr ? '?' : manager.overall}</div>
+      </div>
+      <div className="min-w-0 text-left">
+        <div className="text-[10px] tracking-[0.3em] text-white/50 uppercase">
+          {t.draft.yourManager}
+        </div>
+        <div className="font-display text-2xl truncate">{manager.name}</div>
+        <div className="text-[11px] text-white/50 truncate">
+          {manager.teamName} · {manager.era}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function FantasyXIPanel({
   drafted,
   xi,
@@ -1012,7 +1137,7 @@ function FantasyTeamBanner({
   playerTeam,
   mode,
 }: {
-  playerTeam: { name: string; shortName: string; formation: string; attackRating: number; defenseRating: number; overallRating: number };
+  playerTeam: { name: string; shortName: string; formation: string; attackRating: number; defenseRating: number; overallRating: number; manager?: string; managerRating?: number };
   mode: Mode;
 }) {
   const t = useT();
@@ -1066,6 +1191,14 @@ function FantasyTeamBanner({
             &nbsp;{t.banner.def} <strong className="text-white">{playerTeam.defenseRating}</strong> ·
             &nbsp;{t.banner.ovr} <strong className="text-white">{playerTeam.overallRating}</strong>
           </div>
+          {playerTeam.manager && playerTeam.manager !== 'You' && (
+            <div className="text-xs text-white/70 mt-0.5 truncate">
+              {t.banner.mgr} <strong className="text-white">{playerTeam.manager}</strong>
+              {playerTeam.managerRating != null && (
+                <span className="text-white/60"> · {playerTeam.managerRating}</span>
+              )}
+            </div>
+          )}
         </div>
         <div className="hidden sm:flex flex-col items-end gap-1 text-white">
           <div className="font-display text-xs tracking-widest text-white/60">{t.banner.formation}</div>

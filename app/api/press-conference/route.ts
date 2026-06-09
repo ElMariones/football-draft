@@ -95,7 +95,8 @@ export async function POST(req: NextRequest) {
 - Each player in the XI is at the PEAK of the era shown. ALL players are simultaneously in their prime.
 - The team is a fantasy mash-up, not a historical real-life side.
 - The 'ovr' field is each player's prime ability (1-99). Refer to "quality" or "level", not "age".
-- You are simulating a press conference with the manager of this team after the season/campaign.`;
+- You are simulating a press conference with the manager of this team after the season/campaign.
+- The manager is named in yourTeam.manager (name, 'ovr' rating, and 'drawnFrom' — the club/era they were drawn from, at their coaching peak). Journalists must address the manager BY NAME and may reference their famous past (e.g. their drawnFrom club) and their reputation when framing questions.`;
 
   try {
     if (body.step === 'questions') {

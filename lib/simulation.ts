@@ -1,4 +1,5 @@
 import { TEAMS, PL_TEAMS, getTeam } from '@/data';
+import { eraManagerNames, ratingForManager } from '@/data/managers';
 import { EraKey, Player, Position, Team, TeamEra } from '@/data/types';
 import { randomEra } from './randomizer';
 import { rand, shuffle } from './random';
@@ -20,6 +21,8 @@ export interface TeamSnapshot {
   defenseRating: number;
   overallRating: number;
   manager?: string;
+  managerRating?: number;  // 1-99; influences the match engine
+  managerSource?: string;  // fantasy XIs: club + era the manager was drawn from
   notes?: string;
   formation: string;
   players: Player[];
@@ -110,6 +113,9 @@ export function snapshotTeam(team: Team, eraKey: EraKey): TeamSnapshot {
   const defense = avg(defs) * 0.55 + gk * 0.30 + avg(mids) * 0.15;
   const overall = avg(starters.map(p => p.overall));
 
+  // Rate the era by its first listed manager (the defining boss of the spell).
+  const managerNames = eraManagerNames(era);
+
   return {
     id: team.id,
     name: team.name,
@@ -117,6 +123,7 @@ export function snapshotTeam(team: Team, eraKey: EraKey): TeamSnapshot {
     era: eraKey,
     colors: team.colors,
     manager: era.manager,
+    managerRating: managerNames.length ? ratingForManager(managerNames[0]) : undefined,
     notes: era.notes,
     formation: era.formation,
     players: starters,
@@ -131,6 +138,20 @@ export function snapshotTeam(team: Team, eraKey: EraKey): TeamSnapshot {
 const BASE_GOALS = 1.30;
 const HOME_ADV = 0.25;
 const RATING_SKEW_EXP = 4.0; // higher = ratings matter more
+
+// Manager influence: a boss above/below the baseline nudges the team's
+// effective attack and defense (±0.2% per rating point → roughly ±20% xG
+// swing between a 96 Ferguson and a 65 caretaker after the skew exponent).
+const MGR_BASELINE = 78;
+
+function managerFactor(snap: TeamSnapshot): number {
+  return 1 + ((snap.managerRating ?? MGR_BASELINE) - MGR_BASELINE) * 0.002;
+}
+
+// Great managers also make results more repeatable (see consistencyFactor).
+function effectiveOverall(snap: TeamSnapshot): number {
+  return snap.overallRating + ((snap.managerRating ?? MGR_BASELINE) - MGR_BASELINE) * 0.15;
+}
 
 function samplePoisson(lambda: number): number {
   const l = Math.max(0.05, Math.min(lambda, 7));
@@ -212,10 +233,12 @@ export function simulateMatch(
   away: TeamSnapshot,
   matchday: number,
 ): MatchResult {
-  const homeXG = expectedGoals(home.attackRating, away.defenseRating, true);
-  const awayXG = expectedGoals(away.attackRating, home.defenseRating, false);
-  const homeGoals = sampleConsistentPoisson(homeXG, home.overallRating);
-  const awayGoals = sampleConsistentPoisson(awayXG, away.overallRating);
+  const homeMgr = managerFactor(home);
+  const awayMgr = managerFactor(away);
+  const homeXG = expectedGoals(home.attackRating * homeMgr, away.defenseRating * awayMgr, true);
+  const awayXG = expectedGoals(away.attackRating * awayMgr, home.defenseRating * homeMgr, false);
+  const homeGoals = sampleConsistentPoisson(homeXG, effectiveOverall(home));
+  const awayGoals = sampleConsistentPoisson(awayXG, effectiveOverall(away));
 
   const scorers: Scorer[] = [];
   for (let i = 0; i < homeGoals; i++) {
@@ -339,6 +362,8 @@ export function buildFantasySnapshot(
     colors?: { primary: string; secondary: string };
     formation: string;
     manager?: string;
+    managerRating?: number;
+    managerSource?: string;
     notes?: string;
   },
 ): TeamSnapshot {
@@ -368,6 +393,8 @@ export function buildFantasySnapshot(
     era: 'all-time',
     colors: opts.colors ?? { primary: '#FFD700', secondary: '#0a0a0f' },
     manager: opts.manager ?? 'You',
+    managerRating: opts.managerRating,
+    managerSource: opts.managerSource,
     notes: opts.notes ?? 'Hand-picked across the Premier League era.',
     formation: opts.formation,
     players,
@@ -478,7 +505,11 @@ export function seasonToCompactJSON(s: SeasonResult): string {
     yourTeam: {
       name: s.playerTeam.name,
       era: s.playerTeam.era,
-      manager: s.playerTeam.manager,
+      manager: {
+        name: s.playerTeam.manager,
+        ovr: s.playerTeam.managerRating,
+        ...(s.playerTeam.managerSource ? { drawnFrom: s.playerTeam.managerSource } : {}),
+      },
       notes: s.playerTeam.notes,
       formation: s.playerTeam.formation,
       attack: s.playerTeam.attackRating,

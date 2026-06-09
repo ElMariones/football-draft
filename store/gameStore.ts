@@ -3,6 +3,8 @@
 import { create } from 'zustand';
 import { EraKey, Formation } from '@/data/types';
 import { getTeam } from '@/data';
+import { ManagerEntry, buildManagerPool } from '@/data/managers';
+import { pickOne, shuffle } from '@/lib/random';
 import { Language, detectLanguage } from '@/lib/i18n';
 import { SeasonResult, buildFantasySnapshot, simulateSeasonForSnapshot } from '@/lib/simulation';
 import {
@@ -31,6 +33,8 @@ export type Phase =
   | 'spinning'
   | 'reveal'
   | 'placing'
+  | 'manager-spin'      // XI complete — waiting for the final manager spin
+  | 'manager-spinning'  // manager reel is animating
   | 'roster-complete'
   | 'simulating'
   | 'finished'
@@ -65,6 +69,9 @@ interface GameState {
   pickRerolls: Rerolls;
   globalRerolls: Rerolls;
   rerolling: 'team' | 'era' | null;
+  manager: ManagerEntry | null;          // drafted via the final manager spin
+  managerSpinTarget: ManagerEntry | null;
+  managerWheel: ManagerEntry[] | null;   // reel candidates (includes the target)
   season: SeasonResult | null;
   clResult: CLResult | null;
   aiAnalysis: string | null;
@@ -82,6 +89,8 @@ interface GameState {
   setPhase: (p: Phase) => void;
   startSpin: () => void;
   finishSpin: () => void;
+  startManagerSpin: () => void;
+  finishManagerSpin: () => void;
   rerollTeam: () => void;
   rerollEra: () => void;
   rerollTeamAvailable: () => boolean;
@@ -127,6 +136,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   pickRerolls: freshPickRerolls('normal'),
   globalRerolls: freshGlobalRerolls('normal'),
   rerolling: null,
+  manager: null,
+  managerSpinTarget: null,
+  managerWheel: null,
   season: null,
   clResult: null,
   aiAnalysis: null,
@@ -179,6 +191,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   finishSpin: () => set({ phase: 'reveal' }),
+
+  // Final spin of the draft: a manager drawn from all the bosses who coached
+  // the mode's clubs across the eras. The reel shows a sample of candidates.
+  startManagerSpin: () => {
+    const pool = buildManagerPool(MODES[get().mode].pool);
+    if (pool.length === 0) return;
+    const target = pickOne(pool);
+    const others = shuffle(pool.filter(m => m.name !== target.name)).slice(0, 13);
+    const wheel = shuffle([...others, target]);
+    set({ phase: 'manager-spinning', managerSpinTarget: target, managerWheel: wheel });
+  },
+
+  finishManagerSpin: () => {
+    const target = get().managerSpinTarget;
+    if (!target) return;
+    set({ manager: target, phase: 'roster-complete' });
+  },
 
   rerollTeamAvailable: () => {
     const { difficulty, pickRerolls, globalRerolls } = get();
@@ -290,7 +319,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       pickIndex: pickIndex + 1,
       pickHistory: [...pickHistory, slotIdx],
       currentSpin: null,
-      phase: complete ? 'roster-complete' : 'idle',
+      phase: complete ? 'manager-spin' : 'idle',
       pickRerolls: complete ? get().pickRerolls : freshPickRerolls(get().difficulty),
     });
   },
@@ -308,6 +337,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentSpin: null,
       selectedPlayerIdx: null,
       pickRerolls: freshPickRerolls(get().difficulty),
+      // Stepping back into the draft voids the manager spin.
+      manager: null,
+      managerSpinTarget: null,
+      managerWheel: null,
     });
   },
 
@@ -348,19 +381,21 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
+    const managerPool = buildManagerPool(pool);
     set({
       xi,
       pickIndex: xi.length,
       pickHistory: history,
       currentSpin: null,
       selectedPlayerIdx: null,
+      manager: managerPool.length ? pickOne(managerPool) : null,
       phase: 'roster-complete',
     });
     console.log('[FootballDraft] Auto-filled XI for debug', xi);
   },
 
   startSeason: (defaultTeamName = 'Drafted Team') => {
-    const { xi, formation, teamName, mode } = get();
+    const { xi, formation, teamName, mode, manager } = get();
     console.log('[FootballDraft] startSeason mode=', mode, 'complete?', xiComplete(xi));
     if (!xiComplete(xi)) return;
     try {
@@ -376,6 +411,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         formation,
         name,
         shortName: initials,
+        manager: manager?.name,
+        managerRating: manager?.overall,
+        managerSource: manager ? `${manager.teamName} ${manager.era}` : undefined,
         colors:
           mode === 'cl'
             ? { primary: '#3DA9FC', secondary: '#0a0a0f' }
@@ -422,6 +460,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       pickRerolls: freshPickRerolls(difficulty),
       globalRerolls: freshGlobalRerolls(difficulty),
       rerolling: null,
+      manager: null,
+      managerSpinTarget: null,
+      managerWheel: null,
       season: null,
       clResult: null,
       aiAnalysis: null,

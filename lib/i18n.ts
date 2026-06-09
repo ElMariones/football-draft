@@ -58,6 +58,12 @@ export const en = {
     defaultTeamName: 'Drafted Team',
     rerollTeam: 'Reroll team',
     rerollEra: 'Reroll era',
+    finalSpin: 'FINAL SPIN',
+    spinForManager: 'Spin for your manager',
+    managerSpinDesc: 'One last spin decides who leads your XI from the touchline. Their rating sways every match.',
+    manager: 'Manager',
+    yourManager: 'YOUR MANAGER',
+    drawingManager: 'Drawing your manager…',
   },
   season: {
     matchday: (n: number) => `Matchday ${n}`,
@@ -213,7 +219,7 @@ export const en = {
     plLabel: 'All-time fantasy XI',
     llLabel: 'La Liga · all-time XI',
     formation: 'FORMATION',
-    att: 'ATT', def: 'DEF', ovr: 'OVR',
+    att: 'ATT', def: 'DEF', ovr: 'OVR', mgr: 'MGR',
   },
   press: {
     startButton: 'Press Conference',
@@ -288,6 +294,12 @@ export const es: typeof en = {
     defaultTeamName: 'Mi equipo',
     rerollTeam: 'Cambiar equipo',
     rerollEra: 'Cambiar era',
+    finalSpin: 'GIRO FINAL',
+    spinForManager: 'Gira para tu entrenador',
+    managerSpinDesc: 'Un último giro decide quién dirige a tu XI desde la banda. Su valoración influye en cada partido.',
+    manager: 'Entrenador',
+    yourManager: 'TU ENTRENADOR',
+    drawingManager: 'Sorteando entrenador…',
   },
   season: {
     matchday: (n) => `Jornada ${n}`,
@@ -443,7 +455,7 @@ export const es: typeof en = {
     plLabel: 'XI fantasy histórico',
     llLabel: 'La Liga · XI histórico',
     formation: 'FORMACIÓN',
-    att: 'ATQ', def: 'DEF', ovr: 'GLB',
+    att: 'ATQ', def: 'DEF', ovr: 'GLB', mgr: 'ENT',
   },
   press: {
     startButton: 'Rueda de prensa',

@@ -18,6 +18,7 @@ interface Props {
   height?: number;        // px
   durationMs?: number;
   label?: string;
+  wide?: boolean;         // single-reel layouts (e.g. manager spin) get more room
 }
 
 const ROW_HEIGHT = 84;
@@ -30,6 +31,7 @@ export default function SpinWheel({
   height = 252,
   durationMs = 3200,
   label,
+  wide = false,
 }: Props) {
   const targetIdx = useMemo(
     () => items.findIndex(i => i.key === targetKey),
@@ -62,7 +64,9 @@ export default function SpinWheel({
         <div className="font-display text-sm tracking-[0.3em] text-white/60">{label}</div>
       )}
       <div
-        className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur w-[min(43vw,220px)] sm:w-[260px]"
+        className={`relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur ${
+          wide ? 'w-[min(88vw,320px)] sm:w-[340px]' : 'w-[min(43vw,220px)] sm:w-[260px]'
+        }`}
         style={{ height }}
       >
         {/* Top + bottom fade masks */}
@@ -96,7 +100,7 @@ export default function SpinWheel({
               style={{ height: ROW_HEIGHT }}
             >
               <div
-                className="font-display text-2xl sm:text-3xl leading-none"
+                className="font-display text-2xl sm:text-3xl leading-none max-w-full truncate"
                 style={{ color: item.color ?? '#fff' }}
               >
                 {item.label}

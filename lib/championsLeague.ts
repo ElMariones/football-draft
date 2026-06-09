@@ -374,7 +374,11 @@ export function clSeasonToCompactJSON(s: CLResult): string {
     competition: 'UEFA Champions League',
     yourTeam: {
       name: s.playerTeam.name,
-      manager: s.playerTeam.manager,
+      manager: {
+        name: s.playerTeam.manager,
+        ovr: s.playerTeam.managerRating,
+        ...(s.playerTeam.managerSource ? { drawnFrom: s.playerTeam.managerSource } : {}),
+      },
       formation: s.playerTeam.formation,
       attack: s.playerTeam.attackRating,
       defense: s.playerTeam.defenseRating,

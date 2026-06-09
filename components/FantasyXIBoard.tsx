@@ -5,7 +5,7 @@ import { DraftSlot } from '@/lib/draft';
 import { useGameStore } from '@/store/gameStore';
 import PlayerCard from './PlayerCard';
 
-const DRAFT_PHASES = new Set(['idle', 'spinning', 'reveal', 'placing', 'roster-complete']);
+const DRAFT_PHASES = new Set(['idle', 'spinning', 'reveal', 'placing', 'manager-spin', 'manager-spinning', 'roster-complete']);
 
 interface Props {
   xi: DraftSlot[];
