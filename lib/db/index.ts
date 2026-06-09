@@ -24,7 +24,11 @@ if (!rawUrl && process.env.NODE_ENV !== 'production') {
 
 let sql;
 try {
-  sql = neon(url);
+  // cache: 'no-store' is critical on Vercel: Next.js patches global fetch and
+  // would otherwise cache the driver's POSTs to Neon in the framework Data
+  // Cache (keyed by URL + body), freezing each distinct query's result at the
+  // first execution — e.g. the leaderboard serving stale rows forever.
+  sql = neon(url, { fetchOptions: { cache: 'no-store' } });
 } catch (err) {
   // Reach here when DATABASE_URL is malformed. Re-throw with a much clearer
   // message so the Vercel build log points the user at the real fix.

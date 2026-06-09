@@ -4,6 +4,9 @@ import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Opt every fetch in this handler out of the Next Data Cache — the Neon
+// driver queries Postgres over fetch(), which Vercel would otherwise cache.
+export const fetchCache = 'force-no-store';
 
 // Public endpoint. Returns the top 10 best run per user per mode, ranked by
 // either squad rating ("ovr") or campaign results ("results").
@@ -95,5 +98,8 @@ export async function GET(req: Request) {
     return r.rows ?? r;
   })();
 
-  return NextResponse.json({ mode, sort, rows });
+  return NextResponse.json(
+    { mode, sort, rows },
+    { headers: { 'Cache-Control': 'no-store, must-revalidate' } },
+  );
 }

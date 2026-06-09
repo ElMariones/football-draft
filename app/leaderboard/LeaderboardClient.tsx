@@ -46,7 +46,7 @@ export default function LeaderboardClient() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/leaderboard?mode=${mode}&sort=${sort}`)
+    fetch(`/api/leaderboard?mode=${mode}&sort=${sort}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(json => setRows(json.rows ?? []))
       .catch(() => setRows([]))
