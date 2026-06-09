@@ -62,7 +62,7 @@ export default function SpinWheel({
         <div className="font-display text-sm tracking-[0.3em] text-white/60">{label}</div>
       )}
       <div
-        className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur w-[220px] sm:w-[260px]"
+        className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur w-[min(43vw,220px)] sm:w-[260px]"
         style={{ height }}
       >
         {/* Top + bottom fade masks */}
@@ -102,7 +102,7 @@ export default function SpinWheel({
                 {item.label}
               </div>
               {item.sublabel && (
-                <div className="text-[11px] tracking-wider text-white/50 mt-1 uppercase">
+                <div className="text-[11px] tracking-wider text-white/50 mt-1 uppercase max-w-full truncate">
                   {item.sublabel}
                 </div>
               )}

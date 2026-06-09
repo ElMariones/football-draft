@@ -43,7 +43,7 @@ export default function CLPlayback({ result, onDone }: Props) {
   return (
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-6">
       <div className="glass p-5 sm:p-6 cl-glass">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <div className="text-[10px] tracking-[0.4em] text-cl uppercase font-display">
               {describeStage(lastFeedStep, t)}

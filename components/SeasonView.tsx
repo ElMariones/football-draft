@@ -43,7 +43,7 @@ export default function SeasonView({ season, onDone }: Props) {
   return (
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6">
       <div className="glass p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <div className="text-xs tracking-[0.3em] text-white/50 uppercase">
               {t.season.matchday(currentMatch?.matchday ?? season.fixtures.length)}

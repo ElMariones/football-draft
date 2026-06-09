@@ -115,7 +115,7 @@ export default function ApiKeyModal({ open, onClose }: Props) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.85, opacity: 0 }}
             onClick={e => e.stopPropagation()}
-            className="glass w-full max-w-md p-6"
+            className="glass w-full max-w-md p-6 max-h-[85dvh] overflow-y-auto"
           >
             <h3 className="font-display text-2xl mb-1">{t.apiKey.title}</h3>
             <p className="text-sm text-white/70 mb-4">

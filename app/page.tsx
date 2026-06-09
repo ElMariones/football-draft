@@ -67,6 +67,18 @@ export default function HomePage() {
 
   const { status: sessionStatus } = useSession();
   const savedSeasonRef = useRef<unknown>(null);
+  const xiPanelRef = useRef<HTMLDivElement>(null);
+
+  // On phones the pitch sits below the player pool: bring the eligible slots
+  // into view when a player is picked, and return to the top for the next spin.
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.innerWidth >= 1024) return;
+    if (phase === 'placing') {
+      xiPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (phase === 'idle' || phase === 'spinning') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [phase]);
 
   useEffect(() => {
     // Guest: local-only presence. Logged-in: also check server-stored key.
@@ -227,10 +239,6 @@ export default function HomePage() {
     phase === 'idle' || phase === 'spinning' ||
     phase === 'reveal' || phase === 'placing';
 
-  useEffect(() => {
-    console.log('[FootballDraft] phase:', phase, 'season set?', !!season);
-  }, [phase, season]);
-
   return (
     <>
       <main className="min-h-screen px-4 sm:px-8 py-6 sm:py-10 max-w-7xl mx-auto">
@@ -242,22 +250,22 @@ export default function HomePage() {
             animate={{ opacity: 1, x: 0 }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className="flex items-center gap-3 group cursor-pointer"
+            className="flex items-center gap-2 sm:gap-3 group cursor-pointer min-w-0"
             title="Back to start"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold to-gold-dark text-black grid place-items-center font-display text-lg shadow-lg group-hover:shadow-[0_0_25px_rgba(255,215,0,0.5)] transition-shadow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold to-gold-dark text-black grid place-items-center font-display text-lg shadow-lg group-hover:shadow-[0_0_25px_rgba(255,215,0,0.5)] transition-shadow flex-shrink-0">
               XI
             </div>
-            <div className="text-left">
-              <div className="font-display text-lg sm:text-xl leading-none group-hover:text-gold transition-colors">
+            <div className="text-left min-w-0">
+              <div className="font-display text-lg sm:text-xl leading-none group-hover:text-gold transition-colors truncate">
                 Football Draft
               </div>
-              <div className="text-[10px] tracking-[0.3em] text-white/40 uppercase">
+              <div className="text-[10px] tracking-[0.3em] text-white/40 uppercase truncate">
                 {t.nav.tagline}
               </div>
             </div>
           </motion.button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             {inDraftingFlow && pickIndex < TOTAL_PICKS && (
               <DraftStatusBar
                 pickIndex={pickIndex}
@@ -269,21 +277,22 @@ export default function HomePage() {
             )}
             <button
               onClick={() => setLanguage(language === 'en' ? 'es' : 'en')}
-              className="btn-ghost text-xs font-display tracking-widest"
+              className="btn-icon text-xs font-display tracking-widest"
               title="Switch language / Cambiar idioma"
             >
               {language === 'en' ? 'ES' : 'EN'}
             </button>
             <Link
               href="/leaderboard"
-              className="btn-ghost text-sm"
+              className="btn-icon text-sm"
               title={t.leaderboard.title}
             >
               🏆
             </Link>
             <button
               onClick={() => setShowKeyModal(true)}
-              className="btn-ghost text-sm relative"
+              className="btn-icon text-sm relative"
+              title={t.apiKey.title}
             >
               ⚙
               {apiKeyPresent && (
@@ -382,7 +391,7 @@ export default function HomePage() {
                 )}
               </div>
 
-              <div className="min-w-0">
+              <div className="min-w-0 scroll-mt-4" ref={xiPanelRef}>
                 <FantasyXIPanel
                   drafted={drafted}
                   xi={xi}

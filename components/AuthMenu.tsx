@@ -53,11 +53,11 @@ export default function AuthMenu() {
     return (
       <button
         onClick={() => signIn('google')}
-        className="btn-ghost text-xs flex items-center gap-2"
+        className="btn-icon sm:w-auto sm:h-auto sm:px-5 sm:py-2.5 text-xs flex items-center gap-2"
         title={t.auth.signInTitle}
       >
         <GoogleGlyph />
-        <span>{t.auth.signIn}</span>
+        <span className="hidden sm:inline">{t.auth.signIn}</span>
       </button>
     );
   }
@@ -102,13 +102,13 @@ export default function AuthMenu() {
                 <button
                   onClick={saveNickname}
                   disabled={nicknameSaving}
-                  className="text-[10px] text-gold hover:text-white"
+                  className="text-xs px-2 py-1.5 text-gold hover:text-white"
                 >
                   {nicknameSaving ? '...' : '✓'}
                 </button>
                 <button
                   onClick={() => setEditingNickname(false)}
-                  className="text-[10px] text-white/40 hover:text-white"
+                  className="text-xs px-2 py-1.5 text-white/40 hover:text-white"
                 >
                   ✕
                 </button>
@@ -116,7 +116,7 @@ export default function AuthMenu() {
             ) : (
               <button
                 onClick={() => setEditingNickname(true)}
-                className="text-[10px] text-white/50 hover:text-white/80 transition-colors"
+                className="text-xs py-1 text-white/50 hover:text-white/80 transition-colors"
               >
                 {nickname ? `✏ ${nickname}` : '✏ Set nickname'}
               </button>

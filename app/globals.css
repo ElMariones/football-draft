@@ -22,6 +22,9 @@ html, body {
   color: var(--foreground);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -30,6 +33,23 @@ body {
     radial-gradient(ellipse at bottom, rgba(255, 215, 0, 0.05), transparent 50%),
     var(--background);
   min-height: 100vh;
+  /* Respect notches / home indicator on phones (viewport-fit=cover) */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Snappier taps; prevents double-tap zoom on controls now that pinch-zoom is allowed */
+button, a, [role='button'] {
+  touch-action: manipulation;
+}
+
+/* iOS Safari auto-zooms inputs with font-size < 16px. Force 16px on touch-sized
+   screens so focusing an input never zooms the page. */
+@media (max-width: 639px) {
+  input, select, textarea {
+    font-size: max(16px, 1em);
+  }
 }
 
 @layer components {
@@ -38,6 +58,9 @@ body {
   }
   .btn-ghost {
     @apply px-5 py-2.5 rounded-full font-semibold text-white/90 border border-white/20 bg-white/5 backdrop-blur transition-all hover:bg-white/10 hover:border-white/40 active:scale-95;
+  }
+  .btn-icon {
+    @apply w-10 h-10 rounded-full font-semibold text-white/90 border border-white/20 bg-white/5 backdrop-blur transition-all hover:bg-white/10 hover:border-white/40 active:scale-95 inline-flex items-center justify-center flex-shrink-0;
   }
   .glass {
     @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
