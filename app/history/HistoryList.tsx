@@ -12,6 +12,7 @@ interface Row {
   formation: string;
   finalPosition: number | null;
   clStage: string | null;
+  manager?: string | null;
 }
 
 const MODE_LABEL: Record<string, { label: string; color: string }> = {
@@ -65,6 +66,9 @@ export default function HistoryList({ initialRows }: { initialRows: Row[] }) {
             <div className="text-xs text-white/60">
               {r.formation} · {outcome}
             </div>
+            {r.manager && r.manager !== 'You' && (
+              <div className="text-[11px] text-white/45 truncate">🧠 {r.manager}</div>
+            )}
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
               <button
                 onClick={() => handleDelete(r.id)}

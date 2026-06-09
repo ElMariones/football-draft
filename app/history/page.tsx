@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { seasons } from '@/lib/db/schema';
@@ -23,6 +23,7 @@ export default async function HistoryPage() {
       formation: seasons.formation,
       finalPosition: seasons.finalPosition,
       clStage: seasons.clStage,
+      manager: sql<string | null>`${seasons.payload} -> 'playerTeam' ->> 'manager'`,
     })
     .from(seasons)
     .where(eq(seasons.userId, session.user.id))

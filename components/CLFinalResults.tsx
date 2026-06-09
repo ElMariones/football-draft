@@ -157,8 +157,19 @@ export default function CLFinalResults({ result, onRequestAnalysis, analyzing, a
         transition={{ delay: 0.4 }}
         className="glass cl-glass p-6"
       >
-        <div className="font-display text-xs tracking-[0.3em] text-cl mb-4">
-          {t.clResults.yourSquad(result.playerTeam.formation)}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="font-display text-xs tracking-[0.3em] text-cl">
+            {t.clResults.yourSquad(result.playerTeam.formation)}
+          </div>
+          {result.playerTeam.manager && result.playerTeam.manager !== 'You' && (
+            <div className="text-xs text-white/60">
+              {t.banner.mgr}{' '}
+              <strong className="text-white">{result.playerTeam.manager}</strong>
+              {result.playerTeam.managerRating != null && (
+                <span className="font-display text-cl ml-1.5">{result.playerTeam.managerRating}</span>
+              )}
+            </div>
+          )}
         </div>
         <CLSquadPitch result={result} />
       </motion.div>

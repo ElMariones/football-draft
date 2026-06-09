@@ -29,6 +29,7 @@ export default function ShareView({
   formation,
   finalPosition,
   clStage,
+  payload,
   xiSummary,
   userName,
   userImage,
@@ -36,6 +37,10 @@ export default function ShareView({
   const isCL = mode === 'cl';
   const isLL = mode === 'll';
   const modeLabel = isCL ? 'Champions League' : isLL ? 'La Liga' : 'Premier League';
+
+  const managerName: string | undefined = payload?.playerTeam?.manager;
+  const managerRating: number | undefined = payload?.playerTeam?.managerRating;
+  const showManager = !!managerName && managerName !== 'You';
 
   const resultLabel = isCL
     ? CL_STAGE_LABEL[clStage ?? ''] ?? clStage
@@ -77,6 +82,15 @@ export default function ShareView({
           </div>
           {isCL && clStage === 'champion' && (
             <div className="text-5xl mt-3">🏆</div>
+          )}
+          {showManager && (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-1.5 text-xs text-white/70">
+              Manager
+              <strong className="text-white">{managerName}</strong>
+              {managerRating != null && (
+                <span className="font-display" style={{ color: accentColor }}>{managerRating}</span>
+              )}
+            </div>
           )}
         </div>
       </motion.div>

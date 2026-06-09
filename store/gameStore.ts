@@ -91,6 +91,8 @@ interface GameState {
   finishSpin: () => void;
   startManagerSpin: () => void;
   finishManagerSpin: () => void;
+  rerollManager: () => void;
+  managerRerollAvailable: () => boolean;
   rerollTeam: () => void;
   rerollEra: () => void;
   rerollTeamAvailable: () => boolean;
@@ -200,13 +202,50 @@ export const useGameStore = create<GameState>((set, get) => ({
     const target = pickOne(pool);
     const others = shuffle(pool.filter(m => m.name !== target.name)).slice(0, 13);
     const wheel = shuffle([...others, target]);
-    set({ phase: 'manager-spinning', managerSpinTarget: target, managerWheel: wheel });
+    set({
+      phase: 'manager-spinning',
+      managerSpinTarget: target,
+      managerWheel: wheel,
+      // Per-pick difficulties refresh their reroll budget for the manager
+      // spin, exactly like every player pick does.
+      pickRerolls: freshPickRerolls(get().difficulty),
+    });
   },
 
   finishManagerSpin: () => {
     const target = get().managerSpinTarget;
     if (!target) return;
     set({ manager: target, phase: 'roster-complete' });
+  },
+
+  // Leftover rerolls (team + era combined, per the mode's difficulty) can be
+  // spent on re-spinning the manager.
+  managerRerollAvailable: () => {
+    const { difficulty, pickRerolls, globalRerolls } = get();
+    const cfg = DIFFICULTIES[difficulty];
+    const budget = cfg.perPick ? pickRerolls : cfg.global ? globalRerolls : { team: 0, era: 0 };
+    return budget.team + budget.era > 0;
+  },
+
+  rerollManager: () => {
+    const { manager, mode, difficulty, pickRerolls, globalRerolls } = get();
+    if (!get().managerRerollAvailable()) return;
+    const pool = buildManagerPool(MODES[mode].pool).filter(m => m.name !== manager?.name);
+    if (pool.length === 0) return;
+    const target = pickOne(pool);
+    const others = shuffle(pool.filter(m => m.name !== target.name)).slice(0, 13);
+    const wheel = shuffle([...others, target]);
+    const cfg = DIFFICULTIES[difficulty];
+    const consume = (r: Rerolls): Rerolls =>
+      r.team > 0 ? { ...r, team: r.team - 1 } : { ...r, era: r.era - 1 };
+    set({
+      phase: 'manager-spinning',
+      managerSpinTarget: target,
+      managerWheel: wheel,
+      manager: null,
+      pickRerolls: cfg.perPick ? consume(pickRerolls) : pickRerolls,
+      globalRerolls: cfg.global ? consume(globalRerolls) : globalRerolls,
+    });
   },
 
   rerollTeamAvailable: () => {

@@ -49,6 +49,7 @@ export default function HomePage() {
     setApiKeyPresent, setPhase, setHardcore,
     startSpin, finishSpin, rerollTeam, rerollEra,
     startManagerSpin, finishManagerSpin,
+    rerollManager, managerRerollAvailable,
     rerollTeamAvailable, rerollEraAvailable,
     selectPlayer, cancelSelection, assignToSlot, undoLastPick,
     autoFillXI, startSeason, setAnalysis, setPressSummary, reset,
@@ -182,6 +183,11 @@ export default function HomePage() {
   const diffCfg = DIFFICULTIES[difficulty];
   const rerollT = rerollTeamAvailable();
   const rerollE = rerollEraAvailable();
+  const managerRerollsLeft = diffCfg.perPick
+    ? pickRerolls.team + pickRerolls.era
+    : diffCfg.global
+    ? globalRerolls.team + globalRerolls.era
+    : 0;
 
   const seasonPayloadForAI = useMemo(() => {
     if (mode === 'cl' && clResult) return clSeasonToCompactJSON(clResult);
@@ -452,7 +458,18 @@ export default function HomePage() {
                   )}
                 </div>
                 {manager && (
-                  <ManagerCard manager={manager} hideOvr={hardcore} />
+                  <div className="space-y-2">
+                    <ManagerCard manager={manager} hideOvr={hardcore} />
+                    <div className="flex justify-end">
+                      <RerollButton
+                        label={t.draft.manager}
+                        count={managerRerollsLeft}
+                        disabled={!managerRerollAvailable()}
+                        onClick={rerollManager}
+                        active={false}
+                      />
+                    </div>
+                  </div>
                 )}
                 <div className="glass p-5">
                   <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2">

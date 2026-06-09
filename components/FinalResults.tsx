@@ -109,8 +109,19 @@ export default function FinalResults({ season, onRequestAnalysis, analyzing, ana
         transition={{ delay: 0.4 }}
         className="glass p-6"
       >
-        <div className="font-display text-xs tracking-[0.3em] text-white/50 mb-4">
-          {t.results.yourSquad(season.playerTeam.formation)}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="font-display text-xs tracking-[0.3em] text-white/50">
+            {t.results.yourSquad(season.playerTeam.formation)}
+          </div>
+          {season.playerTeam.manager && season.playerTeam.manager !== 'You' && (
+            <div className="text-xs text-white/60">
+              {t.banner.mgr}{' '}
+              <strong className="text-white">{season.playerTeam.manager}</strong>
+              {season.playerTeam.managerRating != null && (
+                <span className="font-display text-gold ml-1.5">{season.playerTeam.managerRating}</span>
+              )}
+            </div>
+          )}
         </div>
         <PLSquadPitch season={season} />
       </motion.div>
