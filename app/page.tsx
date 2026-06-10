@@ -8,6 +8,7 @@ import { ERAS } from '@/data/eras';
 import { Formation } from '@/data/types';
 import { ManagerEntry } from '@/data/managers';
 import { getApiKey, getModel } from '@/lib/storage';
+import { randomTeamName } from '@/lib/teamNames';
 import { seasonToCompactJSON } from '@/lib/simulation';
 import { clSeasonToCompactJSON } from '@/lib/championsLeague';
 import {
@@ -772,6 +773,8 @@ function LandingPanel({
   onAutoFill: () => void;
 }) {
   const t = useT();
+  const language = useGameStore(s => s.language);
+  const [nameRolls, setNameRolls] = useState(0);
   const isCL = mode === 'cl';
   const isLL = mode === 'll';
   const ctaClass = isCL
@@ -814,15 +817,34 @@ function LandingPanel({
         <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2 pl-1">
           {t.landing.teamName}
         </div>
-        <input
-          type="text"
-          value={teamName}
-          onChange={e => setTeamName(e.target.value.slice(0, 40))}
-          placeholder={t.landing.teamNamePlaceholder}
-          className={`w-full rounded-xl bg-white/5 border border-white/15 px-4 py-3 text-base focus:outline-none placeholder-white/30 ${
-            isCL ? 'focus:border-cl/70' : isLL ? 'focus:border-[#C8102E]/70' : 'focus:border-gold/70'
-          }`}
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={teamName}
+            onChange={e => setTeamName(e.target.value.slice(0, 40))}
+            placeholder={t.landing.teamNamePlaceholder}
+            className={`w-full rounded-xl bg-white/5 border border-white/15 px-4 py-3 pr-12 text-base focus:outline-none placeholder-white/30 ${
+              isCL ? 'focus:border-cl/70' : isLL ? 'focus:border-[#C8102E]/70' : 'focus:border-gold/70'
+            }`}
+          />
+          <motion.button
+            type="button"
+            onClick={() => {
+              setTeamName(randomTeamName(language, teamName));
+              setNameRolls(n => n + 1);
+            }}
+            style={{ y: '-50%' }}
+            animate={{ rotate: nameRolls * 360 }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.85 }}
+            title={t.landing.randomName}
+            aria-label={t.landing.randomName}
+            className="absolute right-2 top-1/2 w-9 h-9 rounded-lg grid place-items-center text-lg opacity-60 hover:opacity-100 hover:bg-white/10 transition-[opacity,background-color]"
+          >
+            🎲
+          </motion.button>
+        </div>
       </div>
 
       <div>
