@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useGameStore, TOTAL_PICKS } from '@/store/gameStore';
 import { getTeam } from '@/data';
-import { ERAS } from '@/data/eras';
+import { ERAS, WC_ERAS } from '@/data/eras';
 import { Formation } from '@/data/types';
 import { ManagerEntry } from '@/data/managers';
 import { getApiKey, getModel } from '@/lib/storage';
 import { randomTeamName } from '@/lib/teamNames';
 import { seasonToCompactJSON } from '@/lib/simulation';
 import { clSeasonToCompactJSON } from '@/lib/championsLeague';
+import { wcToCompactJSON } from '@/lib/worldCup';
 import {
   DIFFICULTIES,
   AVAILABLE_FORMATIONS,
@@ -30,6 +31,8 @@ import AIAnalysisView from '@/components/AIAnalysisView';
 import ApiKeyModal from '@/components/ApiKeyModal';
 import CLPlayback from '@/components/CLPlayback';
 import CLFinalResults from '@/components/CLFinalResults';
+import WCPlayback from '@/components/WCPlayback';
+import WCFinalResults from '@/components/WCFinalResults';
 import AuthMenu from '@/components/AuthMenu';
 import Link from 'next/link';
 import ShareButton from '@/components/ShareButton';
@@ -44,7 +47,7 @@ export default function HomePage() {
     currentSpin, selectedPlayerIdx,
     pickRerolls, globalRerolls, rerolling,
     manager, managerWheel, managerSpinTarget,
-    season, clResult, aiAnalysis, pressSummary, apiKeyPresent, simulationError,
+    season, clResult, wcResult, aiAnalysis, pressSummary, apiKeyPresent, simulationError,
     savedSeasonId, setSavedSeasonId,
     setMode, setDifficulty, setFormation, setTeamName,
     setApiKeyPresent, setPhase, setHardcore,
@@ -61,9 +64,10 @@ export default function HomePage() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    document.body.classList.remove('cl-mode', 'll-mode');
+    document.body.classList.remove('cl-mode', 'll-mode', 'wc-mode');
     if (mode === 'cl') document.body.classList.add('cl-mode');
     else if (mode === 'll') document.body.classList.add('ll-mode');
+    else if (mode === 'wc') document.body.classList.add('wc-mode');
   }, [mode]);
 
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -102,7 +106,7 @@ export default function HomePage() {
   // result object isn't double-saved if effects re-run.
   useEffect(() => {
     if (sessionStatus !== 'authenticated') return;
-    const completed = mode === 'cl' ? clResult : season;
+    const completed = mode === 'cl' ? clResult : mode === 'wc' ? wcResult : season;
     if (!completed) return;
     if (savedSeasonRef.current === completed) return;
     savedSeasonRef.current = completed;
@@ -130,6 +134,17 @@ export default function HomePage() {
             payload: clResult,
             xiSummary,
           }
+        : mode === 'wc' && wcResult
+        ? {
+            mode,
+            teamName: wcResult.playerTeam.name,
+            formation: wcResult.playerTeam.formation,
+            finalPosition: null,
+            // WC progression reuses the clStage column ('group'…'champion').
+            clStage: wcResult.playerStage,
+            payload: wcResult,
+            xiSummary,
+          }
         : season
         ? {
             mode,
@@ -155,7 +170,7 @@ export default function HomePage() {
       .catch(() => {
         savedSeasonRef.current = null;
       });
-  }, [sessionStatus, mode, season, clResult, xi, setSavedSeasonId]);
+  }, [sessionStatus, mode, season, clResult, wcResult, xi, setSavedSeasonId]);
 
   const teamItems = useMemo(
     () => MODES[mode].pool.map(t => ({
@@ -167,8 +182,8 @@ export default function HomePage() {
     [mode],
   );
   const eraItems = useMemo(
-    () => ERAS.map(e => ({ key: e.key, label: e.key, sublabel: e.label })),
-    [],
+    () => (mode === 'wc' ? WC_ERAS : ERAS).map(e => ({ key: e.key, label: e.key, sublabel: e.label })),
+    [mode],
   );
 
   const drafted = countDrafted(xi);
@@ -192,12 +207,13 @@ export default function HomePage() {
 
   const seasonPayloadForAI = useMemo(() => {
     if (mode === 'cl' && clResult) return clSeasonToCompactJSON(clResult);
+    if (mode === 'wc' && wcResult) return wcToCompactJSON(wcResult);
     if (season) return seasonToCompactJSON(season);
     return '';
-  }, [mode, clResult, season]);
+  }, [mode, clResult, wcResult, season]);
 
   async function requestAnalysis() {
-    if (!season && !clResult) return;
+    if (!season && !clResult && !wcResult) return;
     setAnalyzing(true);
     setAnalysisError(null);
     try {
@@ -206,6 +222,8 @@ export default function HomePage() {
       const payload =
         mode === 'cl' && clResult
           ? clSeasonToCompactJSON(clResult)
+          : mode === 'wc' && wcResult
+          ? wcToCompactJSON(wcResult)
           : season
           ? seasonToCompactJSON(season)
           : '';
@@ -231,6 +249,16 @@ export default function HomePage() {
       const a = document.createElement('a');
       a.href = url;
       a.download = `cl-${clResult.playerTeam.shortName}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    if (mode === 'wc' && wcResult) {
+      const blob = new Blob([wcToCompactJSON(wcResult)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `worldcup-${wcResult.playerTeam.shortName}.json`;
       a.click();
       URL.revokeObjectURL(url);
       return;
@@ -442,7 +470,7 @@ export default function HomePage() {
                     {teamName.trim() || t.draft.defaultTeamName}
                   </div>
                   <p className="text-sm text-white/70 mt-2">
-                    {mode === 'cl' ? t.draft.lockedDescCL : t.draft.lockedDescPL}
+                    {mode === 'cl' ? t.draft.lockedDescCL : mode === 'wc' ? t.draft.lockedDescWC : t.draft.lockedDescPL}
                   </p>
                   <div className="mt-5 flex flex-wrap justify-center gap-2">
                     <button onClick={undoLastPick} className="btn-ghost">
@@ -526,6 +554,18 @@ export default function HomePage() {
             >
               <FantasyTeamBanner playerTeam={clResult.playerTeam} mode="cl" />
               <CLPlayback result={clResult} onDone={() => setPhase('finished')} />
+            </motion.section>
+          )}
+
+          {/* ============= WORLD CUP PLAYBACK ============= */}
+          {phase === 'simulating' && mode === 'wc' && wcResult && (
+            <motion.section
+              key="simulating-wc"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <FantasyTeamBanner playerTeam={wcResult.playerTeam} mode="wc" />
+              <WCPlayback result={wcResult} onDone={() => setPhase('finished')} />
             </motion.section>
           )}
 
@@ -625,6 +665,54 @@ export default function HomePage() {
             </motion.section>
           )}
 
+          {/* ============= WORLD CUP FINISHED ============= */}
+          {phase === 'finished' && mode === 'wc' && wcResult && (
+            <motion.section
+              key="finished-wc"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <FantasyTeamBanner playerTeam={wcResult.playerTeam} mode="wc" />
+              <WCFinalResults
+                result={wcResult}
+                onRequestAnalysis={requestAnalysis}
+                analyzing={analyzing}
+                analysisDisabled={!apiKeyPresent}
+              />
+              {apiKeyPresent && (
+                <div className="mt-3 flex justify-center">
+                  <PressConference
+                    payload={seasonPayloadForAI}
+                    mode="wc"
+                    onDone={setPressSummary}
+                  />
+                </div>
+              )}
+              {!apiKeyPresent && (
+                <div className="mt-3 text-center text-sm text-white/60">
+                  <button onClick={() => setShowKeyModal(true)} className="underline hover:text-white">
+                    {t.postSim.addKey}
+                  </button>{' '}
+                  {t.postSim.unlockVerdict}
+                </div>
+              )}
+              {analysisError && (
+                <div className="mt-3 text-center text-sm text-red-300">{analysisError}</div>
+              )}
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-white/40">
+                <button onClick={downloadJson} className="underline hover:text-white/80">
+                  {t.postSim.downloadCampaign}
+                </button>
+                <ShareButton
+                  seasonId={savedSeasonId}
+                  mode="wc"
+                  teamName={wcResult.playerTeam.name}
+                  result={wcResult.playerStage === 'champion' ? 'World Champions' : wcResult.playerStage}
+                />
+              </div>
+            </motion.section>
+          )}
+
           {/* ============= ANALYSIS ============= */}
           {phase === 'analysis' && aiAnalysis && (
             <motion.section
@@ -634,6 +722,9 @@ export default function HomePage() {
             >
               {mode === 'cl' && clResult && (
                 <FantasyTeamBanner playerTeam={clResult.playerTeam} mode="cl" />
+              )}
+              {mode === 'wc' && wcResult && (
+                <FantasyTeamBanner playerTeam={wcResult.playerTeam} mode="wc" />
               )}
               {(mode === 'pl' || mode === 'll') && season && (
                 <FantasyTeamBanner playerTeam={season.playerTeam} mode={mode} />
@@ -651,6 +742,9 @@ export default function HomePage() {
             >
               {mode === 'cl' && clResult && (
                 <FantasyTeamBanner playerTeam={clResult.playerTeam} mode="cl" />
+              )}
+              {mode === 'wc' && wcResult && (
+                <FantasyTeamBanner playerTeam={wcResult.playerTeam} mode="wc" />
               )}
               {(mode === 'pl' || mode === 'll') && season && (
                 <FantasyTeamBanner playerTeam={season.playerTeam} mode={mode} />
@@ -777,12 +871,15 @@ function LandingPanel({
   const [nameRolls, setNameRolls] = useState(0);
   const isCL = mode === 'cl';
   const isLL = mode === 'll';
+  const isWC = mode === 'wc';
   const ctaClass = isCL
     ? 'bg-gradient-to-r from-cl to-cl-dark text-white shadow-[0_0_30px_rgba(61,169,252,0.4)] hover:shadow-[0_0_50px_rgba(61,169,252,0.7)]'
     : isLL
     ? 'bg-gradient-to-r from-[#C8102E] to-[#7B0A1E] text-white shadow-[0_0_30px_rgba(200,16,46,0.4)] hover:shadow-[0_0_50px_rgba(200,16,46,0.7)]'
+    : isWC
+    ? 'bg-gradient-to-r from-wc to-wc-gold text-black wc-glow'
     : 'bg-gradient-to-r from-gold to-gold-dark text-black shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:shadow-[0_0_50px_rgba(255,215,0,0.7)]';
-  const headlineClass = isCL ? 'cl-shimmer' : isLL ? 'll-shimmer' : 'shimmer';
+  const headlineClass = isCL ? 'cl-shimmer' : isLL ? 'll-shimmer' : isWC ? 'wc-shimmer' : 'shimmer';
 
   return (
     <motion.div
@@ -794,15 +891,15 @@ function LandingPanel({
         <motion.div
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          className="text-6xl sm:text-7xl mb-2"
+          className={`text-6xl sm:text-7xl mb-2 ${isWC ? 'wc-trophy' : ''}`}
         >
-          {isCL ? '⭐' : isLL ? '🔴' : '⚽'}
+          {isCL ? '⭐' : isLL ? '🔴' : isWC ? '🏆' : '⚽'}
         </motion.div>
         <h1 className={`font-display text-4xl sm:text-6xl leading-none mb-2 ${headlineClass}`}>
-          {isCL ? t.landing.headingCL : isLL ? t.landing.headingLL : t.landing.headingPL}
+          {isCL ? t.landing.headingCL : isLL ? t.landing.headingLL : isWC ? t.landing.headingWC : t.landing.headingPL}
         </h1>
         <p className="max-w-md mx-auto text-white/70 text-sm">
-          {isCL ? t.landing.descCL : isLL ? t.landing.descLL : t.landing.descPL}
+          {isCL ? t.landing.descCL : isLL ? t.landing.descLL : isWC ? t.landing.descWC : t.landing.descPL}
         </p>
       </div>
 
@@ -824,7 +921,7 @@ function LandingPanel({
             onChange={e => setTeamName(e.target.value.slice(0, 40))}
             placeholder={t.landing.teamNamePlaceholder}
             className={`w-full rounded-xl bg-white/5 border border-white/15 px-4 py-3 pr-12 text-base focus:outline-none placeholder-white/30 ${
-              isCL ? 'focus:border-cl/70' : isLL ? 'focus:border-[#C8102E]/70' : 'focus:border-gold/70'
+              isCL ? 'focus:border-cl/70' : isLL ? 'focus:border-[#C8102E]/70' : isWC ? 'focus:border-wc/70' : 'focus:border-gold/70'
             }`}
           />
           <motion.button
@@ -1182,13 +1279,14 @@ function FantasyTeamBanner({
   const t = useT();
   const isCL = mode === 'cl';
   const isLL = mode === 'll';
+  const isWC = mode === 'wc';
   return (
     <motion.div
       initial={{ opacity: 0, y: -16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={`relative overflow-hidden rounded-3xl mb-2 border ${
-        isCL ? 'border-cl/40' : isLL ? 'border-[#C8102E]/30' : 'border-gold/30'
+        isCL ? 'border-cl/40' : isLL ? 'border-[#C8102E]/30' : isWC ? 'border-wc/40' : 'border-gold/30'
       }`}
     >
       <div
@@ -1198,10 +1296,13 @@ function FantasyTeamBanner({
             ? 'linear-gradient(135deg, rgba(61,169,252,0.25) 0%, rgba(12,45,82,0.4) 50%, #050b18 100%)'
             : isLL
             ? 'linear-gradient(135deg, rgba(200,16,46,0.25) 0%, rgba(90,0,20,0.4) 50%, #0a0a0f 100%)'
+            : isWC
+            ? 'linear-gradient(135deg, rgba(0,223,162,0.22) 0%, rgba(245,197,66,0.10) 40%, rgba(1,71,55,0.4) 70%, #04110c 100%)'
             : 'linear-gradient(135deg, rgba(255,215,0,0.25) 0%, rgba(255,215,0,0.05) 50%, #0a0a0f 100%)',
         }}
       />
       {isCL && <div className="cl-stars" />}
+      {isWC && <div className="wc-stars" />}
       <div
         className="absolute inset-0"
         style={{
@@ -1209,18 +1310,20 @@ function FantasyTeamBanner({
             ? 'radial-gradient(circle at top right, rgba(61,169,252,0.3), transparent 60%)'
             : isLL
             ? 'radial-gradient(circle at top right, rgba(200,16,46,0.25), transparent 60%)'
+            : isWC
+            ? 'radial-gradient(circle at top right, rgba(245,197,66,0.25), transparent 60%)'
             : 'radial-gradient(circle at top right, rgba(255,215,0,0.25), transparent 60%)',
         }}
       />
       <div className="relative px-5 sm:px-8 py-5 sm:py-7 flex items-center gap-4 sm:gap-6">
         <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center font-display text-2xl sm:text-3xl shadow-xl bg-black/60 ${
-          isCL ? 'text-cl' : isLL ? 'text-[#C8102E]' : 'text-gold'
+          isCL ? 'text-cl' : isLL ? 'text-[#C8102E]' : isWC ? 'text-wc' : 'text-gold'
         }`}>
           {playerTeam.shortName}
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] sm:text-xs tracking-[0.3em] text-white/70 uppercase">
-            {isCL ? t.banner.clLabel : isLL ? t.banner.llLabel : t.banner.plLabel}
+            {isCL ? t.banner.clLabel : isLL ? t.banner.llLabel : isWC ? t.banner.wcLabel : t.banner.plLabel}
           </div>
           <div className="font-display text-2xl sm:text-4xl text-white truncate">
             {playerTeam.name}

@@ -7,6 +7,7 @@ import { seasons } from '@/lib/db/schema';
 import SeasonReplay from './SeasonReplay';
 import type { SeasonResult } from '@/lib/simulation';
 import type { CLResult } from '@/lib/championsLeague';
+import type { WCResult } from '@/lib/worldCup';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -39,8 +40,8 @@ export default async function SeasonHistoryPage({ params }: { params: { id: stri
         </span>
       </div>
       <SeasonReplay
-        mode={row.mode as 'pl' | 'cl' | 'll'}
-        payload={row.payload as SeasonResult | CLResult}
+        mode={row.mode as 'pl' | 'cl' | 'll' | 'wc'}
+        payload={row.payload as SeasonResult | CLResult | WCResult}
       />
     </main>
   );

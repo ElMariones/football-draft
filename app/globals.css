@@ -150,3 +150,94 @@ body.ll-mode {
   border-color: rgba(200, 16, 46, 0.25) !important;
   background: linear-gradient(180deg, rgba(90, 0, 20, 0.3), rgba(10, 10, 15, 0.5)) !important;
 }
+
+/* ===================== World Cup theme ===================== */
+
+/* WC shimmer: emerald → trophy gold → white. The trophy treatment. */
+.wc-shimmer {
+  background: linear-gradient(90deg, #00DFA2 0%, #F5C542 35%, #FFF7DA 50%, #F5C542 65%, #00DFA2 100%);
+  background-size: 1000px 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+/* WC theme overlay (added on the body in World Cup mode) */
+.wc-mode body,
+body.wc-mode {
+  background:
+    radial-gradient(circle at 15% 8%, rgba(0, 223, 162, 0.16), transparent 45%),
+    radial-gradient(circle at 85% 20%, rgba(245, 197, 66, 0.10), transparent 40%),
+    radial-gradient(circle at 80% 85%, rgba(1, 71, 55, 0.5), transparent 55%),
+    #04110c !important;
+}
+
+/* Festival-of-nations sparkle: gold + white dots like stadium camera flashes */
+.wc-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(245, 197, 66, 0.9) 1px, transparent 1.5px),
+    radial-gradient(rgba(255, 255, 255, 0.7) 1px, transparent 1px),
+    radial-gradient(rgba(0, 223, 162, 0.8) 1px, transparent 1.5px);
+  background-size: 110px 110px, 70px 70px, 150px 150px;
+  background-position: 0 0, 35px 50px, 70px 20px;
+  opacity: 0.18;
+  pointer-events: none;
+  animation: wcTwinkle 4s ease-in-out infinite;
+}
+
+@keyframes wcTwinkle {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.26; }
+}
+
+.text-wc { color: #00DFA2; }
+.bg-wc { background-color: #00DFA2; }
+.text-wc-gold { color: #F5C542; }
+
+.wc-glass {
+  border-color: rgba(0, 223, 162, 0.25) !important;
+  background: linear-gradient(180deg, rgba(1, 71, 55, 0.35), rgba(10, 10, 15, 0.5)) !important;
+}
+
+/* Trophy lift for the champion screen */
+@keyframes wcTrophy {
+  0%, 100% { transform: translateY(0) scale(1) rotate(0deg); filter: drop-shadow(0 0 18px rgba(245, 197, 66, 0.5)); }
+  25% { transform: translateY(-14px) scale(1.08) rotate(-4deg); }
+  50% { transform: translateY(-22px) scale(1.14) rotate(0deg); filter: drop-shadow(0 0 45px rgba(245, 197, 66, 0.95)); }
+  75% { transform: translateY(-14px) scale(1.08) rotate(4deg); }
+}
+
+.wc-trophy {
+  display: inline-block;
+  animation: wcTrophy 2.6s ease-in-out infinite;
+}
+
+/* Firework bursts behind the World Cup champion card */
+@keyframes wcFirework {
+  0%   { transform: scale(0); opacity: 0; }
+  12%  { transform: scale(0.4); opacity: 1; }
+  45%  { transform: scale(1); opacity: 0.85; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+.wc-firework {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: wcFirework 2.4s ease-out infinite;
+}
+
+/* Golden pulsing ring around the WC CTA button */
+@keyframes wcPulseRing {
+  0%, 100% { box-shadow: 0 0 25px rgba(0, 223, 162, 0.45), 0 0 60px rgba(245, 197, 66, 0.15); }
+  50% { box-shadow: 0 0 45px rgba(0, 223, 162, 0.75), 0 0 90px rgba(245, 197, 66, 0.35); }
+}
+
+.wc-glow {
+  animation: wcPulseRing 2.2s ease-in-out infinite;
+}

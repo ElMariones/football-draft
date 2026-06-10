@@ -27,6 +27,7 @@ import {
   rerollTeamKeepEra,
 } from '@/lib/randomizer';
 import { simulateCLSeason, CLResult } from '@/lib/championsLeague';
+import { simulateWorldCup, WCResult } from '@/lib/worldCup';
 
 export type Phase =
   | 'idle'
@@ -74,6 +75,7 @@ interface GameState {
   managerWheel: ManagerEntry[] | null;   // reel candidates (includes the target)
   season: SeasonResult | null;
   clResult: CLResult | null;
+  wcResult: WCResult | null;
   aiAnalysis: string | null;
   pressSummary: string | null;
   apiKeyPresent: boolean;
@@ -143,6 +145,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   managerWheel: null,
   season: null,
   clResult: null,
+  wcResult: null,
   aiAnalysis: null,
   pressSummary: null,
   apiKeyPresent: false,
@@ -458,6 +461,8 @@ export const useGameStore = create<GameState>((set, get) => ({
             ? { primary: '#3DA9FC', secondary: '#0a0a0f' }
             : mode === 'll'
             ? { primary: '#C8102E', secondary: '#FFFFFF' }
+            : mode === 'wc'
+            ? { primary: '#00DFA2', secondary: '#0a0a0f' }
             : undefined,
       });
       if (mode === 'cl') {
@@ -466,14 +471,21 @@ export const useGameStore = create<GameState>((set, get) => ({
           stage: clResult.playerStage,
           champion: clResult.champion.name,
         });
-        set({ clResult, season: null, phase: 'simulating', simulationError: null });
+        set({ clResult, wcResult: null, season: null, phase: 'simulating', simulationError: null });
+      } else if (mode === 'wc') {
+        const wcResult = simulateWorldCup(snapshot);
+        console.log('[FootballDraft] WC simulated', {
+          stage: wcResult.playerStage,
+          champion: wcResult.champion.name,
+        });
+        set({ wcResult, clResult: null, season: null, phase: 'simulating', simulationError: null });
       } else {
         const season = simulateSeasonForSnapshot(snapshot, MODES[mode].pool);
         console.log('[FootballDraft] PL simulated', {
           fixtures: season.fixtures.length,
           finalPosition: season.finalPosition,
         });
-        set({ season, clResult: null, phase: 'simulating', simulationError: null });
+        set({ season, clResult: null, wcResult: null, phase: 'simulating', simulationError: null });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -504,6 +516,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       managerWheel: null,
       season: null,
       clResult: null,
+      wcResult: null,
       aiAnalysis: null,
       pressSummary: null,
       simulationError: null,

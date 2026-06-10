@@ -14,7 +14,7 @@ interface Question {
 
 interface Props {
   payload: string;
-  mode: 'pl' | 'cl' | 'll';
+  mode: 'pl' | 'cl' | 'll' | 'wc';
   onDone: (summary: string) => void;
 }
 
@@ -117,7 +117,7 @@ export default function PressConference({ payload, mode, onDone }: Props) {
   }
 
   const isCL = mode === 'cl';
-  const accentColor = isCL ? '#3DA9FC' : mode === 'll' ? '#C8102E' : '#FFD700';
+  const accentColor = isCL ? '#3DA9FC' : mode === 'll' ? '#C8102E' : mode === 'wc' ? '#00DFA2' : '#FFD700';
 
   return (
     <AnimatePresence mode="wait">

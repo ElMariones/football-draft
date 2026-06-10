@@ -6,6 +6,7 @@ import { seasons } from '@/lib/db/schema';
 import { computeAggregates } from '@/lib/leaderboardAggregates';
 import type { SeasonResult } from '@/lib/simulation';
 import type { CLResult } from '@/lib/championsLeague';
+import type { WCResult } from '@/lib/worldCup';
 
 export const runtime = 'nodejs';
 
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
   }
 
   const mode = body.mode;
-  if (mode !== 'pl' && mode !== 'cl' && mode !== 'll') {
+  if (mode !== 'pl' && mode !== 'cl' && mode !== 'll' && mode !== 'wc') {
     return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
   }
   if (!body.teamName || !body.formation || !body.payload || !body.xiSummary) {
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
   // a malformed payload shouldn't block the save.
   let agg: ReturnType<typeof computeAggregates> | null = null;
   try {
-    agg = computeAggregates(mode, body.payload as SeasonResult | CLResult);
+    agg = computeAggregates(mode, body.payload as SeasonResult | CLResult | WCResult);
   } catch {
     agg = null;
   }

@@ -6,7 +6,7 @@ import { useT } from '@/lib/i18n';
 
 interface Props {
   seasonId?: string | null;
-  mode: 'pl' | 'cl' | 'll';
+  mode: 'pl' | 'cl' | 'll' | 'wc';
   teamName: string;
   result: string;
 }
@@ -19,7 +19,7 @@ export default function ShareButton({ seasonId, mode, teamName, result }: Props)
   if (status !== 'authenticated' || !seasonId) return null;
 
   const shareUrl = `${window.location.origin}/share/${seasonId}`;
-  const modeLabel = mode === 'cl' ? 'Champions League' : mode === 'll' ? 'La Liga' : 'Premier League';
+  const modeLabel = mode === 'cl' ? 'Champions League' : mode === 'll' ? 'La Liga' : mode === 'wc' ? 'the World Cup' : 'Premier League';
   const shareText = `My team "${teamName}" finished ${result} in ${modeLabel} on Football Draft! Can you do better?`;
 
   async function handleShare() {

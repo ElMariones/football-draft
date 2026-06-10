@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Player, Team, EraKey } from '@/data/types';
-import { ERAS } from '@/data/eras';
+import { ERAS, WC_ERAS } from '@/data/eras';
 import { eligibleSlotIndices, DraftSlot } from '@/lib/draft';
 import { useT } from '@/lib/i18n';
 import { useGameStore } from '@/store/gameStore';
@@ -21,7 +21,10 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
   const hideOvr = useGameStore(s => s.hardcore);
   const teamEra = team.eras[era];
   if (!teamEra) return null;
-  const eraLabel = ERAS.find(e => e.key === era)?.label ?? era;
+  const eraLabel =
+    ERAS.find(e => e.key === era)?.label ??
+    WC_ERAS.find(e => e.key === era)?.label ??
+    era;
 
   return (
     <div className="space-y-3 relative">

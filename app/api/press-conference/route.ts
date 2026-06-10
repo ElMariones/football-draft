@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
   if (!body.payload) return NextResponse.json({ error: 'Missing season payload' }, { status: 400 });
 
   const isES = body.language === 'es';
-  const mode = body.mode === 'cl' ? 'cl' : body.mode === 'll' ? 'll' : 'pl';
+  const mode = body.mode === 'cl' ? 'cl' : body.mode === 'll' ? 'll' : body.mode === 'wc' ? 'wc' : 'pl';
 
   const sharedContext = `CRUCIAL CONTEXT:
 - Each player in the XI is at the PEAK of the era shown. ALL players are simultaneously in their prime.

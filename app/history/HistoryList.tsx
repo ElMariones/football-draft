@@ -19,6 +19,7 @@ const MODE_LABEL: Record<string, { label: string; color: string }> = {
   pl: { label: 'Premier League', color: '#FFD700' },
   cl: { label: 'Champions League', color: '#3DA9FC' },
   ll: { label: 'La Liga', color: '#C8102E' },
+  wc: { label: 'World Cup', color: '#00DFA2' },
 };
 
 export default function HistoryList({ initialRows }: { initialRows: Row[] }) {
@@ -44,7 +45,7 @@ export default function HistoryList({ initialRows }: { initialRows: Row[] }) {
       {rows.map(r => {
         const m = MODE_LABEL[r.mode] ?? { label: r.mode, color: '#888' };
         const outcome =
-          r.mode === 'cl' && r.clStage
+          (r.mode === 'cl' || r.mode === 'wc') && r.clStage
             ? t.history.clStage(r.clStage)
             : r.finalPosition
             ? t.history.finalPos(r.finalPosition)

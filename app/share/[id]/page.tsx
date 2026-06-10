@@ -38,9 +38,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .where(eq(users.id, row.userId));
 
   const displayName = user?.nickname || user?.name || 'Someone';
-  const modeLabel = row.mode === 'cl' ? 'Champions League' : row.mode === 'll' ? 'La Liga' : 'Premier League';
+  const modeLabel = row.mode === 'cl' ? 'Champions League' : row.mode === 'll' ? 'La Liga' : row.mode === 'wc' ? 'the World Cup' : 'Premier League';
   const resultText = row.mode === 'cl'
     ? (row.clStage === 'champion' ? 'won the Champions League!' : `reached the ${row.clStage}`)
+    : row.mode === 'wc'
+    ? (row.clStage === 'champion' ? 'won the World Cup!' : `reached the ${row.clStage}`)
     : `finished #${row.finalPosition}`;
 
   const title = `${displayName}'s XI — ${row.teamName}`;
@@ -97,7 +99,7 @@ export default async function SharePage({ params }: Props) {
         </span>
       </div>
       <ShareView
-        mode={row.mode as 'pl' | 'cl' | 'll'}
+        mode={row.mode as 'pl' | 'cl' | 'll' | 'wc'}
         teamName={row.teamName}
         formation={row.formation}
         finalPosition={row.finalPosition}

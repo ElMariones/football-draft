@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 
 interface Props {
-  mode: 'pl' | 'cl' | 'll';
+  mode: 'pl' | 'cl' | 'll' | 'wc';
   teamName: string;
   formation: string;
   finalPosition: number | null;
@@ -23,6 +23,15 @@ const CL_STAGE_LABEL: Record<string, string> = {
   group: 'Group Stage',
 };
 
+const WC_STAGE_LABEL: Record<string, string> = {
+  champion: 'World Champions',
+  final: 'Runner-up',
+  'third-place': 'Bronze Medal',
+  'semi-finals': 'Fourth Place',
+  'quarter-finals': 'Quarter-finals',
+  group: 'Group Stage',
+};
+
 export default function ShareView({
   mode,
   teamName,
@@ -36,7 +45,8 @@ export default function ShareView({
 }: Props) {
   const isCL = mode === 'cl';
   const isLL = mode === 'll';
-  const modeLabel = isCL ? 'Champions League' : isLL ? 'La Liga' : 'Premier League';
+  const isWC = mode === 'wc';
+  const modeLabel = isCL ? 'Champions League' : isLL ? 'La Liga' : isWC ? 'World Cup' : 'Premier League';
 
   const managerName: string | undefined = payload?.playerTeam?.manager;
   const managerRating: number | undefined = payload?.playerTeam?.managerRating;
@@ -44,9 +54,11 @@ export default function ShareView({
 
   const resultLabel = isCL
     ? CL_STAGE_LABEL[clStage ?? ''] ?? clStage
+    : isWC
+    ? WC_STAGE_LABEL[clStage ?? ''] ?? clStage
     : `#${finalPosition}`;
 
-  const accentColor = isCL ? '#3DA9FC' : isLL ? '#C8102E' : '#FFD700';
+  const accentColor = isCL ? '#3DA9FC' : isLL ? '#C8102E' : isWC ? '#00DFA2' : '#FFD700';
 
   return (
     <div className="space-y-6">
@@ -80,8 +92,11 @@ export default function ShareView({
           <div className="font-display text-7xl sm:text-8xl leading-none" style={{ color: accentColor }}>
             {resultLabel}
           </div>
-          {isCL && clStage === 'champion' && (
+          {(isCL || isWC) && clStage === 'champion' && (
             <div className="text-5xl mt-3">🏆</div>
+          )}
+          {isWC && clStage === 'third-place' && (
+            <div className="text-5xl mt-3">🥉</div>
           )}
           {showManager && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-1.5 text-xs text-white/70">

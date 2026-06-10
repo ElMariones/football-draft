@@ -12,13 +12,13 @@ export const fetchCache = 'force-no-store';
 // either squad rating ("ovr") or campaign results ("results").
 //
 // Query params:
-//   mode = 'pl' | 'cl' | 'll'   (defaults to 'pl')
-//   sort = 'ovr' | 'results'    (defaults to 'ovr')
+//   mode = 'pl' | 'cl' | 'll' | 'wc'   (defaults to 'pl')
+//   sort = 'ovr' | 'results'           (defaults to 'ovr')
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const modeParam = url.searchParams.get('mode');
   const sortParam = url.searchParams.get('sort');
-  const mode = modeParam === 'cl' || modeParam === 'll' ? modeParam : 'pl';
+  const mode = modeParam === 'cl' || modeParam === 'll' || modeParam === 'wc' ? modeParam : 'pl';
   const sort = sortParam === 'results' ? 'results' : 'ovr';
 
   // We use DISTINCT ON to pick a single best row per user. The ORDER BY
@@ -27,7 +27,9 @@ export async function GET(req: Request) {
   //
   // For CL "results" ranking, we encode the stage as a numeric rank inline.
   const rows = await (async () => {
-    if (mode === 'cl' && sort === 'results') {
+    if ((mode === 'cl' || mode === 'wc') && sort === 'results') {
+      // Both KO competitions store their progression in "clStage".
+      // 'third-place' (WC bronze) only occurs for wc rows.
       const r = await db.execute(sql`
         SELECT * FROM (
           SELECT DISTINCT ON (s."userId")
@@ -35,8 +37,9 @@ export async function GET(req: Request) {
             s.overall, s.wins, s.draws, s.losses, s.points, s."createdAt",
             COALESCE(u.nickname, u.name) AS user_name, u.image AS user_image,
             CASE s."clStage"
-              WHEN 'champion'       THEN 4
-              WHEN 'final'          THEN 3
+              WHEN 'champion'       THEN 5
+              WHEN 'final'          THEN 4
+              WHEN 'third-place'    THEN 3
               WHEN 'semi-finals'    THEN 2
               WHEN 'quarter-finals' THEN 1
               WHEN 'group'          THEN 0
@@ -47,8 +50,9 @@ export async function GET(req: Request) {
           WHERE s.mode = ${mode} AND s.overall IS NOT NULL
           ORDER BY s."userId",
             CASE s."clStage"
-              WHEN 'champion'       THEN 4
-              WHEN 'final'          THEN 3
+              WHEN 'champion'       THEN 5
+              WHEN 'final'          THEN 4
+              WHEN 'third-place'    THEN 3
               WHEN 'semi-finals'    THEN 2
               WHEN 'quarter-finals' THEN 1
               WHEN 'group'          THEN 0

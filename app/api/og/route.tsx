@@ -14,6 +14,15 @@ const CL_STAGE_LABEL: Record<string, string> = {
   group: 'GROUP STAGE',
 };
 
+const WC_STAGE_LABEL: Record<string, string> = {
+  champion: 'WORLD CHAMPIONS',
+  final: 'RUNNER-UP',
+  'third-place': 'BRONZE MEDAL',
+  'semi-finals': 'FOURTH PLACE',
+  'quarter-finals': 'QUARTER-FINALS',
+  group: 'GROUP STAGE',
+};
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
@@ -71,10 +80,13 @@ export async function GET(req: NextRequest) {
   const displayName = user?.nickname || user?.name || 'Anonymous';
   const isCL = row.mode === 'cl';
   const isLL = row.mode === 'll';
-  const accent = isCL ? '#3DA9FC' : isLL ? '#C8102E' : '#FFD700';
-  const modeLabel = isCL ? 'Champions League' : isLL ? 'La Liga' : 'Premier League';
+  const isWC = row.mode === 'wc';
+  const accent = isCL ? '#3DA9FC' : isLL ? '#C8102E' : isWC ? '#00DFA2' : '#FFD700';
+  const modeLabel = isCL ? 'Champions League' : isLL ? 'La Liga' : isWC ? 'World Cup' : 'Premier League';
   const resultText = isCL
     ? CL_STAGE_LABEL[row.clStage ?? ''] ?? row.clStage
+    : isWC
+    ? WC_STAGE_LABEL[row.clStage ?? ''] ?? row.clStage
     : `#${row.finalPosition}`;
 
   const xi = (row.xiSummary as any[]) || [];
@@ -110,12 +122,12 @@ export async function GET(req: NextRequest) {
         <span style={{ fontSize: 28, color: 'rgba(255,255,255,0.7)', letterSpacing: 3 }}>{row.formation}</span>
         <span style={{ fontSize: 64, fontWeight: 800, color: 'white' }}>{row.teamName}</span>
         <span style={{ fontSize: 100, fontWeight: 900, color: accent, lineHeight: 1 }}>{resultText}</span>
-        {row.points != null && !isCL && (
+        {row.points != null && !isCL && !isWC && (
           <span style={{ fontSize: 22, color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>
             {row.wins}W · {row.draws}D · {row.losses}L · {row.points} pts
           </span>
         )}
-        {isCL && row.wins != null && (
+        {(isCL || isWC) && row.wins != null && (
           <span style={{ fontSize: 22, color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>
             {row.wins}W · {row.draws}D · {row.losses}L
           </span>

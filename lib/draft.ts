@@ -1,10 +1,10 @@
 import { FORMATION_LAYOUTS } from '@/data/formations';
 import { EraKey, Formation, Player, Position, Team } from '@/data/types';
-import { PL_TEAMS, CL_TEAMS, LL_TEAMS } from '@/data';
+import { PL_TEAMS, CL_TEAMS, LL_TEAMS, WC_TEAMS } from '@/data';
 
 // ---------- competition mode ----------
 
-export type Mode = 'pl' | 'cl' | 'll';
+export type Mode = 'pl' | 'cl' | 'll' | 'wc';
 
 export interface ModeConfig {
   id: Mode;
@@ -39,6 +39,14 @@ export const MODES: Record<Mode, ModeConfig> = {
     description: 'Draft from the 20 Spanish La Liga clubs across the eras. Play a full 38-game Spanish season.',
     pool: LL_TEAMS,
     primary: '#C8102E',
+  },
+  wc: {
+    id: 'wc',
+    label: 'World Cup',
+    tagline: '16 nations · groups + knockouts',
+    description: 'Draft from historic World Cup squads — Brazil 2002, Spain 2010, Argentina 2022 and more. Survive the group, then win three one-off finals.',
+    pool: WC_TEAMS,
+    primary: '#00DFA2',
   },
 };
 

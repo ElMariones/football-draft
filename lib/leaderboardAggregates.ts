@@ -1,5 +1,6 @@
 import type { SeasonResult } from './simulation';
 import type { CLResult } from './championsLeague';
+import type { WCResult } from './worldCup';
 
 export interface Aggregates {
   overall: number;
@@ -15,10 +16,11 @@ export interface Aggregates {
  * when backfilling old rows where some fields might be missing.
  */
 export function computeAggregates(
-  mode: 'pl' | 'cl' | 'll',
-  payload: SeasonResult | CLResult,
+  mode: 'pl' | 'cl' | 'll' | 'wc',
+  payload: SeasonResult | CLResult | WCResult,
 ): Aggregates {
   if (mode === 'cl') return computeFromCL(payload as CLResult);
+  if (mode === 'wc') return computeFromWC(payload as WCResult);
   return computeFromLeague(payload as SeasonResult);
 }
 
@@ -79,11 +81,55 @@ function computeFromCL(r: CLResult): Aggregates {
   };
 }
 
+function computeFromWC(r: WCResult): Aggregates {
+  const playerId = r.playerTeam.id;
+  let wins = 0;
+  let draws = 0;
+  let losses = 0;
+
+  const playerGroup = r.groups?.find(g => g.teamIds.includes(playerId));
+  if (playerGroup) {
+    for (const m of playerGroup.matches) {
+      const involved = m.home.teamId === playerId || m.away.teamId === playerId;
+      if (!involved) continue;
+      const myGoals = m.home.teamId === playerId ? m.home.goals : m.away.goals;
+      const theirGoals = m.home.teamId === playerId ? m.away.goals : m.home.goals;
+      if (myGoals > theirGoals) wins++;
+      else if (myGoals === theirGoals) draws++;
+      else losses++;
+    }
+  }
+
+  // One-off knockout matches.
+  for (const tie of r.knockout ?? []) {
+    const m = tie.match;
+    if (!m) continue;
+    const involved = m.home.teamId === playerId || m.away.teamId === playerId;
+    if (!involved) continue;
+    const myGoals = m.home.teamId === playerId ? m.home.goals : m.away.goals;
+    const theirGoals = m.home.teamId === playerId ? m.away.goals : m.home.goals;
+    if (myGoals > theirGoals) wins++;
+    else if (myGoals === theirGoals) draws++;
+    else losses++;
+  }
+
+  return {
+    overall: Math.round(r.playerTeam.overallRating ?? 0),
+    wins,
+    draws,
+    losses,
+    points: null,
+  };
+}
+
 // Numeric rank for clStage so SQL can order champions > finalists > SF > QF > group.
+// World Cup runs reuse the same column; 'third-place' (bronze) sits between a
+// semi-final exit and a lost final.
 export function clStageRank(stage: string | null | undefined): number {
   switch (stage) {
-    case 'champion':      return 4;
-    case 'final':         return 3;
+    case 'champion':      return 5;
+    case 'final':         return 4;
+    case 'third-place':   return 3;
     case 'semi-finals':   return 2;
     case 'quarter-finals':return 1;
     case 'group':         return 0;

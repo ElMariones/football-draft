@@ -74,12 +74,13 @@ export const seasons = pgTable('seasons', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
-  mode: text('mode').notNull(),               // 'pl' | 'cl' | 'll'
+  mode: text('mode').notNull(),               // 'pl' | 'cl' | 'll' | 'wc'
   teamName: text('teamName').notNull(),
   formation: text('formation').notNull(),
-  // For league modes: 1-20. For CL: null (use clStage instead).
+  // For league modes: 1-20. For CL/WC: null (use clStage instead).
   finalPosition: integer('finalPosition'),
-  // For CL: 'group' | 'quarter-finals' | 'semi-finals' | 'final' | 'champion'. Null for league.
+  // For CL/WC: 'group' | 'quarter-finals' | 'semi-finals' | 'third-place' (WC bronze)
+  // | 'final' | 'champion'. Null for league.
   clStage: text('clStage'),
   // Full result blob (SeasonResult or CLResult).
   payload: jsonb('payload').notNull(),

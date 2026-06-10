@@ -26,6 +26,12 @@ const config: Config = {
           DEFAULT: '#C8102E',
           dark: '#7B0A1E',
         },
+        wc: {
+          DEFAULT: '#00DFA2',
+          dark: '#014737',
+          light: '#7CF5D5',
+          gold: '#F5C542',
+        },
       },
       fontFamily: {
         display: ['"Bebas Neue"', 'Impact', 'sans-serif'],

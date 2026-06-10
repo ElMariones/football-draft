@@ -50,6 +50,22 @@ import { almeria } from './teams/almeria';
 import { oviedo } from './teams/oviedo';
 import { levante } from './teams/levante';
 import { alaves } from './teams/alaves';
+import { brazil } from './nations/brazil';
+import { argentina } from './nations/argentina';
+import { france } from './nations/france';
+import { germany } from './nations/germany';
+import { italy } from './nations/italy';
+import { spain } from './nations/spain';
+import { england } from './nations/england';
+import { netherlands } from './nations/netherlands';
+import { portugal } from './nations/portugal';
+import { uruguay } from './nations/uruguay';
+import { croatia } from './nations/croatia';
+import { belgium } from './nations/belgium';
+import { mexico } from './nations/mexico';
+import { usa } from './nations/usa';
+import { japan } from './nations/japan';
+import { nigeria } from './nations/nigeria';
 
 // All 20 Premier League teams — the pool used by Premier League mode.
 export const PL_TEAMS: Team[] = [
@@ -127,11 +143,32 @@ export const LL_TEAMS: Team[] = [
   alaves,
 ];
 
+// The 16 national teams of World Cup mode. Their "eras" are World Cup
+// editions ('1998'…'2022') — each nation only lists the cups it qualified for.
+export const WC_TEAMS: Team[] = [
+  brazil,
+  argentina,
+  france,
+  germany,
+  italy,
+  spain,
+  england,
+  netherlands,
+  portugal,
+  uruguay,
+  croatia,
+  belgium,
+  mexico,
+  usa,
+  japan,
+  nigeria,
+];
+
 // Backwards-compatible: TEAMS is the union of every club (used as the
 // authoritative `getTeam(id)` lookup table). Deduped by id — LL shares
 // Real Madrid, Barcelona, and Atlético with EUROPEAN_TEAMS.
 const seen = new Set<string>();
-export const TEAMS: Team[] = [...PL_TEAMS, ...EUROPEAN_TEAMS, ...LL_TEAMS].filter(t => {
+export const TEAMS: Team[] = [...PL_TEAMS, ...EUROPEAN_TEAMS, ...LL_TEAMS, ...WC_TEAMS].filter(t => {
   if (seen.has(t.id)) return false;
   seen.add(t.id);
   return true;

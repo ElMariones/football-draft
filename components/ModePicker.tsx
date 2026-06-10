@@ -9,18 +9,19 @@ interface Props {
   onChange: (m: Mode) => void;
 }
 
-const ORDER: Mode[] = ['pl', 'll', 'cl'];
+const ORDER: Mode[] = ['pl', 'll', 'cl', 'wc'];
 
 export default function ModePicker({ value, onChange }: Props) {
   const t = useT();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {ORDER.map((id, i) => {
         const cfg = t.mode[id];
         const selected = value === id;
         const isCL = id === 'cl';
         const isLL = id === 'll';
+        const isWC = id === 'wc';
         return (
           <motion.button
             key={id}
@@ -36,14 +37,19 @@ export default function ModePicker({ value, onChange }: Props) {
                   ? 'border-cl bg-cl/10 shadow-[0_0_30px_rgba(61,169,252,0.3)]'
                   : isLL
                   ? 'border-ll bg-ll/10 shadow-[0_0_30px_rgba(200,16,46,0.3)]'
+                  : isWC
+                  ? 'border-wc bg-wc/10 shadow-[0_0_30px_rgba(0,223,162,0.35)]'
                   : 'border-gold bg-gold/10 shadow-[0_0_30px_rgba(255,215,0,0.25)]'
                 : 'border-white/10 bg-white/5 hover:bg-white/10'
             }`}
           >
             {isCL && selected && <div className="cl-stars" />}
+            {isWC && selected && <div className="wc-stars" />}
             <div className="relative">
               <div className="flex items-baseline justify-between mb-1">
-                <div className="font-display text-xl">{cfg.label}</div>
+                <div className={`font-display text-xl ${isWC && selected ? 'wc-shimmer' : ''}`}>
+                  {isWC ? `🏆 ${cfg.label}` : cfg.label}
+                </div>
                 <div className="text-[10px] tracking-widest text-white/40 uppercase">
                   {cfg.tagline}
                 </div>
@@ -52,7 +58,7 @@ export default function ModePicker({ value, onChange }: Props) {
               {selected && (
                 <span
                   className={`absolute -top-1 right-0 w-2 h-2 rounded-full ${
-                    isCL ? 'bg-cl' : isLL ? 'bg-ll' : 'bg-gold'
+                    isCL ? 'bg-cl' : isLL ? 'bg-ll' : isWC ? 'bg-wc' : 'bg-gold'
                   }`}
                 />
               )}

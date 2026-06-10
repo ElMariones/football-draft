@@ -23,7 +23,16 @@ export type EraKey =
   | '05-10'
   | '10-15'
   | '15-20'
-  | '20-25';
+  | '20-25'
+  // World Cup editions — used by the national teams of World Cup mode.
+  // The key is the tournament year so raw keys read naturally in the UI.
+  | '1998'
+  | '2002'
+  | '2006'
+  | '2010'
+  | '2014'
+  | '2018'
+  | '2022';
 
 export interface Player {
   name: string;

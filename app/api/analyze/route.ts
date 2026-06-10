@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       { status: 429 },
     );
   }
-  let body: { apiKey?: string; payload?: string; model?: string; mode?: 'pl' | 'cl' | 'll'; language?: string };
+  let body: { apiKey?: string; payload?: string; model?: string; mode?: 'pl' | 'cl' | 'll' | 'wc'; language?: string };
   try {
     body = await req.json();
   } catch {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   let apiKey = body.apiKey?.trim();
   const payload = body.payload;
   let model = body.model || 'gpt-4o-mini';
-  const mode = body.mode === 'cl' ? 'cl' : body.mode === 'll' ? 'll' : 'pl';
+  const mode = body.mode === 'cl' ? 'cl' : body.mode === 'll' ? 'll' : body.mode === 'wc' ? 'wc' : 'pl';
   const isES = body.language === 'es';
 
   if (!apiKey) {
@@ -160,8 +160,48 @@ Escribe un veredicto de temporada en 4 párrafos (entre 250 y 350 palabras en to
 
 Estilo: frases directas, imágenes vívidas, evoca la pasión del fútbol español. Sin encabezados markdown, sin viñetas, sin etiquetas de sección. Prosa fluida y continua, línea en blanco entre párrafos. Responde siempre en español.`;
 
+  const wcPromptEN = `You are a passionate World Cup correspondent covering football's greatest tournament. You receive a JSON snapshot of a fan's simulated FIFA World Cup campaign with a hand-picked fantasy XI of national-team legends drawn from different World Cup editions (e.g. "Ronaldo from Brazil 2002" means the unstoppable 2002 Ronaldo).
+
+${sharedPrimeRules}
+
+World Cup format used in this sim:
+- 16 nations in 4 groups of 4, single round-robin (3 group games each). Top 2 advance.
+- ONE-OFF knockout matches from the quarter-finals: no second legs, penalty shootouts if level after 90.
+- Semi-final losers play a third-place (bronze medal) match.
+- The 'playerStage' field tells you how far this XI got: group / quarter-finals / semi-finals (= lost the bronze match too) / third-place (= won bronze) / final (= runner-up) / champion.
+- 'knockoutPath' shows every knockout result including pens; 'goldenBootRace' is the tournament top-scorer list.
+
+Write an immersive 4-paragraph tournament report (around 250-350 words total). Cover:
+1. Headline of the campaign — how far they went, the once-every-four-years magnitude, a nation holding its breath.
+2. The Golden Ball candidate and the unforgettable nights — be vivid about decisive goals, shootouts, knockout drama.
+3. Tactical read of how the XI navigated the group and one-off knockouts — formation, ATT/DEF/OVR balance, big-game temperament.
+4. A final verdict written for the history books and a one-line dream for the next World Cup.
+
+Style: punchy sentences, vivid imagery, evoke summer nights, flags, and World Cup folklore. No markdown headings, no bullet points, no section labels. Pure flowing prose, blank line between paragraphs. Answer in English.`;
+
+  const wcPromptES = `Eres un apasionado enviado especial al Mundial, el mayor torneo del fútbol. Recibes un JSON con los datos de una campaña simulada de la Copa del Mundo con un XI fantasy de leyendas de selecciones, elegidas de distintos Mundiales (p. ej. "Ronaldo from Brazil 2002" es el imparable Ronaldo de 2002).
+
+${sharedPrimeRules}
+
+Formato del Mundial usado en esta simulación:
+- 16 selecciones en 4 grupos de 4, liguilla a una sola vuelta (3 partidos por equipo). Avanzan los 2 primeros.
+- Eliminatorias a PARTIDO ÚNICO desde cuartos: sin ida y vuelta, con penaltis si hay empate a los 90 minutos.
+- Los perdedores de semifinales juegan el partido por el tercer puesto (medalla de bronce).
+- El campo 'playerStage' indica hasta dónde llegó este XI: group / quarter-finals / semi-finals (= perdió también el bronce) / third-place (= ganó el bronce) / final (= subcampeón) / champion.
+- 'knockoutPath' muestra cada eliminatoria incluidos los penaltis; 'goldenBootRace' es la tabla de goleadores del torneo.
+
+Escribe una crónica del torneo en 4 párrafos (entre 250 y 350 palabras en total). Cubre:
+1. El titular de la campaña — hasta dónde llegaron, la magnitud de un torneo que llega cada cuatro años, un país conteniendo la respiración.
+2. El candidato al Balón de Oro y las noches inolvidables — describe con viveza los goles decisivos, las tandas de penaltis y el drama de las eliminatorias.
+3. Lectura táctica de cómo el XI superó el grupo y las eliminatorias a partido único — formación, equilibrio ATQ/DEF/GLB, temple en los partidos grandes.
+4. Un veredicto final escrito para los libros de historia y una frase con el sueño para el próximo Mundial.
+
+Estilo: frases directas, imágenes vívidas, evoca las noches de verano, las banderas y el folclore mundialista. Sin encabezados markdown, sin viñetas, sin etiquetas de sección. Prosa fluida y continua, línea en blanco entre párrafos. Responde siempre en español.`;
+
   const systemPrompt = mode === 'cl'
     ? (isES ? clPromptES : clPromptEN)
+    : mode === 'wc'
+    ? (isES ? wcPromptES : wcPromptEN)
     : mode === 'll'
     ? (isES ? llPromptES : llPromptEN)
     : (isES ? plPromptES : plPromptEN);

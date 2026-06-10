@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useT } from '@/lib/i18n';
 
-type Mode = 'pl' | 'cl' | 'll';
+type Mode = 'pl' | 'cl' | 'll' | 'wc';
 type Sort = 'ovr' | 'results';
 
 interface Row {
@@ -27,11 +27,13 @@ const MODE_META: Record<Mode, { label: string; color: string; emoji: string }> =
   pl: { label: 'Premier League', color: '#FFD700', emoji: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
   ll: { label: 'La Liga',         color: '#C8102E', emoji: '🇪🇸' },
   cl: { label: 'Champions League',color: '#3DA9FC', emoji: '🌍' },
+  wc: { label: 'World Cup',       color: '#00DFA2', emoji: '🏆' },
 };
 
 const CL_STAGE_LABEL: Record<string, string> = {
   'champion':       'Champion',
   'final':          'Runner-up',
+  'third-place':    'Third place',
   'semi-finals':    'Semi-finals',
   'quarter-finals': 'Quarter-finals',
   'group':          'Group stage',
@@ -58,8 +60,8 @@ export default function LeaderboardClient() {
   return (
     <>
       {/* Mode tabs */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {(['pl', 'll', 'cl'] as Mode[]).map(m => {
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        {(['pl', 'll', 'cl', 'wc'] as Mode[]).map(m => {
           const active = mode === m;
           const mm = MODE_META[m];
           return (
@@ -142,7 +144,7 @@ export default function LeaderboardClient() {
                     <div className="font-display text-lg tabular-nums" style={{ color: meta.color }}>
                       {row.overall ?? '—'}
                     </div>
-                  ) : mode === 'cl' ? (
+                  ) : mode === 'cl' || mode === 'wc' ? (
                     <>
                       <div className="font-display text-sm" style={{ color: meta.color }}>
                         {CL_STAGE_LABEL[row.clStage ?? ''] ?? '—'}

@@ -3,16 +3,18 @@
 import { useState } from 'react';
 import FinalResults from '@/components/FinalResults';
 import CLFinalResults from '@/components/CLFinalResults';
+import WCFinalResults from '@/components/WCFinalResults';
 import AIAnalysisView from '@/components/AIAnalysisView';
 import { useGameStore } from '@/store/gameStore';
 import { useT } from '@/lib/i18n';
 import { seasonToCompactJSON, type SeasonResult } from '@/lib/simulation';
 import { clSeasonToCompactJSON, type CLResult } from '@/lib/championsLeague';
+import { wcToCompactJSON, type WCResult } from '@/lib/worldCup';
 import { getApiKey, getModel } from '@/lib/storage';
 
 interface Props {
-  mode: 'pl' | 'cl' | 'll';
-  payload: SeasonResult | CLResult;
+  mode: 'pl' | 'cl' | 'll' | 'wc';
+  payload: SeasonResult | CLResult | WCResult;
 }
 
 // Read-only history view. Reuses FinalResults / CLFinalResults but feeds them the
@@ -33,6 +35,8 @@ export default function SeasonReplay({ mode, payload }: Props) {
       const payloadJson =
         mode === 'cl'
           ? clSeasonToCompactJSON(payload as CLResult)
+          : mode === 'wc'
+          ? wcToCompactJSON(payload as WCResult)
           : seasonToCompactJSON(payload as SeasonResult);
       const apiKey = getApiKey(); // empty for logged-in users with server-stored key — server falls back
       const res = await fetch('/api/analyze', {
@@ -59,6 +63,12 @@ export default function SeasonReplay({ mode, payload }: Props) {
       {mode === 'cl' ? (
         <CLFinalResults
           result={payload as CLResult}
+          onRequestAnalysis={requestAnalysis}
+          analyzing={analyzing}
+        />
+      ) : mode === 'wc' ? (
+        <WCFinalResults
+          result={payload as WCResult}
           onRequestAnalysis={requestAnalysis}
           analyzing={analyzing}
         />
