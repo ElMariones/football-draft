@@ -184,6 +184,7 @@ export function availableEras(team: Team): EraKey[] {
 
 export * from './types';
 export * from './eras';
+export * from './i18nNations';
 export * from './formations';
 export * from './helpers';
 export * from './managers';

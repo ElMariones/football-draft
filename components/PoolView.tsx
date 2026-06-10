@@ -2,7 +2,8 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Player, Team, EraKey } from '@/data/types';
-import { ERAS, WC_ERAS } from '@/data/eras';
+import { eraDisplayLabel } from '@/data/eras';
+import { localizedTeamName, localizedEraNotes } from '@/data/i18nNations';
 import { eligibleSlotIndices, DraftSlot } from '@/lib/draft';
 import { useT } from '@/lib/i18n';
 import { useGameStore } from '@/store/gameStore';
@@ -19,12 +20,12 @@ interface Props {
 export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolling }: Props) {
   const t = useT();
   const hideOvr = useGameStore(s => s.hardcore);
+  const language = useGameStore(s => s.language);
   const teamEra = team.eras[era];
   if (!teamEra) return null;
-  const eraLabel =
-    ERAS.find(e => e.key === era)?.label ??
-    WC_ERAS.find(e => e.key === era)?.label ??
-    era;
+  const eraLabel = eraDisplayLabel(era, language);
+  const teamName = localizedTeamName(team, language);
+  const eraNotes = localizedEraNotes(team.id, era, teamEra.notes, language);
 
   return (
     <div className="space-y-3 relative">
@@ -62,9 +63,9 @@ export default function PoolView({ team, era, xi, selectedIdx, onSelect, rerolli
                   {eraLabel}
                 </motion.div>
               </AnimatePresence>
-              <div className="font-display text-xl text-white truncate">{team.name}</div>
-              {teamEra.notes && (
-                <div className="text-[11px] italic text-white/70 truncate">{teamEra.notes}</div>
+              <div className="font-display text-xl text-white truncate">{teamName}</div>
+              {eraNotes && (
+                <div className="text-[11px] italic text-white/70 truncate">{eraNotes}</div>
               )}
             </div>
           </div>

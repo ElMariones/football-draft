@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useGameStore, TOTAL_PICKS } from '@/store/gameStore';
 import { getTeam } from '@/data';
-import { ERAS, WC_ERAS } from '@/data/eras';
+import { ERAS, WC_ERAS, eraDisplayLabel } from '@/data/eras';
+import { localizedTeamName } from '@/data/i18nNations';
 import { Formation } from '@/data/types';
 import { ManagerEntry } from '@/data/managers';
 import { getApiKey, getModel } from '@/lib/storage';
@@ -173,17 +174,21 @@ export default function HomePage() {
   }, [sessionStatus, mode, season, clResult, wcResult, xi, setSavedSeasonId]);
 
   const teamItems = useMemo(
-    () => MODES[mode].pool.map(t => ({
-      key: t.id,
-      label: t.shortName,
-      sublabel: t.name,
-      color: t.colors.primary,
+    () => MODES[mode].pool.map(team => ({
+      key: team.id,
+      label: team.shortName,
+      sublabel: localizedTeamName(team, language),
+      color: team.colors.primary,
     })),
-    [mode],
+    [mode, language],
   );
   const eraItems = useMemo(
-    () => (mode === 'wc' ? WC_ERAS : ERAS).map(e => ({ key: e.key, label: e.key, sublabel: e.label })),
-    [mode],
+    () => (mode === 'wc' ? WC_ERAS : ERAS).map(e => ({
+      key: e.key,
+      label: e.key,
+      sublabel: eraDisplayLabel(e.key, language),
+    })),
+    [mode, language],
   );
 
   const drafted = countDrafted(xi);
@@ -519,7 +524,7 @@ export default function HomePage() {
                             <span className="truncate">{dp.player.name}</span>
                           </div>
                           <span className="text-[10px] text-white/50 truncate">
-                            {dp.sourceTeamName} · {dp.sourceEra}
+                            {localizedTeamName(getTeam(dp.sourceTeamId) ?? { id: dp.sourceTeamId, name: dp.sourceTeamName }, language)} · {dp.sourceEra}
                           </span>
                         </div>
                       );
@@ -1204,6 +1209,11 @@ function ManagerSpinningPanel({
 
 function ManagerCard({ manager, hideOvr }: { manager: ManagerEntry; hideOvr?: boolean }) {
   const t = useT();
+  const language = useGameStore(s => s.language);
+  const managerTeamName = localizedTeamName(
+    getTeam(manager.teamId) ?? { id: manager.teamId, name: manager.teamName },
+    language,
+  );
   const tierClass = hideOvr
     ? 'bg-gradient-to-br from-slate-700 to-slate-900 text-slate-400'
     : manager.overall >= 85
@@ -1228,7 +1238,7 @@ function ManagerCard({ manager, hideOvr }: { manager: ManagerEntry; hideOvr?: bo
         </div>
         <div className="font-display text-2xl truncate">{manager.name}</div>
         <div className="text-[11px] text-white/50 truncate">
-          {manager.teamName} · {manager.era}
+          {managerTeamName} · {manager.era}
         </div>
       </div>
     </motion.div>

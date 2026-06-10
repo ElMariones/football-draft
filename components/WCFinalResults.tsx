@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { WCResult } from '@/lib/worldCup';
-import { getTeam } from '@/data';
+import { getTeam, localizedTeamName } from '@/data';
 import { useGameStore } from '@/store/gameStore';
 import { FORMATION_LAYOUTS } from '@/data/formations';
 import { Formation } from '@/data/types';
@@ -80,11 +80,18 @@ function Fireworks() {
 
 export default function WCFinalResults({ result, onRequestAnalysis, analyzing, analysisDisabled }: Props) {
   const reset = useGameStore(s => s.reset);
+  const language = useGameStore(s => s.language);
   const t = useT();
   const stageLabel = t.wcResults.stageLabel(result.playerStage);
   const stageBlurb = t.wcResults.stageBlurb(result.playerStage);
   const isChamp = result.playerStage === 'champion';
   const isPodium = isChamp || result.playerStage === 'final' || result.playerStage === 'third-place';
+
+  // Nations get the localized display name; the player's custom XI keeps its own.
+  const nationName = (snap: { id: string; name: string }) =>
+    snap.id === result.playerTeam.id
+      ? result.playerTeam.name
+      : localizedTeamName(getTeam(snap.id) ?? snap, language);
 
   return (
     <div className="space-y-6 mt-6">
@@ -140,16 +147,16 @@ export default function WCFinalResults({ result, onRequestAnalysis, analyzing, a
           <div className="text-sm sm:text-base text-white/80 mt-2">{stageBlurb}</div>
           {result.playerEliminator && !isChamp && (
             <div className="text-xs text-white/50 mt-2">
-              {t.wcResults.eliminatedBy(result.playerEliminator.name)}
+              {t.wcResults.eliminatedBy(nationName(result.playerEliminator))}
             </div>
           )}
           <div className="mt-6 inline-flex flex-wrap justify-center items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-2 text-xs">
             {t.wcResults.champion}
-            <strong className="text-wc-gold">{result.champion.name}</strong>
+            <strong className="text-wc-gold">{nationName(result.champion)}</strong>
             <span className="text-white/40">·</span>
-            {t.wcResults.runnerUp} {result.runnerUp.name}
+            {t.wcResults.runnerUp} {nationName(result.runnerUp)}
             <span className="text-white/40">·</span>
-            {t.wcResults.thirdPlace} {result.thirdPlace.name}
+            {t.wcResults.thirdPlace} {nationName(result.thirdPlace)}
           </div>
         </div>
       </motion.div>
@@ -194,7 +201,9 @@ export default function WCFinalResults({ result, onRequestAnalysis, analyzing, a
                   </div>
                   <span className="w-1.5 h-6 rounded-full" style={{ background: team?.colors.primary }} />
                   <div className="flex-1 min-w-0 truncate">{s.playerName}</div>
-                  <div className="text-xs text-white/50 truncate hidden sm:block">{s.teamName}</div>
+                  <div className="text-xs text-white/50 truncate hidden sm:block">
+                    {nationName({ id: s.teamId, name: s.teamName })}
+                  </div>
                   <div className="font-display text-lg tabular-nums w-10 text-right">{s.goals}</div>
                 </div>
               );

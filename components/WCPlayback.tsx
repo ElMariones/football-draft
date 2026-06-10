@@ -4,8 +4,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState, useEffect } from 'react';
 import { WCResult, WCKnockoutTie } from '@/lib/worldCup';
 import { MatchResult, TeamSnapshot } from '@/lib/simulation';
-import { getTeam } from '@/data';
+import { getTeam, localizedTeamName } from '@/data';
 import { useT } from '@/lib/i18n';
+import { useGameStore } from '@/store/gameStore';
 
 interface Props {
   result: WCResult;
@@ -181,11 +182,15 @@ function MatchCard({
   shootout?: { home: number; away: number }; isKO?: boolean; isFinal?: boolean;
 }) {
   const t = useT();
+  const language = useGameStore(s => s.language);
   const resolve = (teamId: string) =>
     teamId === playerTeam.id ? playerTeam : getTeam(teamId);
 
   const home = resolve(match.home.teamId);
   const away = resolve(match.away.teamId);
+  // The player's XI keeps its custom name; nations get the localized name.
+  const homeName = home?.id === playerTeam.id ? playerTeam.name : localizedTeamName(home, language);
+  const awayName = away?.id === playerTeam.id ? playerTeam.name : localizedTeamName(away, language);
   const isPlayerMatch =
     match.home.teamId === playerTeamId || match.away.teamId === playerTeamId;
 
@@ -210,8 +215,8 @@ function MatchCard({
       </div>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-          <span className="sm:hidden truncate text-xs text-right">{home?.shortName ?? home?.name}</span>
-          <span className="hidden sm:block truncate text-sm text-right">{home?.name}</span>
+          <span className="sm:hidden truncate text-xs text-right">{home?.shortName ?? homeName}</span>
+          <span className="hidden sm:block truncate text-sm text-right">{homeName}</span>
           <ColorTag color={home?.colors.primary ?? '#444'} />
         </div>
         <div className="font-display text-xl tabular-nums px-3 min-w-[68px] text-center">
@@ -219,8 +224,8 @@ function MatchCard({
         </div>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <ColorTag color={away?.colors.primary ?? '#444'} />
-          <span className="sm:hidden truncate text-xs">{away?.shortName ?? away?.name}</span>
-          <span className="hidden sm:block truncate text-sm">{away?.name}</span>
+          <span className="sm:hidden truncate text-xs">{away?.shortName ?? awayName}</span>
+          <span className="hidden sm:block truncate text-sm">{awayName}</span>
         </div>
       </div>
       {match.scorers.length > 0 && (
