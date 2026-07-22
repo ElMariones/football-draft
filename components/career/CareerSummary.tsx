@@ -1,12 +1,13 @@
 'use client';
 
 import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import type { CareerPlayer, SeasonRecord, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { nationName, nationFlag } from '@/data/career/nations';
 import { careerT, titleLabel, scopeLabel, Lang } from '@/lib/career/i18n';
 import { formatValue, positionAbbr } from '@/lib/career/format';
-import { Crest, OvrBadge } from './bits';
+import { Crest, OvrBadge, CountUp } from './bits';
 
 const TITLE_WEIGHT: Record<string, number> = {
   'world-cup': 60, 'ballon-dor': 55, champions: 45, 'the-best': 40, libertadores: 30,
@@ -70,10 +71,10 @@ export default function CareerSummary({
   const score = careerScore(player, trophies);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }} className="max-w-4xl mx-auto space-y-4">
       {/* header */}
-      <div className="card p-5 flex flex-wrap items-center gap-5">
-        <OvrBadge ovr={player.peakOverall} size="lg" />
+      <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }} className="card p-5 flex flex-wrap items-center gap-5">
+        <OvrBadge ovr={player.peakOverall} size="lg" animated />
         <div className="min-w-0">
           <div className="text-[10px] tracking-[0.3em] text-white/40 uppercase">{t.careerSummary}</div>
           <div className="font-display text-4xl leading-none flex items-center gap-2">
@@ -85,12 +86,12 @@ export default function CareerSummary({
           <div><div className="font-display text-2xl">{player.apps}</div><div className="text-[10px] uppercase tracking-widest text-white/40">{t.apps}</div></div>
           <div><div className="font-display text-2xl">{player.goals}</div><div className="text-[10px] uppercase tracking-widest text-white/40">{t.goals}</div></div>
           <div><div className="font-display text-2xl">{player.assists}</div><div className="text-[10px] uppercase tracking-widest text-white/40">{t.assists}</div></div>
-          <div><div className="font-display text-2xl text-wc">{score}</div><div className="text-[10px] uppercase tracking-widest text-white/40">{t.careerScore}</div></div>
+          <div><div className="font-display text-2xl text-wc"><CountUp value={score} /></div><div className="text-[10px] uppercase tracking-widest text-white/40">{t.careerScore}</div></div>
         </div>
-      </div>
+      </motion.div>
 
       {/* cabinets */}
-      <div className="flex flex-wrap gap-3">
+      <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }} className="flex flex-wrap gap-3">
         <Cabinet titles={clubTitles} lang={lang} title={t.clubTitles} empty={t.emptyCabinet} />
         <div className="card p-4 flex-1 min-w-[200px]">
           <div className="text-[10px] tracking-[0.3em] text-white/40 uppercase mb-2">{t.nationalTeam}</div>
@@ -111,10 +112,10 @@ export default function CareerSummary({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* individual awards grouped by scope */}
-      <div className="card p-4">
+      <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }} className="card p-4">
         <div className="text-[10px] tracking-[0.3em] text-white/40 uppercase mb-3">{t.individualAwards}</div>
         {indTitles.length === 0 ? (
           <div className="text-white/30 text-xs uppercase tracking-widest py-3 text-center">🥇 {t.emptyCabinet}</div>
@@ -138,27 +139,27 @@ export default function CareerSummary({
             })}
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* per-club grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+      <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { staggerChildren: 0.05 } } }} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {clubAgg.map(([clubId, a]) => {
           const club = getClub(clubId);
           if (!club) return null;
           return (
-            <div key={clubId} className="card p-3 flex flex-col items-center gap-1 text-center">
+            <motion.div key={clubId} variants={{ hidden: { opacity: 0, scale: 0.85 }, show: { opacity: 1, scale: 1 } }} className="card p-3 flex flex-col items-center gap-1 text-center">
               <Crest clubId={clubId} size={44} />
               <div className="font-display text-sm leading-tight">{club.name}</div>
               <div className="text-[11px] text-white/60">{a.apps} · {a.goals} · {a.assists}</div>
               {a.titles.length > 0 && <div className="text-xs">{a.titles.slice(0, 6).map((_, i) => '🏆').join('')}</div>}
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       <div className="flex justify-center pt-2">
-        <button onClick={onReplay} className="btn-primary text-lg">↻ {t.playAgain}</button>
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onReplay} className="btn-primary text-lg">↻ {t.playAgain}</motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }

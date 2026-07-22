@@ -37,7 +37,7 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
   const [omin, omax] = CAREER.startOverallRange;
   const overall = Math.round(rng.range(omin, omax + 1));
   const [pmin, pmax] = CAREER.potentialRange;
-  const potential = clamp(overall + 7, 99, Math.round(rng.gauss((pmin + pmax) / 2, 8)));
+  const potential = clamp(overall + 12, 99, Math.round(rng.gauss((pmin + pmax) / 2, 6)));
   const p: CareerPlayer = {
     nationCode: o.nationCode,
     ntNationCode: o.nationCode,
@@ -173,16 +173,38 @@ export function applyProgression(
   p.assists += out.assists;
   p.cleanSheets += out.cleanSheets;
 
-  // growth vs potential, shaped by age + minutes
+  // Breakout: strong seasons raise the hidden ceiling, so sustained excellence
+  // (goals, ratings, titles) keeps you improving instead of stalling at a low
+  // random potential. This is what rewards "I played and scored constantly" —
+  // but it's scaled by league quality (goals in a weak league count less) and
+  // gets harder the closer you already are to world class.
+  const ease = leagueEase(tier);
+  const goalThreshold = isKeeperOrDef(p.position) ? Math.round(3 * ease) : Math.round(16 * ease);
+  // Reaching world class requires performing in a strong league — each tier
+  // caps how high your ceiling can be pushed by breakouts.
+  const tierCeiling = tier <= 1 ? 97 : tier <= 2 ? 93 : tier <= 3 ? 88 : tier <= 4 ? 84 : 79;
+  const headroom = clamp(0.15, 1, (94 - p.potential) / 18 + 0.15);
+  const rawBreak =
+    Math.max(0, out.rating - 7.3) * 1.1 +
+    bigTitles * 0.7 +
+    (out.goals >= goalThreshold ? 0.8 : 0);
+  if (rawBreak > 0 && p.age <= 30 && out.apps >= 10) {
+    const raised = Math.min(p.potential + rawBreak * headroom, tierCeiling);
+    p.potential = Math.max(p.potential, raised); // never lowered by playing down
+  }
+
+  // growth vs potential, shaped by age + minutes. Growth cannot push you past
+  // your ceiling — performance just gets you there faster.
   const gap = Math.max(0, p.potential - p.overall);
   const dev = developmentByAge(p.age);
-  const playFactor = smoothstep(8, 34, out.apps);
-  const growth =
-    CAREER.growthK * dev * playFactor * (gap / 20) * (0.6 + p.morale / 125) +
-    (p.form - 50) / 220 +
-    0.5 * bigTitles;
+  const playFactor = smoothstep(6, 30, out.apps);
+  const moraleMod = 0.6 + p.morale / 125;
+  const devGrowth = CAREER.growthK * dev * playFactor * (gap / 18) * moraleMod;
+  const perfGrowth = Math.max(0, out.rating - 6.8) * playFactor * 0.5 * (gap > 0 ? 1 : 0);
+  const growth = devGrowth + perfGrowth + (p.form - 50) / 220 + 0.5 * bigTitles;
   const decline = declineByAge(p.age);
-  p.overall = clamp(40, 99, p.overall + growth - decline);
+  const grown = Math.min(p.potential, p.overall + Math.max(0, growth));
+  p.overall = clamp(40, 99, grown - decline);
   p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall));
 
   // form follows the season rating

@@ -8,8 +8,8 @@ export const CAREER = {
   retireFrom: 34,
   hardRetire: 41,
   startOverallRange: [46, 55] as const,
-  potentialRange: [64, 94] as const,
-  growthK: 2.15,
+  potentialRange: [72, 96] as const,
+  growthK: 2.4,
   eventChanceBase: 0.55,
   transfer: {
     baseRerolls: 3,

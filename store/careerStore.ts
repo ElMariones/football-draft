@@ -20,6 +20,7 @@ import {
   fillForcedSlots, roleBiasFor,
 } from '@/lib/career/offers';
 import { buildEventDeck, selectEvent, applyEffects } from '@/lib/career/events';
+import { transferHeadline } from '@/lib/career/flavor';
 import type { Lang } from '@/lib/career/i18n';
 
 export type CareerPhase =
@@ -33,6 +34,7 @@ interface Offseason {
   offers: ClubOffer[];
   canStay: boolean;
   isYouth: boolean;
+  flavor: string;
   chosenClubId: string | null;
   chosenVerb: 'sign' | 'stay' | 'loan' | null;
   chosenRole: 'starter' | 'rotation' | 'prospect';
@@ -165,14 +167,16 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       player.secondNationCode = rng.pick(others).code;
     }
     const deck = buildEventDeck(lang);
+    const youthOffers = generateYouthOffers(player, rng);
     set({
       phase: 'career', seed, rng, player, deck, firedEventById: {},
       year: CAREER.startYear, stages: [], trophies: [], lastSeason: null,
       forced: null,
       offseason: {
         event: null, eventResolved: true, eventBadges: [], eventOptionChosen: null,
-        offers: generateYouthOffers(player, rng),
+        offers: youthOffers,
         canStay: false, isYouth: true,
+        flavor: transferHeadline(player, youthOffers, { youth: true, loan: false }, lang, rng),
         chosenClubId: null, chosenVerb: null, chosenRole: 'starter',
       },
     });
@@ -388,6 +392,7 @@ function setupOffseason(
   }
 
   set({
+    phase: 'career',
     player: { ...player },
     forced: null,
     offseason: {
@@ -398,6 +403,7 @@ function setupOffseason(
       offers,
       canStay: !!player.clubId,
       isYouth: false,
+      flavor: transferHeadline(player, offers, { youth: false, loan: loanPhase }, s.lang, rng),
       chosenClubId: null,
       chosenVerb: null,
       chosenRole: 'starter',

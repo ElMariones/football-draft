@@ -5,13 +5,14 @@ import { getClub } from '@/data/career/clubs';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
 import { formatValue, positionAbbr } from '@/lib/career/format';
 import { isKeeperOrDef } from '@/lib/career/config';
-import { Crest, OvrBadge, Flag } from './bits';
+import { motion } from 'framer-motion';
+import { Crest, OvrBadge, Flag, CountUp } from './bits';
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center flex-1">
       <div className="text-[10px] tracking-widest text-white/40 uppercase">{label}</div>
-      <div className="font-display text-xl">{value}</div>
+      <div className="font-display text-xl"><CountUp value={value} /></div>
     </div>
   );
 }
@@ -23,7 +24,7 @@ function Meter({ label, value, color }: { label: string; value: number; color: s
         <span>{label}</span><span>{Math.round(value)}</span>
       </div>
       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
+        <motion.div className="h-full rounded-full" style={{ background: color }} animate={{ width: `${value}%` }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} />
       </div>
     </div>
   );
@@ -41,9 +42,9 @@ export default function CareerHud({
     tt.kind === 'national' ? '🌍' : tt.kind === 'individual' ? '🥇' : '🏆';
 
   return (
-    <div className="card p-4 sm:p-5">
+    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card p-4 sm:p-5">
       <div className="flex items-center gap-4">
-        <OvrBadge ovr={player.overall} size="lg" />
+        <OvrBadge ovr={player.overall} size="lg" animated />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-xs text-white/60 mb-1">
             <Flag code={player.ntNationCode} className="text-base" />
@@ -59,7 +60,7 @@ export default function CareerHud({
           <div className="text-[10px] tracking-widest text-white/40 uppercase">{t.age}</div>
           <div className="font-display text-2xl">{player.age}</div>
           <div className="text-[10px] tracking-widest text-white/40 uppercase mt-1">{t.value}</div>
-          <div className="font-display text-lg text-emerald-300">{formatValue(player.value)}</div>
+          <div className="font-display text-lg text-emerald-300"><CountUp value={player.value} format={formatValue} /></div>
         </div>
       </div>
 
@@ -87,6 +88,6 @@ export default function CareerHud({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

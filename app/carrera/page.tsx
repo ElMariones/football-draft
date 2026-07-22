@@ -59,15 +59,15 @@ export default function CareerPage() {
             <CareerHud player={player} trophies={trophies} lang={lang} />
             {phase === 'career' && <CareerOffseason lang={lang} />}
             {phase === 'retire-decision' && (
-              <div className="card p-5 text-center">
-                <div className="text-5xl mb-2">🥾</div>
+              <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="card p-5 text-center">
+                <motion.div animate={{ rotate: [0, -8, 8, -4, 0] }} transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 1 }} className="text-5xl mb-2">🥾</motion.div>
                 <h3 className="font-display text-2xl mb-1">{t.retireQ}</h3>
                 <p className="text-white/60 text-sm mb-4">{t.retireDesc}</p>
                 <div className="flex gap-3 justify-center">
-                  <button onClick={() => retireDecision(true)} className="btn-ghost">{t.oneMoreYear}</button>
-                  <button onClick={() => retireDecision(false)} className="btn-primary">{t.retire}</button>
+                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => retireDecision(true)} className="btn-ghost">{t.oneMoreYear}</motion.button>
+                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => retireDecision(false)} className="btn-primary">{t.retire}</motion.button>
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
           <CareerTimeline

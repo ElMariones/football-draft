@@ -1,8 +1,21 @@
 'use client';
 
+import { useEffect } from 'react';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { getClub } from '@/data/career/clubs';
 import { nationFlag } from '@/data/career/nations';
 import { ovrTier } from '@/lib/career/format';
+
+// Animated count-up number.
+export function CountUp({ value, format }: { value: number; format?: (n: number) => string }) {
+  const mv = useMotionValue(value);
+  const text = useTransform(mv, v => (format ? format(v) : String(Math.round(v))));
+  useEffect(() => {
+    const controls = animate(mv, value, { duration: 0.6, ease: 'easeOut' });
+    return controls.stop;
+  }, [value, mv]);
+  return <motion.span>{text}</motion.span>;
+}
 
 // Monogram crest generated from a club's colors (no trademarked assets).
 export function Crest({ clubId, size = 40 }: { clubId: string; size?: number }) {
@@ -34,13 +47,19 @@ const TIER_STYLE: Record<string, string> = {
   elite: 'bg-wc text-black',
 };
 
-export function OvrBadge({ ovr, size = 'md' }: { ovr: number; size?: 'sm' | 'md' | 'lg' }) {
+export function OvrBadge({ ovr, size = 'md', animated = false }: { ovr: number; size?: 'sm' | 'md' | 'lg'; animated?: boolean }) {
   const tier = ovrTier(ovr);
   const dims = size === 'lg' ? 'w-16 h-16 text-4xl' : size === 'sm' ? 'w-9 h-9 text-lg' : 'w-12 h-12 text-2xl';
   return (
-    <div className={`grid place-items-center rounded-xl font-display leading-none ${dims} ${TIER_STYLE[tier]}`}>
-      {Math.round(ovr)}
-    </div>
+    <motion.div
+      key={Math.round(ovr)}
+      initial={animated ? { scale: 0.8 } : false}
+      animate={animated ? { scale: [1, 1.18, 1] } : {}}
+      transition={{ duration: 0.5 }}
+      className={`grid place-items-center rounded-xl font-display leading-none ${dims} ${TIER_STYLE[tier]}`}
+    >
+      {animated ? <CountUp value={Math.round(ovr)} /> : Math.round(ovr)}
+    </motion.div>
   );
 }
 

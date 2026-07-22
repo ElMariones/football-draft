@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import type { CareerPlayer, SeasonRecord } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
@@ -11,11 +12,15 @@ const PILL: Record<string, string> = {
   high: 'bg-gold/90 text-black', elite: 'bg-wc/90 text-black',
 };
 
-function Row({ s, lang, t }: { s: SeasonRecord; lang: Lang; t: ReturnType<typeof careerT> }) {
+function Row({ s, lang, t, isLatest }: { s: SeasonRecord; lang: Lang; t: ReturnType<typeof careerT>; isLatest: boolean }) {
   const club = getClub(s.clubId);
   const titleIcons = s.titles.map(tt => (tt.kind === 'individual' ? '🥇' : tt.kind === 'national' ? '🌍' : '🏆'));
   return (
-    <tr className="border-b border-white/5">
+    <motion.tr
+      initial={isLatest ? { opacity: 0, x: 20, backgroundColor: 'rgba(0,223,162,0.18)' } : false}
+      animate={{ opacity: 1, x: 0, backgroundColor: 'rgba(0,0,0,0)' }}
+      transition={{ duration: 0.6 }}
+      className="border-b border-white/5">
       <td className="py-2 pl-2 text-white/50 text-xs">{s.age}</td>
       <td className="py-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -29,7 +34,7 @@ function Row({ s, lang, t }: { s: SeasonRecord; lang: Lang; t: ReturnType<typeof
       <td className="py-2 text-center text-sm text-white/70">{s.apps}</td>
       <td className="py-2 text-center text-sm text-white/70">{s.goals}</td>
       <td className="py-2 pr-2 text-center text-sm text-white/70">{s.assists}</td>
-    </tr>
+    </motion.tr>
   );
 }
 
@@ -53,7 +58,7 @@ export default function CareerTimeline({
             </tr>
           </thead>
           <tbody>
-            {stages.map((s, i) => <Row key={i} s={s} lang={lang} t={t} />)}
+            {stages.map((s, i) => <Row key={i} s={s} lang={lang} t={t} isLatest={i === stages.length - 1} />)}
             {choosing && (
               <tr className="bg-white/5">
                 <td className="py-2 pl-2 text-white/60 text-xs">{player.age}</td>
