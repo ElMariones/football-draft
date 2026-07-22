@@ -1,6 +1,7 @@
 import type { CareerPlayer, CareerClub, ClubOffer, OfferRole } from '@/data/career/types';
 import { CLUBS, getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
+import { getNation } from '@/data/career/nations';
 import { Rng } from './rng';
 
 function roleFor(p: CareerPlayer, club: CareerClub): OfferRole {
@@ -76,21 +77,51 @@ export function generateLoanOffers(p: CareerPlayer, rng: Rng): ClubOffer[] {
 
 // ---- organic transfer offers each window -----------------------------------
 
+// Offers are composed from meaningful buckets rather than a flat pool:
+//  1. a club from your CURRENT league,
+//  2. a club from your HOME country/region (an Argentine hears from South
+//     America, a Belgian from Europe, etc.),
+//  3. an ELITE worldwide club if you're good enough — otherwise a wildcard.
 export function generateTransferOffers(p: CareerPlayer, rng: Rng): ClubOffer[] {
   const declining = p.age >= 32 || p.overall < p.peakOverall - 4;
   const min = declining ? p.overall - 16 : p.overall - 7;
   const max = p.overall + (declining ? 2 : 5);
-  const pool = candidates(p, { min, max });
+  const target = p.overall + 1;
+  const nation = getNation(p.nationCode);
+  const homeConfed = nation?.confed;
+  const currentLeagueId = p.clubId ? getClub(p.clubId)?.leagueId : undefined;
+
+  const inBand = (c: CareerClub) =>
+    c.id !== p.clubId && c.strength >= min && c.strength <= max && reachable(p, c);
+
+  const sameLeague = CLUBS.filter(c => c.leagueId === currentLeagueId && inBand(c));
+  const sameCountry = CLUBS.filter(c => getLeague(c.leagueId)?.nationCode === p.nationCode && inBand(c));
+  const homeRegion = CLUBS.filter(c => getLeague(c.leagueId)?.confed === homeConfed && inBand(c));
+  const anyReach = CLUBS.filter(inBand);
+  const eliteEligible = p.overall >= 77 && p.reputation >= 52;
+  const elite = eliteEligible
+    ? CLUBS.filter(c =>
+        c.id !== p.clubId && reachable(p, c) &&
+        (getLeague(c.leagueId)?.tier ?? 9) <= 1 &&
+        c.strength >= p.overall - 4 && c.strength <= p.overall + 9)
+    : [];
+
+  const chosen = new Set<string>([p.clubId ?? '']);
   const offers: ClubOffer[] = [];
-  const targeted = pickDistinct(pool, 5, rng, p.overall + 1);
-  for (const c of targeted) {
-    // interest probability: closer to your level + your reputation
-    const fit = 1 - Math.min(1, Math.abs(c.strength - p.overall) / 12);
-    const prob = 0.25 + 0.5 * fit + (p.reputation - 45) / 200;
-    if (rng.chance(prob) && offers.length < 3) {
-      offers.push({ clubId: c.id, verb: 'sign', role: roleFor(p, c) });
-    }
-  }
+  const take = (pool: CareerClub[]) => {
+    const avail = pool.filter(c => !chosen.has(c.id));
+    if (!avail.length) return;
+    const c = rng.weighted(avail, x => 1 / (1 + Math.abs(x.strength - target)) + 0.05);
+    chosen.add(c.id);
+    offers.push({ clubId: c.id, verb: 'sign', role: roleFor(p, c) });
+  };
+
+  take(sameLeague);
+  take(sameCountry.length ? sameCountry : homeRegion);
+  if (elite.length && (p.overall >= 82 || rng.chance(0.7))) take(elite);
+  else take(anyReach);
+  if (offers.length < 3 && rng.chance(0.5)) take(anyReach);
+
   return offers;
 }
 

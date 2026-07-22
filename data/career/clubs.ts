@@ -136,3 +136,39 @@ export function getClub(id: string): CareerClub | undefined {
 export function clubsInLeague(leagueId: string): CareerClub[] {
   return CLUBS.filter(c => c.leagueId === leagueId);
 }
+
+// Real club badges from copero's media server: id -> "COUNTRY/slug" (verified).
+// Clubs not listed here fall back to the generated monogram crest.
+const CLUB_LOGO: Record<string, string> = {
+  'man-city': 'ENG/manchester-city', liverpool: 'ENG/liverpool', arsenal: 'ENG/arsenal',
+  'man-utd': 'ENG/manchester-united', chelsea: 'ENG/chelsea', tottenham: 'ENG/tottenham-hotspur',
+  newcastle: 'ENG/newcastle-united', 'aston-villa': 'ENG/aston-villa', 'west-ham': 'ENG/west-ham-united',
+  brighton: 'ENG/brighton', everton: 'ENG/everton', wolves: 'ENG/wolverhampton',
+  'real-madrid': 'ESP/real-madrid', barcelona: 'ESP/barcelona', atletico: 'ESP/atletico-madrid',
+  sevilla: 'ESP/sevilla', 'real-sociedad': 'ESP/real-sociedad', villarreal: 'ESP/villarreal',
+  betis: 'ESP/real-betis', athletic: 'ESP/athletic-club', valencia: 'ESP/valencia', getafe: 'ESP/getafe',
+  bayern: 'GER/fc-bayern-munchen', leverkusen: 'GER/bayer-04-leverkusen', dortmund: 'GER/borussia-dortmund',
+  leipzig: 'GER/rb-leipzig', frankfurt: 'GER/eintracht-frankfurt', freiburg: 'GER/sc-freiburg', wolfsburg: 'GER/vfl-wolfsburg',
+  inter: 'ITA/inter', juventus: 'ITA/juventus', milan: 'ITA/milan', napoli: 'ITA/napoli',
+  roma: 'ITA/roma', lazio: 'ITA/lazio', atalanta: 'ITA/atalanta', fiorentina: 'ITA/fiorentina',
+  psg: 'FRA/paris-saint-germain', monaco: 'FRA/as-monaco', marseille: 'FRA/olympique-de-marseille',
+  lyon: 'FRA/olympique-lyonnais', lille: 'FRA/lille', nice: 'FRA/nice',
+  benfica: 'PRT/benfica', porto: 'PRT/fc-porto', braga: 'PRT/sporting-braga',
+  leeds: 'ENG/leeds-united', southampton: 'ENG/southampton', norwich: 'ENG/norwich', watford: 'ENG/watford',
+  'sporting-gijon': 'ESP/sporting-gijon', albacete: 'ESP/albacete', oviedo: 'ESP/real-oviedo', racing: 'ESP/racing-santander',
+  river: 'ARG/river-plate', boca: 'ARG/boca-juniors', 'racing-club': 'ARG/racing-club',
+  independiente: 'ARG/independiente', 'san-lorenzo': 'ARG/san-lorenzo', talleres: 'ARG/talleres',
+  defensa: 'ARG/defensa-y-justicia', velez: 'ARG/velez-sarsfield',
+  flamengo: 'BRA/flamengo', palmeiras: 'BRA/palmeiras', gremio: 'BRA/gremio',
+  corinthians: 'BRA/corinthians', fluminense: 'BRA/fluminense',
+  america: 'MEX/america', monterrey: 'MEX/monterrey', 'cruz-azul': 'MEX/cruz-azul', tigres: 'MEX/tigres-uanl',
+  'colo-colo': 'CHI/colo-colo', 'u-chile': 'CHI/universidad-de-chile',
+  ferro: 'ARG/ferro-carril-oeste', patronato: 'ARG/patronato', madryn: 'ARG/deportivo-madryn', chaco: 'ARG/chaco-for-ever',
+};
+const LOGO_BASE = 'https://media.copero.com.ar/logos/football/teams';
+export function clubLogoUrl(id: string): string | null {
+  const cs = CLUB_LOGO[id];
+  if (!cs) return null;
+  const [cc, slug] = cs.split('/');
+  return `${LOGO_BASE}/${cc}/D/${slug}.svg`;
+}

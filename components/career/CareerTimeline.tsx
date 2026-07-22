@@ -5,7 +5,7 @@ import type { CareerPlayer, SeasonRecord } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
 import { ovrTier } from '@/lib/career/format';
-import { Crest } from './bits';
+import { Crest, TrophyBadge } from './bits';
 
 const PILL: Record<string, string> = {
   low: 'bg-amber-500/90 text-black', mid: 'bg-cl/90 text-black',
@@ -14,7 +14,6 @@ const PILL: Record<string, string> = {
 
 function Row({ s, lang, t, isLatest }: { s: SeasonRecord; lang: Lang; t: ReturnType<typeof careerT>; isLatest: boolean }) {
   const club = getClub(s.clubId);
-  const titleIcons = s.titles.map(tt => (tt.kind === 'individual' ? '🥇' : tt.kind === 'national' ? '🌍' : '🏆'));
   return (
     <motion.tr
       initial={isLatest ? { opacity: 0, x: 20, backgroundColor: 'rgba(0,223,162,0.18)' } : false}
@@ -27,7 +26,7 @@ function Row({ s, lang, t, isLatest }: { s: SeasonRecord; lang: Lang; t: ReturnT
           {club && <Crest clubId={club.id} size={22} />}
           <span className="truncate text-sm">{club?.name}</span>
           {s.onLoan && <span className="text-[9px] px-1 rounded bg-white/10 text-white/50">{lang === 'es' ? 'PRÉST' : 'LOAN'}</span>}
-          {titleIcons.slice(0, 4).map((ic, i) => <span key={i} title={s.titles[i] && titleLabel(s.titles[i].key, lang)}>{ic}</span>)}
+          {s.titles.slice(0, 4).map((tt, i) => <TrophyBadge key={i} title={tt} label={titleLabel(tt.key, lang)} size={16} />)}
         </div>
       </td>
       <td className="py-2 text-center"><span className={`inline-grid place-items-center w-7 h-7 rounded-md text-xs font-display ${PILL[ovrTier(s.overallAtSeason)]}`}>{s.overallAtSeason}</span></td>

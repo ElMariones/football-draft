@@ -7,7 +7,14 @@ import { getClub } from '@/data/career/clubs';
 import { nationName, nationFlag } from '@/data/career/nations';
 import { careerT, titleLabel, scopeLabel, Lang } from '@/lib/career/i18n';
 import { formatValue, positionAbbr } from '@/lib/career/format';
-import { Crest, OvrBadge, CountUp } from './bits';
+import { Crest, OvrBadge, CountUp, TrophyBadge } from './bits';
+
+// Group titles by key, keeping a representative Title for its icon.
+function grouped(titles: Title[]): { key: string; n: number; sample: Title }[] {
+  const m = new Map<string, { n: number; sample: Title }>();
+  for (const t of titles) { const e = m.get(t.key); if (e) e.n++; else m.set(t.key, { n: 1, sample: t }); }
+  return [...m.entries()].map(([key, v]) => ({ key, n: v.n, sample: v.sample }));
+}
 
 const TITLE_WEIGHT: Record<string, number> = {
   'world-cup': 60, 'ballon-dor': 55, champions: 45, 'the-best': 40, libertadores: 30,
@@ -28,11 +35,12 @@ function Cabinet({ titles, lang, title, empty }: { titles: Title[]; lang: Lang; 
       {titles.length === 0 ? (
         <div className="text-white/30 text-xs uppercase tracking-widest py-3 text-center">🏆 {empty}</div>
       ) : (
-        <div className="space-y-1">
-          {Object.entries(count(titles)).map(([key, n]) => (
-            <div key={key} className="flex items-center justify-between text-sm">
+        <div className="space-y-1.5">
+          {grouped(titles).map(({ key, n, sample }) => (
+            <div key={key} className="flex items-center gap-2 text-sm">
+              <TrophyBadge title={sample} label={titleLabel(key, lang)} size={20} />
               <span className="text-white/80">{titleLabel(key, lang)}</span>
-              {n > 1 && <span className="text-gold font-display">×{n}</span>}
+              {n > 1 && <span className="text-gold font-display ml-auto">×{n}</span>}
             </div>
           ))}
         </div>
@@ -41,11 +49,6 @@ function Cabinet({ titles, lang, title, empty }: { titles: Title[]; lang: Lang; 
   );
 }
 
-function count(titles: Title[]): Record<string, number> {
-  const m: Record<string, number> = {};
-  for (const t of titles) m[t.key] = (m[t.key] ?? 0) + 1;
-  return m;
-}
 
 export default function CareerSummary({
   player, stages, trophies, lang, onReplay,
@@ -103,10 +106,11 @@ export default function CareerSummary({
           {natTitles.length === 0 ? (
             <div className="text-white/30 text-xs uppercase tracking-widest py-2 text-center">🌍 {t.emptyCabinet}</div>
           ) : (
-            <div className="space-y-1">
-              {Object.entries(count(natTitles)).map(([key, n]) => (
-                <div key={key} className="flex items-center justify-between text-sm">
-                  <span className="text-white/80">{titleLabel(key, lang)}</span>{n > 1 && <span className="text-gold font-display">×{n}</span>}
+            <div className="space-y-1.5">
+              {grouped(natTitles).map(({ key, n, sample }) => (
+                <div key={key} className="flex items-center gap-2 text-sm">
+                  <TrophyBadge title={sample} label={titleLabel(key, lang)} size={20} />
+                  <span className="text-white/80">{titleLabel(key, lang)}</span>{n > 1 && <span className="text-gold font-display ml-auto">×{n}</span>}
                 </div>
               ))}
             </div>
@@ -127,10 +131,11 @@ export default function CareerSummary({
               return (
                 <div key={scope}>
                   <div className="text-[10px] uppercase tracking-widest text-wc mb-1">{scopeLabel(scope, lang)}</div>
-                  <div className="space-y-1">
-                    {Object.entries(count(items)).map(([key, n]) => (
-                      <div key={key} className="flex items-center justify-between text-xs">
-                        <span className="text-white/75">{titleLabel(key, lang)}</span>{n > 1 && <span className="text-gold">×{n}</span>}
+                  <div className="space-y-1.5">
+                    {grouped(items).map(({ key, n, sample }) => (
+                      <div key={key} className="flex items-center gap-1.5 text-xs">
+                        <TrophyBadge title={sample} label={titleLabel(key, lang)} size={18} />
+                        <span className="text-white/75">{titleLabel(key, lang)}</span>{n > 1 && <span className="text-gold ml-auto">×{n}</span>}
                       </div>
                     ))}
                   </div>
@@ -151,7 +156,11 @@ export default function CareerSummary({
               <Crest clubId={clubId} size={44} />
               <div className="font-display text-sm leading-tight">{club.name}</div>
               <div className="text-[11px] text-white/60">{a.apps} · {a.goals} · {a.assists}</div>
-              {a.titles.length > 0 && <div className="text-xs">{a.titles.slice(0, 6).map((_, i) => '🏆').join('')}</div>}
+              {a.titles.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-1 mt-0.5">
+                  {a.titles.slice(0, 8).map((tt, i) => <TrophyBadge key={i} title={tt} label={titleLabel(tt.key, lang)} size={18} />)}
+                </div>
+              )}
             </motion.div>
           );
         })}

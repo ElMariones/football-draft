@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { getClub } from '@/data/career/clubs';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
+import type { Title } from '@/data/career/types';
+import { getClub, clubLogoUrl } from '@/data/career/clubs';
 import { nationFlag } from '@/data/career/nations';
+import { trophyImageUrl, trophyEmoji } from '@/lib/career/trophies';
 import { ovrTier } from '@/lib/career/format';
 
 // Animated count-up number.
@@ -17,10 +19,23 @@ export function CountUp({ value, format }: { value: number; format?: (n: number)
   return <motion.span>{text}</motion.span>;
 }
 
-// Monogram crest generated from a club's colors (no trademarked assets).
+// Real club badge from the CDN, falling back to a color monogram on error.
 export function Crest({ clubId, size = 40 }: { clubId: string; size?: number }) {
   const club = getClub(clubId);
+  const [failed, setFailed] = useState(false);
   if (!club) return null;
+  const logo = clubLogoUrl(clubId);
+  if (logo && !failed) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={logo} alt={club.name} title={club.name}
+        onError={() => setFailed(true)}
+        className="object-contain flex-shrink-0"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   const { primary, secondary } = club.colors;
   return (
     <div
@@ -37,6 +52,41 @@ export function Crest({ clubId, size = 40 }: { clubId: string; size?: number }) 
     >
       {club.short}
     </div>
+  );
+}
+
+// A trophy/award icon: real PNG when available, emoji otherwise. Scales up and
+// reveals its name on hover.
+export function TrophyBadge({ title, label, size = 22 }: { title: Title; label: string; size?: number }) {
+  const url = trophyImageUrl(title);
+  const [failed, setFailed] = useState(false);
+  const [hover, setHover] = useState(false);
+  const showImg = url && !failed;
+  return (
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <motion.span whileHover={{ scale: 1.45, y: -3 }} transition={{ type: 'spring', stiffness: 320, damping: 14 }} className="inline-flex cursor-default">
+        {showImg ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url!} alt={label} onError={() => setFailed(true)} className="object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" style={{ width: size, height: size }} />
+        ) : (
+          <span style={{ fontSize: size * 0.82, lineHeight: 1 }}>{trophyEmoji(title)}</span>
+        )}
+      </motion.span>
+      <AnimatePresence>
+        {hover && (
+          <motion.span
+            initial={{ opacity: 0, y: 4, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4 }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 rounded-md bg-black/90 border border-white/15 text-[10px] font-semibold whitespace-nowrap z-30 pointer-events-none shadow-lg"
+          >
+            {label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
   );
 }
 

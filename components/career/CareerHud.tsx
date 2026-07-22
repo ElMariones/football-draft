@@ -6,7 +6,7 @@ import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
 import { formatValue, positionAbbr } from '@/lib/career/format';
 import { isKeeperOrDef } from '@/lib/career/config';
 import { motion } from 'framer-motion';
-import { Crest, OvrBadge, Flag, CountUp } from './bits';
+import { Crest, OvrBadge, Flag, CountUp, TrophyBadge } from './bits';
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
@@ -36,10 +36,6 @@ export default function CareerHud({
   const t = careerT(lang);
   const club = player.clubId ? getClub(player.clubId) : null;
   const showCS = isKeeperOrDef(player.position);
-
-  // cabinet: newest first, de-noise by showing a compact icon list
-  const iconFor = (tt: Title) =>
-    tt.kind === 'national' ? '🌍' : tt.kind === 'individual' ? '🥇' : '🏆';
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card p-4 sm:p-5">
@@ -80,9 +76,9 @@ export default function CareerHud({
         {trophies.length === 0 ? (
           <div className="text-center text-white/30 text-xs tracking-widest uppercase py-1">🏆 {t.emptyCabinet}</div>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 items-center">
             {trophies.slice().reverse().slice(0, 22).map((tt, i) => (
-              <span key={i} title={titleLabel(tt.key, lang)} className="text-base leading-none">{iconFor(tt)}</span>
+              <TrophyBadge key={i} title={tt} label={titleLabel(tt.key, lang)} size={22} />
             ))}
             {trophies.length > 22 && <span className="text-xs text-white/40 self-center">+{trophies.length - 22}</span>}
           </div>
