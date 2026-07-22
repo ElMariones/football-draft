@@ -908,6 +908,28 @@ function LandingPanel({
         </p>
       </div>
 
+      <Link href="/carrera" className="block group">
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="relative overflow-hidden rounded-2xl border border-wc/40 bg-gradient-to-r from-wc/15 via-wc/5 to-transparent px-4 py-3.5 flex items-center gap-3"
+        >
+          <span className="text-3xl">🏆</span>
+          <div className="min-w-0 flex-1">
+            <div className="font-display text-xl leading-none flex items-center gap-2">
+              {language === 'en' ? 'CAREER MODE' : 'MODO CARRERA'}
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-wc text-black tracking-widest">NEW</span>
+            </div>
+            <div className="text-[11px] text-white/55 mt-1">
+              {language === 'en'
+                ? 'Create a player and live a full career — clubs, transfers, titles, dilemmas.'
+                : 'Creá un jugador y viví una carrera completa — clubes, pases, títulos, dilemas.'}
+            </div>
+          </div>
+          <span className="text-wc font-display text-lg group-hover:translate-x-1 transition-transform">▶</span>
+        </motion.div>
+      </Link>
+
       <div>
         <div className="text-xs tracking-[0.3em] text-white/50 uppercase mb-2 pl-1">
           {t.landing.competition}
