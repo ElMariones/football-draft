@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
 import type { ClubOffer, Title } from '@/data/career/types';
@@ -243,25 +244,55 @@ function LastSeasonRecap({ lang }: { lang: Lang }) {
 
 export default function CareerOffseason({ lang }: { lang: Lang }) {
   const { offseason, playSeason } = useCareerStore();
+  const [simulating, setSimulating] = useState(false);
   if (!offseason) return null;
   const ready = offseason.eventResolved && !!offseason.chosenClubId;
 
+  const play = () => {
+    if (!ready || simulating) return;
+    setSimulating(true);
+    window.setTimeout(() => { playSeason(); setSimulating(false); }, 850);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
       <LastSeasonRecap lang={lang} />
       {!offseason.isYouth && <EventZone lang={lang} />}
       <TransferZone lang={lang} />
       <motion.button
         whileHover={ready ? { scale: 1.02 } : undefined}
         whileTap={ready ? { scale: 0.98 } : undefined}
-        animate={ready ? { boxShadow: ['0 0 0px rgba(255,215,0,0)', '0 0 24px rgba(255,215,0,0.5)', '0 0 0px rgba(255,215,0,0)'] } : {}}
+        animate={ready && !simulating ? { boxShadow: ['0 0 0px rgba(255,215,0,0)', '0 0 24px rgba(255,215,0,0.5)', '0 0 0px rgba(255,215,0,0)'] } : {}}
         transition={{ duration: 1.8, repeat: Infinity }}
-        disabled={!ready}
-        onClick={playSeason}
+        disabled={!ready || simulating}
+        onClick={play}
         className="btn-primary w-full text-xl disabled:opacity-40"
       >
         {lang === 'es' ? 'Jugar temporada ▶' : 'Play season ▶'}
       </motion.button>
+
+      <AnimatePresence>
+        {simulating && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 grid place-items-center bg-black/75 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-4">
+              <motion.div
+                animate={{ rotate: 360, y: [0, -18, 0] }}
+                transition={{ rotate: { duration: 0.7, repeat: Infinity, ease: 'linear' }, y: { duration: 0.5, repeat: Infinity, ease: 'easeInOut' } }}
+                className="text-6xl"
+              >⚽</motion.div>
+              <motion.div
+                animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.2, repeat: Infinity }}
+                className="font-display text-2xl tracking-wide"
+              >
+                {lang === 'es' ? 'Jugando la temporada…' : 'Playing the season…'}
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -5,8 +5,9 @@ import { getLeague } from '@/data/career/leagues';
 import { Rng, clamp, logistic, smoothstep } from './rng';
 import {
   CAREER, developmentByAge, declineByAge, leagueGamesByTier, CONTINENTAL_GAMES,
-  ageMinutesBias, goalRate, assistRate, isKeeperOrDef, leagueEase, leaguePremium,
-  ageValueMul, valueBase,
+  ageMinutesBias, isKeeperOrDef, leaguePremium, ageValueMul, valueBase,
+  GOAL_BASE, ASSIST_BASE, goalPosFactor, assistPosFactor, ovrGoalFactor, ovrAssistFactor,
+  leagueGoalMod,
 } from './config';
 
 export interface SeasonOutput {
@@ -124,35 +125,35 @@ export function simulateSeason(p: CareerPlayer, club: CareerClub, rng: Rng): Sea
   const gamesMissed = p.injuryGamesNext;
   const apps = clamp(0, availableGames, Math.round(availableGames * minutesFactor) - gamesMissed);
 
-  const ease = leagueEase(tier);
-  const formMul = 0.7 + p.form / 167;
+  const formMul = 0.85 + p.form / 300;              // mild ~0.85–1.18
   const noiseScale = 1 - p.consistency / 220;
 
-  const gRate = goalRate(p.position) * Math.pow(effOverall / 72, 1.4) * ease * formMul;
-  let goals = Math.round(gRate * apps + rng.gauss(0, apps * 0.06 * noiseScale + 0.5));
+  const gRate = GOAL_BASE * goalPosFactor(p.position) * ovrGoalFactor(effOverall) * leagueGoalMod(tier) * formMul;
+  let goals = Math.round(gRate * apps + rng.gauss(0, apps * 0.05 * noiseScale + 0.3));
   goals = clamp(0, apps, goals);
 
-  const aRate = assistRate(p.position) * Math.pow(effOverall / 74, 1.1) * (0.6 + club.strength / 160) * formMul;
-  let assists = Math.round(aRate * apps + rng.gauss(0, apps * 0.05 * noiseScale + 0.4));
+  const aRate = ASSIST_BASE * assistPosFactor(p.position) * ovrAssistFactor(effOverall) * (0.7 + club.strength / 220) * formMul;
+  let assists = Math.round(aRate * apps + rng.gauss(0, apps * 0.04 * noiseScale + 0.3));
   assists = clamp(0, apps, assists);
 
   let cleanSheets = 0;
   if (isKeeperOrDef(p.position)) {
-    const csRate = clamp(0.05, 0.6, (club.strength - 52) / 70) * (2 - ease * 0.9);
-    cleanSheets = clamp(0, apps, Math.round(apps * csRate * 0.5));
+    const csRate = clamp(0.05, 0.6, (club.strength - 52) / 70);
+    cleanSheets = clamp(0, apps, Math.round(apps * csRate * 0.55));
   }
 
-  // Season rating (0-10).
+  // Season rating (0-10). Divisors are tuned to the new (lower) goal scale so
+  // ratings still span ~5.5–9.5.
   const per = (x: number) => x / Math.max(1, apps);
   let outputScore: number;
   if (p.position === 'GK' || p.position === 'CB') {
     outputScore = per(cleanSheets) / 0.4 + (effOverall - 60) / 45;
   } else if (isKeeperOrDef(p.position)) {
-    outputScore = per(cleanSheets) / 0.4 + per(assists) / 0.25 + (effOverall - 60) / 55;
+    outputScore = per(cleanSheets) / 0.4 + per(assists) / 0.2 + (effOverall - 60) / 55;
   } else if (p.position === 'CM' || p.position === 'CDM' || p.position === 'RM' || p.position === 'LM') {
-    outputScore = per(goals) / 0.3 + per(assists) / 0.35;
+    outputScore = per(goals) / 0.18 + per(assists) / 0.28;
   } else {
-    outputScore = per(goals) / 0.55 + per(assists) / 0.35;
+    outputScore = per(goals) / 0.35 + per(assists) / 0.3;
   }
   const rating = clamp(5.0, 9.7, 6.0 + outputScore * 1.35 + (effOverall - 72) / 45 + (apps < 10 ? -0.4 : 0));
 
@@ -178,8 +179,7 @@ export function applyProgression(
   // random potential. This is what rewards "I played and scored constantly" —
   // but it's scaled by league quality (goals in a weak league count less) and
   // gets harder the closer you already are to world class.
-  const ease = leagueEase(tier);
-  const goalThreshold = isKeeperOrDef(p.position) ? Math.round(3 * ease) : Math.round(16 * ease);
+  const goalThreshold = isKeeperOrDef(p.position) ? 2 : 10;
   // Reaching world class requires performing in a strong league — each tier
   // caps how high your ceiling can be pushed by breakouts.
   const tierCeiling = tier <= 1 ? 97 : tier <= 2 ? 93 : tier <= 3 ? 88 : tier <= 4 ? 84 : 79;
@@ -241,7 +241,7 @@ export function applyProgression(
 export function computeValue(p: CareerPlayer, tier: number): number {
   const base = valueBase(p.overall);
   let ageMul = ageValueMul(p.age);
-  if (p.age <= 23) ageMul *= 0.85 + Math.max(0, p.potential - p.overall) / 50;
+  if (p.age <= 23) ageMul *= 0.9 + Math.max(0, p.potential - p.overall) / 90; // gentler wonderkid premium
   const formMul = 0.85 + 0.3 * (p.form / 100);
   const leaMul = leaguePremium(tier);
   const raw = Math.min(260_000_000, base * ageMul * formMul * leaMul);

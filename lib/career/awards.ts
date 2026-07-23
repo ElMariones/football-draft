@@ -3,7 +3,7 @@ import { getLeague } from '@/data/career/leagues';
 import { Rng, clamp } from './rng';
 import { SeasonOutput } from './engine';
 import { ClubTitleResult, IntlResult } from './titles';
-import { isAttacker, isMidfielder, leagueEase } from './config';
+import { isAttacker, isMidfielder } from './config';
 
 function group(pos: string) {
   const attacker = ['ST', 'CF', 'RW', 'LW', 'CAM'].includes(pos);
@@ -21,7 +21,6 @@ export function rollAwards(
   const titles: Title[] = [];
   const league = getLeague(club.leagueId)!;
   const tier = league.tier;
-  const ease = leagueEase(tier);
   const g = group(p.position);
 
   const keys = new Set(clubT.titles.map(t => t.key));
@@ -45,9 +44,10 @@ export function rollAwards(
     }
   };
 
-  // scoring bars scale with league ease (weak leagues inflate goals → higher bar)
-  const goalBar = Math.round(rng.gauss(18 * ease, 2.5));
-  const assistBar = Math.round(rng.gauss(11 * ease, 2));
+  // Top-scorer / playmaker bars — with the new (lower) goal scale only genuinely
+  // elite attackers clear these, so no league-ease inflation is needed.
+  const goalBar = Math.round(rng.gauss(16, 2.5));
+  const assistBar = Math.round(rng.gauss(10, 2));
 
   // ---- League tier ----
   if (out.apps >= 12) {

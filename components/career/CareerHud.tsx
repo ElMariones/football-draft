@@ -8,10 +8,12 @@ import { isKeeperOrDef } from '@/lib/career/config';
 import { motion } from 'framer-motion';
 import { Crest, OvrBadge, Flag, CountUp, TrophyBadge } from './bits';
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
     <div className="text-center flex-1">
-      <div className="text-[10px] tracking-widest text-white/40 uppercase">{label}</div>
+      <div className="text-[10px] tracking-widest text-white/40 uppercase flex items-center justify-center gap-1">
+        <span aria-hidden className="text-[11px]">{icon}</span>{label}
+      </div>
       <div className="font-display text-xl"><CountUp value={value} /></div>
     </div>
   );
@@ -61,10 +63,10 @@ export default function CareerHud({
       </div>
 
       <div className="flex items-stretch mt-4 pt-3 border-t border-white/10">
-        <Stat label={t.apps} value={player.apps} />
-        <Stat label={t.goals} value={player.goals} />
-        <Stat label={t.assists} value={player.assists} />
-        {showCS && <Stat label={t.cleanSheets} value={player.cleanSheets} />}
+        <Stat label={t.apps} value={player.apps} icon="🎽" />
+        <Stat label={t.goals} value={player.goals} icon="⚽" />
+        <Stat label={t.assists} value={player.assists} icon="👟" />
+        {showCS && <Stat label={t.cleanSheets} value={player.cleanSheets} icon="🧤" />}
       </div>
 
       <div className="flex gap-3 mt-4">

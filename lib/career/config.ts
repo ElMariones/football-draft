@@ -53,22 +53,32 @@ export function ageMinutesBias(age: number): number {
   return table[age] ?? (age >= 38 ? -13 : 0);
 }
 
-// Per-appearance scoring rates by position (goals).
-export function goalRate(pos: Position): number {
-  const m: Partial<Record<Position, number>> = {
-    ST: 0.62, CF: 0.55, RW: 0.4, LW: 0.4, CAM: 0.34, RM: 0.24, LM: 0.24,
-    CM: 0.13, CDM: 0.06, RB: 0.05, LB: 0.05, RWB: 0.07, LWB: 0.07, CB: 0.05, GK: 0,
-  };
-  return m[pos] ?? 0.1;
+// Goal output is steeply gated by overall — calibrated to the reference game,
+// where a striker scores ~0.02 goals/game at OVR 50, ~0.24 at 67, ~0.6 at 85.
+// goalsPerGame(striker) = 0.78 * ((overall-45)/45)^1.7
+export function ovrGoalFactor(overall: number): number {
+  return Math.pow(Math.max(0, overall - 45) / 45, 1.7);
 }
-// Per-appearance assist rates by position.
-export function assistRate(pos: Position): number {
-  const m: Partial<Record<Position, number>> = {
-    CAM: 0.3, RW: 0.24, LW: 0.24, RM: 0.22, LM: 0.22, CM: 0.17, CF: 0.18,
-    ST: 0.14, CDM: 0.09, RB: 0.13, LB: 0.13, RWB: 0.15, LWB: 0.15, CB: 0.03, GK: 0.01,
-  };
-  return m[pos] ?? 0.12;
+export function ovrAssistFactor(overall: number): number {
+  return Math.pow(Math.max(0, overall - 45) / 45, 1.35);
 }
+// Position weighting relative to a striker (=1.0).
+export function goalPosFactor(pos: Position): number {
+  const m: Partial<Record<Position, number>> = {
+    ST: 1.0, CF: 0.88, RW: 0.62, LW: 0.62, CAM: 0.5, RM: 0.34, LM: 0.34,
+    CM: 0.18, CDM: 0.08, RB: 0.06, LB: 0.06, RWB: 0.09, LWB: 0.09, CB: 0.05, GK: 0,
+  };
+  return m[pos] ?? 0.15;
+}
+export function assistPosFactor(pos: Position): number {
+  const m: Partial<Record<Position, number>> = {
+    CAM: 1.0, RW: 0.85, LW: 0.85, RM: 0.8, LM: 0.8, CM: 0.65, CF: 0.6,
+    ST: 0.5, CDM: 0.35, RB: 0.5, LB: 0.5, RWB: 0.6, LWB: 0.6, CB: 0.12, GK: 0.05,
+  };
+  return m[pos] ?? 0.4;
+}
+export const GOAL_BASE = 0.78;
+export const ASSIST_BASE = 0.5;
 export function isKeeperOrDef(pos: Position): boolean {
   return pos === 'GK' || pos === 'CB' || pos === 'LB' || pos === 'RB' || pos === 'RWB' || pos === 'LWB';
 }
@@ -79,10 +89,11 @@ export function isMidfielder(pos: Position): boolean {
   return pos === 'CDM' || pos === 'CM' || pos === 'CAM' || pos === 'RM' || pos === 'LM';
 }
 
-// Weaker leagues inflate output; strong leagues suppress it.
-export function leagueEase(tier: number): number {
-  const m: Record<number, number> = { 1: 0.85, 2: 0.95, 3: 1.05, 4: 1.15, 5: 1.3, 6: 1.42 };
-  return m[tier] ?? 1.1;
+// Weaker leagues inflate output only MILDLY — the reference game does not let a
+// lower-division striker rack up goals, so this stays close to 1.0.
+export function leagueGoalMod(tier: number): number {
+  const m: Record<number, number> = { 1: 0.9, 2: 0.95, 3: 1.0, 4: 1.05, 5: 1.1, 6: 1.15 };
+  return m[tier] ?? 1.05;
 }
 // Value premium for playing in a stronger league.
 export function leaguePremium(tier: number): number {
@@ -101,6 +112,8 @@ export function ageValueMul(age: number): number {
   return table[age] ?? 0.1;
 }
 
+// Anchored to the reference game: OVR 50 ≈ €100K after age/league factors,
+// OVR 67 ≈ €2.3M. Lower and less steep at the bottom than before.
 export function valueBase(overall: number): number {
-  return 50000 * Math.pow(1.17, clamp(0, 60, overall - 40));
+  return 42000 * Math.pow(1.135, clamp(0, 55, overall - 42));
 }
