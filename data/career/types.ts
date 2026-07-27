@@ -194,7 +194,8 @@ export interface ClubOffer {
 
 export type EventCategory =
   | 'injury' | 'health' | 'discipline' | 'family'
-  | 'nation' | 'contract' | 'role' | 'offfield';
+  | 'nation' | 'contract' | 'role' | 'offfield'
+  | 'teammate' | 'staff' | 'media' | 'transfer';
 
 export type Effect =
   | { type: 'ovr'; delta: number }

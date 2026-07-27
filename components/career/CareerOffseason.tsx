@@ -67,6 +67,30 @@ function OfferCard({
 function EventZone({ lang }: { lang: Lang }) {
   const t = careerT(lang);
   const { offseason, resolveEvent } = useCareerStore();
+  // The dice-roll: when an option has more than one possible outcome we spin
+  // through them for a beat before the engine's answer is revealed, so the
+  // randomness is something you watch happen rather than a number that
+  // silently appears.
+  const [rolling, setRolling] = useState<number | null>(null);
+  const [spin, setSpin] = useState(0);
+
+  const pickOption = (i: number, outcomeCount: number) => {
+    if (!offseason || offseason.eventResolved || rolling !== null) return;
+    if (outcomeCount < 2) { resolveEvent(i); return; }
+    setRolling(i);
+    let ticks = 0;
+    const id = window.setInterval(() => {
+      ticks += 1;
+      setSpin(s => s + 1);
+      // ease out: slow the cycling down before it stops
+      if (ticks > 16) {
+        window.clearInterval(id);
+        setRolling(null);
+        resolveEvent(i);
+      }
+    }, 70);
+  };
+
   if (!offseason) return null;
   const ev = offseason.event;
 
@@ -89,26 +113,42 @@ function EventZone({ lang }: { lang: Lang }) {
                   key={i}
                   whileHover={disabled ? undefined : { scale: 1.03, y: -2 }}
                   whileTap={disabled ? undefined : { scale: 0.97 }}
-                  disabled={disabled}
-                  onClick={() => resolveEvent(i)}
+                  disabled={disabled || rolling !== null}
+                  onClick={() => pickOption(i, opt.outcomes.length)}
                   className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
                     chosen ? 'border-wc bg-wc/15'
                       : disabled ? 'border-white/5 bg-white/5 opacity-40'
                         : 'border-white/10 bg-white/5 hover:bg-white/10'
                   }`}
                 >
-                  <div className="font-display text-lg mb-2">{opt.label}</div>
+                  <div className="font-display text-lg mb-2 flex items-center gap-2">
+                    {opt.label}
+                    {rolling === i && (
+                      <motion.span
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 0.45, repeat: Infinity, ease: 'linear' }}
+                        className="text-sm"
+                      >🎲</motion.span>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {opt.outcomes.map((o, j) => {
                       const pct = Math.round((o.weight / total) * 100);
                       const highlight = chosen && offseason.eventBadges.includes(o.badge);
+                      // while this option is rolling, one chip lights up at a
+                      // time so you can see the dice turning over
+                      const spinning = rolling === i && spin % opt.outcomes.length === j;
                       return (
                         <motion.span key={j}
-                          animate={highlight ? { scale: [1, 1.15, 1] } : {}}
-                          transition={{ duration: 0.5 }}
-                          className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                          animate={
+                            highlight ? { scale: [1, 1.15, 1] }
+                              : spinning ? { scale: 1.12 } : { scale: 1 }
+                          }
+                          transition={{ duration: highlight ? 0.5 : 0.07 }}
+                          className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
                             highlight ? 'border-emerald-400 bg-emerald-400/25 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.5)]'
-                              : 'border-white/15 bg-white/5 text-white/70'
+                              : spinning ? 'border-gold bg-gold/25 text-gold shadow-[0_0_14px_rgba(255,215,0,0.5)]'
+                                : 'border-white/15 bg-white/5 text-white/70'
                           }`}>
                           {o.badge}{opt.outcomes.length > 1 ? ` · ${pct}%` : ''}
                         </motion.span>

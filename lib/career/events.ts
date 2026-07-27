@@ -246,6 +246,315 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
         { label: L(lang, 'Focus on football', 'Enfocarme en el fútbol'), outcomes: [{ weight: 1, badge: L(lang, 'Sharper', 'Más concentrado'), effects: [{ type: 'form', delta: 3 }] }] },
       ],
     },
+    // ================= Legend update: 20 new events ==========================
+    // ---------- teammates ----------
+    {
+      id: 'star-signing', category: 'teammate', weight: 1.1, cooldown: 3,
+      title: L(lang, 'A superstar arrives', 'Llega una estrella'),
+      desc: L(lang, 'The club signs a big name in your position. The shirt is suddenly contested.',
+        'El club ficha a un crack en tu puesto. De golpe la camiseta se pelea.'),
+      when: p => p.age >= 19,
+      options: [
+        {
+          label: L(lang, 'Fight for the shirt', 'Pelear el puesto'),
+          outcomes: [
+            { weight: 0.55, badge: L(lang, 'You win the duel', 'Ganas el duelo'), effects: [{ type: 'minutesBias', delta: 7 }, { type: 'form', delta: 6 }] },
+            { weight: 0.45, badge: L(lang, 'You lose the duel', 'Pierdes el duelo'), effects: [{ type: 'minutesBias', delta: -8 }, { type: 'morale', delta: -8 }] },
+          ],
+        },
+        {
+          label: L(lang, 'Learn from him', 'Aprender de él'),
+          outcomes: [{ weight: 1, badge: L(lang, 'You improve', 'Mejoras'), effects: [{ type: 'attr', attrs: { tec: 2, vis: 2 } }, { type: 'minutesBias', delta: -3 }] }],
+        },
+      ],
+    },
+    {
+      id: 'captain-feud', category: 'teammate', weight: 0.9, cooldown: 3,
+      title: L(lang, 'Clash with the captain', 'Cruce con el capitán'),
+      desc: L(lang, 'The captain calls you out in front of the whole dressing room.',
+        'El capitán te expone delante de todo el vestuario.'),
+      when: p => p.age >= 20,
+      options: [
+        {
+          label: L(lang, 'Answer back', 'Contestarle'),
+          outcomes: [
+            { weight: 0.5, badge: L(lang, 'You earn respect', 'Te ganas el respeto'), effects: [{ type: 'attr', attrs: { lea: 3 } }, { type: 'reputation', delta: 3 }] },
+            { weight: 0.5, badge: L(lang, 'Dressing room split', 'Vestuario partido'), effects: [{ type: 'morale', delta: -10 }, { type: 'minutesBias', delta: -4 }] },
+          ],
+        },
+        {
+          label: L(lang, 'Swallow it', 'Tragártelo'),
+          outcomes: [{ weight: 1, badge: L(lang, 'Peace, but it stings', 'Paz, pero duele'), effects: [{ type: 'morale', delta: -3 }, { type: 'discipline', delta: 5 }] }],
+        },
+      ],
+    },
+    {
+      id: 'roommate-kid', category: 'teammate', weight: 0.8, cooldown: 4,
+      title: L(lang, 'The kid from the academy', 'El chico de la cantera'),
+      desc: L(lang, 'A 17-year-old is put in your care on away trips. He copies everything you do.',
+        'Te ponen a cargo de un chico de 17 años en los viajes. Copia todo lo que haces.'),
+      when: p => p.age >= 25,
+      options: [
+        { label: L(lang, 'Take him under your wing', 'Apadrinarlo'), outcomes: [{ weight: 1, badge: L(lang, 'A leader is born', 'Nace un líder'), effects: [{ type: 'attr', attrs: { lea: 4 } }, { type: 'idol', delta: 2 }] }] },
+        { label: L(lang, 'Not your job', 'No es tu trabajo'), outcomes: [{ weight: 1, badge: L(lang, 'Focused on yourself', 'Enfocado en ti'), effects: [{ type: 'form', delta: 4 }] }] },
+      ],
+    },
+    {
+      id: 'penalty-argument', category: 'teammate', weight: 0.9, cooldown: 3,
+      title: L(lang, 'Who takes the penalties?', '¿Quién patea los penales?'),
+      desc: L(lang, 'You and a teammate both want the ball from twelve yards.',
+        'Tú y un compañero queréis la pelota desde los doce pasos.'),
+      when: p => p.overall >= 66,
+      options: [
+        {
+          label: L(lang, 'Grab the ball', 'Agarrar la pelota'),
+          outcomes: [
+            { weight: 0.6, badge: L(lang, 'They are yours now', 'Ahora son tuyos'), effects: [{ type: 'attr', attrs: { tec: 3, lea: 2 } }] },
+            { weight: 0.4, badge: L(lang, 'You miss the first', 'Fallas el primero'), effects: [{ type: 'form', delta: -8 }, { type: 'morale', delta: -5 }] },
+          ],
+        },
+        { label: L(lang, 'Let him take them', 'Dejárselos a él'), outcomes: [{ weight: 1, badge: L(lang, 'Dressing room happy', 'Vestuario contento'), effects: [{ type: 'morale', delta: 5 }] }] },
+      ],
+    },
+    // ---------- coaching staff ----------
+    {
+      id: 'coach-believes', category: 'staff', weight: 1.0, cooldown: 3,
+      title: L(lang, 'The manager backs you', 'El técnico te banca'),
+      desc: L(lang, 'He tells the press you are the project. That is a lot of weight to carry.',
+        'Le dice a la prensa que el proyecto eres tú. Eso pesa.'),
+      when: p => p.age >= 19,
+      options: [
+        { label: L(lang, 'Take the responsibility', 'Asumir la responsabilidad'), outcomes: [{ weight: 1, badge: L(lang, 'Undisputed starter', 'Titular indiscutido'), effects: [{ type: 'minutesBias', delta: 9 }, { type: 'attr', attrs: { lea: 2 } }] }] },
+        { label: L(lang, 'Play it down', 'Bajarle el precio'), outcomes: [{ weight: 1, badge: L(lang, 'No pressure', 'Sin presión'), effects: [{ type: 'morale', delta: 6 }, { type: 'form', delta: 3 }] }] },
+      ],
+    },
+    {
+      id: 'fitness-coach', category: 'staff', weight: 0.9, cooldown: 3,
+      title: L(lang, 'The new fitness coach', 'El nuevo preparador físico'),
+      desc: L(lang, 'He wants to rebuild your body from scratch. It will hurt for months.',
+        'Quiere rehacerte el cuerpo desde cero. Van a ser meses duros.'),
+      when: () => true,
+      options: [
+        {
+          label: L(lang, 'Do the full programme', 'Hacer el programa completo'),
+          outcomes: [
+            { weight: 0.7, badge: L(lang, 'A new engine', 'Motor nuevo'), effects: [{ type: 'attr', attrs: { phy: 4, pac: 2 } }, { type: 'stamina', delta: 14 }] },
+            { weight: 0.3, badge: L(lang, 'Overtrained', 'Sobreentrenado'), effects: [{ type: 'injury', games: 6 }, { type: 'stamina', delta: -8 }] },
+          ],
+        },
+        { label: L(lang, 'Keep your own routine', 'Seguir con lo tuyo'), outcomes: [{ weight: 1, badge: L(lang, 'No change', 'Sin cambios'), effects: [{ type: 'stamina', delta: 4 }] }] },
+      ],
+    },
+    {
+      id: 'coach-sacked', category: 'staff', weight: 1.0, cooldown: 2,
+      title: L(lang, 'They sack the manager who signed you', 'Echan al técnico que te fichó'),
+      desc: L(lang, 'The man who wanted you is gone. The new one has his own favourites.',
+        'El que te quería se fue. El nuevo tiene sus propios preferidos.'),
+      when: p => !!p.clubId,
+      options: [
+        {
+          label: L(lang, 'Win the new man over', 'Convencer al nuevo'),
+          outcomes: [
+            { weight: 0.6, badge: L(lang, 'He trusts you', 'Confía en ti'), effects: [{ type: 'minutesBias', delta: 6 }] },
+            { weight: 0.4, badge: L(lang, 'Out of the plans', 'Fuera de los planes'), effects: [{ type: 'minutesBias', delta: -9 }, { type: 'flag', name: 'unsettled' }] },
+          ],
+        },
+        { label: L(lang, 'Ask to leave', 'Pedir salida'), outcomes: [{ weight: 1, badge: L(lang, 'Agent activated', 'Representante activado'), effects: [{ type: 'flag', name: 'wantsHome' }, { type: 'loyalty', delta: -8 }] }] },
+      ],
+    },
+    {
+      id: 'tactical-role', category: 'staff', weight: 0.9, cooldown: 3,
+      title: L(lang, 'A new tactical role', 'Un rol táctico nuevo'),
+      desc: L(lang, 'The coach wants you deeper, with more of the game in front of you.',
+        'El entrenador te quiere más atrás, con todo el partido de frente.'),
+      when: p => p.age >= 24,
+      options: [
+        { label: L(lang, 'Reinvent yourself', 'Reinventarte'), outcomes: [{ weight: 1, badge: L(lang, 'New brain', 'Cerebro nuevo'), effects: [{ type: 'attr', attrs: { vis: 5 } }, { type: 'ovrTemp', delta: -2, years: 1 }] }] },
+        { label: L(lang, 'Stay where you are', 'Quedarte donde estás'), outcomes: [{ weight: 1, badge: L(lang, 'What you know', 'Lo que sabes'), effects: [{ type: 'form', delta: 4 }] }] },
+      ],
+    },
+    // ---------- media ----------
+    {
+      id: 'tv-pundit-attack', category: 'media', weight: 1.0, cooldown: 2,
+      title: L(lang, 'A pundit tears you apart', 'Un panelista te destroza'),
+      desc: L(lang, 'A famous ex-player spends ten minutes on TV explaining why you are overrated.',
+        'Un exjugador famoso se pasa diez minutos en la tele explicando por qué estás sobrevalorado.'),
+      when: p => p.reputation > 35,
+      options: [
+        {
+          label: L(lang, 'Answer on the pitch', 'Responder dentro de la cancha'),
+          outcomes: [
+            { weight: 0.65, badge: L(lang, 'Silenced him', 'Lo callaste'), effects: [{ type: 'form', delta: 10 }, { type: 'reputation', delta: 6 }] },
+            { weight: 0.35, badge: L(lang, 'You pressed too hard', 'Te apuraste'), effects: [{ type: 'form', delta: -6 }] },
+          ],
+        },
+        { label: L(lang, 'Reply on social media', 'Contestarle en redes'), outcomes: [{ weight: 1, badge: L(lang, 'It becomes the story', 'Se hace la nota'), effects: [{ type: 'reputation', delta: 4 }, { type: 'discipline', delta: -6 }] }] },
+      ],
+    },
+    {
+      id: 'magazine-cover', category: 'media', weight: 0.8, cooldown: 3,
+      title: L(lang, 'The magazine cover', 'La tapa de la revista'),
+      desc: L(lang, 'A glossy wants you on the cover, shirtless, holding a golden ball.',
+        'Una revista te quiere en la tapa, sin camiseta y con un balón dorado.'),
+      when: p => p.reputation > 50,
+      options: [
+        { label: L(lang, 'Do the shoot', 'Hacer la producción'), outcomes: [{ weight: 1, badge: L(lang, 'Everywhere', 'En todos lados'), effects: [{ type: 'reputation', delta: 8 }, { type: 'money', delta: 400_000 }] }] },
+        { label: L(lang, 'Too much', 'Demasiado'), outcomes: [{ weight: 1, badge: L(lang, 'Kept it simple', 'Perfil bajo'), effects: [{ type: 'morale', delta: 3 }, { type: 'form', delta: 3 }] }] },
+      ],
+    },
+    {
+      id: 'leaked-audio', category: 'media', weight: 0.7, cooldown: 4,
+      title: L(lang, 'A leaked audio', 'Un audio filtrado'),
+      desc: L(lang, 'A private message about your club gets out. It does not sound good.',
+        'Se filtra un mensaje privado sobre tu club. No suena bien.'),
+      when: p => !!p.clubId,
+      options: [
+        {
+          label: L(lang, 'Deny everything', 'Negarlo todo'),
+          outcomes: [
+            { weight: 0.5, badge: L(lang, 'It dies down', 'Se apaga'), effects: [{ type: 'reputation', delta: -2 }] },
+            { weight: 0.5, badge: L(lang, 'A second audio drops', 'Aparece un segundo audio'), effects: [{ type: 'idol', delta: -6 }, { type: 'reputation', delta: -8 }] },
+          ],
+        },
+        { label: L(lang, 'Own it and apologise', 'Dar la cara y pedir perdón'), outcomes: [{ weight: 1, badge: L(lang, 'Respected for it', 'Te lo valoran'), effects: [{ type: 'idol', delta: 2 }, { type: 'reputation', delta: -3 }, { type: 'morale', delta: 4 }] }] },
+      ],
+    },
+    {
+      id: 'documentary-crew', category: 'media', weight: 0.7, cooldown: 4,
+      title: L(lang, 'Cameras in your house', 'Cámaras en tu casa'),
+      desc: L(lang, 'A streaming crew wants to follow your family for a full season.',
+        'Un equipo de streaming quiere seguir a tu familia toda una temporada.'),
+      when: p => p.reputation > 58,
+      options: [
+        {
+          label: L(lang, 'Let them in', 'Dejarlos entrar'),
+          outcomes: [
+            { weight: 0.6, badge: L(lang, 'A global hit', 'Éxito mundial'), effects: [{ type: 'reputation', delta: 12 }, { type: 'money', delta: 1_500_000 }] },
+            { weight: 0.4, badge: L(lang, 'Too much exposure', 'Demasiada exposición'), effects: [{ type: 'reputation', delta: 6 }, { type: 'form', delta: -8 }, { type: 'morale', delta: -5 }] },
+          ],
+        },
+        { label: L(lang, 'Keep your home private', 'Tu casa es tuya'), outcomes: [{ weight: 1, badge: L(lang, 'Calm', 'Tranquilidad'), effects: [{ type: 'morale', delta: 6 }] }] },
+      ],
+    },
+    // ---------- transfers ----------
+    {
+      id: 'release-clause', category: 'transfer', weight: 0.9, cooldown: 3,
+      title: L(lang, 'Someone pays your clause', 'Alguien paga tu cláusula'),
+      desc: L(lang, 'A club deposits your release clause without asking anyone.',
+        'Un club deposita tu cláusula de rescisión sin preguntarle a nadie.'),
+      when: p => p.overall >= 74 && !!p.clubId,
+      options: [
+        { label: L(lang, 'Force the move', 'Forzar la salida'), outcomes: [{ weight: 1, badge: L(lang, 'You are gone', 'Te vas'), effects: [{ type: 'flag', name: 'forcedTransfer' }, { type: 'loyalty', delta: -15 }, { type: 'idol', delta: -5 }] }] },
+        { label: L(lang, 'Refuse to sign', 'Negarte a firmar'), outcomes: [{ weight: 1, badge: L(lang, 'The badge over the money', 'El escudo antes que el dinero'), effects: [{ type: 'idol', delta: 8 }, { type: 'loyalty', delta: 12 }] }] },
+      ],
+    },
+    {
+      id: 'agent-change', category: 'transfer', weight: 0.8, cooldown: 4,
+      title: L(lang, 'A super-agent calls', 'Te llama un súper agente'),
+      desc: L(lang, 'He promises Europe, sponsors and double the wage. He takes a big cut.',
+        'Te promete Europa, patrocinadores y el doble de sueldo. Se lleva una buena tajada.'),
+      when: p => p.age >= 20,
+      options: [
+        {
+          label: L(lang, 'Sign with him', 'Firmar con él'),
+          outcomes: [
+            { weight: 0.65, badge: L(lang, 'Doors open', 'Se abren puertas'), effects: [{ type: 'reputation', delta: 10 }, { type: 'money', delta: 800_000 }] },
+            { weight: 0.35, badge: L(lang, 'He only chases money', 'Solo busca dinero'), effects: [{ type: 'loyalty', delta: -10 }, { type: 'idol', delta: -4 }] },
+          ],
+        },
+        { label: L(lang, 'Stay with your family agent', 'Seguir con el de siempre'), outcomes: [{ weight: 1, badge: L(lang, 'Trust', 'Confianza'), effects: [{ type: 'morale', delta: 5 }, { type: 'loyalty', delta: 5 }] }] },
+      ],
+    },
+    {
+      id: 'saudi-offer', category: 'transfer', weight: 0.8, cooldown: 3,
+      title: L(lang, 'An offer you cannot read twice', 'Una oferta que no se lee dos veces'),
+      desc: L(lang, 'A club abroad offers a wage that would set up your grandchildren.',
+        'Un club del extranjero te ofrece un sueldo que arregla a tus nietos.'),
+      when: p => p.age >= 28 && p.reputation > 55,
+      options: [
+        { label: L(lang, 'Take the money', 'Agarrar el dinero'), outcomes: [{ weight: 1, badge: L(lang, 'Set for life', 'Arreglado de por vida'), effects: [{ type: 'money', delta: 12_000_000 }, { type: 'idol', delta: -6 }, { type: 'reputation', delta: -4 }] }] },
+        { label: L(lang, 'Stay and compete', 'Quedarte a competir'), outcomes: [{ weight: 1, badge: L(lang, 'Still hungry', 'Con hambre'), effects: [{ type: 'idol', delta: 6 }, { type: 'form', delta: 6 }] }] },
+      ],
+    },
+    {
+      id: 'loan-request', category: 'transfer', weight: 0.9, cooldown: 2,
+      title: L(lang, 'Frozen out', 'Congelado'),
+      desc: L(lang, 'You have not played in months. Your agent suggests a loan to save the season.',
+        'Llevas meses sin jugar. Tu representante propone una cesión para salvar la temporada.'),
+      when: p => p.age <= 30 && p.roleBias < 0,
+      options: [
+        { label: L(lang, 'Go on loan', 'Irte cedido'), outcomes: [{ weight: 1, badge: L(lang, 'Minutes again', 'Minutos otra vez'), effects: [{ type: 'minutesBias', delta: 10 }, { type: 'form', delta: 6 }] }] },
+        { label: L(lang, 'Stay and fight', 'Quedarte a pelearla'), outcomes: [{ weight: 1, badge: L(lang, 'Head down, work', 'Agachar la cabeza y trabajar'), effects: [{ type: 'attr', attrs: { phy: 2, tec: 2 } }, { type: 'morale', delta: -4 }] }] },
+      ],
+    },
+    // ---------- private life ----------
+    {
+      id: 'wedding', category: 'family', weight: 0.8, onceOnly: true,
+      title: L(lang, 'Getting married', 'Te casas'),
+      desc: L(lang, 'You marry in the middle of the season. Half the dressing room is invited.',
+        'Te casas en plena temporada. Medio vestuario está invitado.'),
+      when: p => p.age >= 24,
+      options: [
+        { label: L(lang, 'A huge wedding', 'Una boda enorme'), outcomes: [{ weight: 1, badge: L(lang, 'Happy, distracted', 'Feliz, distraído'), effects: [{ type: 'morale', delta: 12 }, { type: 'form', delta: -5 }, { type: 'money', delta: -600_000 }] }] },
+        { label: L(lang, 'Quiet, just family', 'Íntima, solo familia'), outcomes: [{ weight: 1, badge: L(lang, 'Settled', 'Asentado'), effects: [{ type: 'morale', delta: 8 }, { type: 'form', delta: 2 }] }] },
+      ],
+    },
+    {
+      id: 'family-illness', category: 'family', weight: 0.7, cooldown: 5,
+      title: L(lang, 'Bad news from home', 'Malas noticias de casa'),
+      desc: L(lang, 'Someone close to you is seriously ill, and you are a plane ride away.',
+        'Alguien muy cercano está gravemente enfermo, y tú estás a un avión de distancia.'),
+      when: p => p.age >= 22,
+      options: [
+        { label: L(lang, 'Go home, miss games', 'Volver, perderte partidos'), outcomes: [{ weight: 1, badge: L(lang, 'Family first', 'La familia primero'), effects: [{ type: 'injury', games: 6 }, { type: 'morale', delta: 8 }, { type: 'attr', attrs: { lea: 2 } }] }] },
+        { label: L(lang, 'Stay and play through it', 'Quedarte y jugar igual'), outcomes: [{ weight: 1, badge: L(lang, 'Football as escape', 'El fútbol como refugio'), effects: [{ type: 'morale', delta: -12 }, { type: 'form', delta: 5 }] }] },
+      ],
+    },
+    {
+      id: 'old-friends', category: 'family', weight: 0.8, cooldown: 3,
+      title: L(lang, 'The friends from the block', 'Los amigos del barrio'),
+      desc: L(lang, 'They want you out every weekend, exactly like before you were famous.',
+        'Te quieren afuera todos los fines de semana, igual que antes de ser famoso.'),
+      when: p => p.age >= 19 && p.age <= 30,
+      options: [
+        {
+          label: L(lang, 'Keep the old life', 'Mantener la vida de antes'),
+          outcomes: [
+            { weight: 0.55, badge: L(lang, 'Grounded', 'Con los pies en la tierra'), effects: [{ type: 'morale', delta: 9 }, { type: 'idol', delta: 3 }] },
+            { weight: 0.45, badge: L(lang, 'Caught out late', 'Te pillan de madrugada'), effects: [{ type: 'discipline', delta: -10 }, { type: 'form', delta: -7 }] },
+          ],
+        },
+        { label: L(lang, 'Cut them off', 'Cortar por lo sano'), outcomes: [{ weight: 1, badge: L(lang, 'Professional, lonely', 'Profesional, solo'), effects: [{ type: 'form', delta: 6 }, { type: 'morale', delta: -6 }] }] },
+      ],
+    },
+    {
+      id: 'charity-foundation', category: 'offfield', weight: 0.7, onceOnly: true,
+      title: L(lang, 'Your own foundation', 'Tu propia fundación'),
+      desc: L(lang, 'You can fund the pitches and boots you never had as a kid.',
+        'Puedes financiar las canchas y las botas que nunca tuviste de chico.'),
+      when: p => p.age >= 26 && (p.money ?? 0) > 2_000_000,
+      options: [
+        { label: L(lang, 'Fund it properly', 'Financiarla en serio'), outcomes: [{ weight: 1, badge: L(lang, 'Loved for it', 'Te lo agradecen'), effects: [{ type: 'money', delta: -2_000_000 }, { type: 'idol', delta: 10 }, { type: 'reputation', delta: 8 }] }] },
+        { label: L(lang, 'Just lend your name', 'Solo poner el nombre'), outcomes: [{ weight: 1, badge: L(lang, 'A photo op', 'Una foto'), effects: [{ type: 'reputation', delta: 3 }] }] },
+      ],
+    },
+    {
+      id: 'gambling-habit', category: 'offfield', weight: 0.6, cooldown: 5,
+      title: L(lang, 'The card games get bigger', 'Las cartas se ponen serias'),
+      desc: L(lang, 'What started on the team bus is now real money on your phone at 3am.',
+        'Lo que empezó en el micro del equipo ahora es dinero de verdad en el móvil a las 3 de la mañana.'),
+      when: p => p.age >= 21 && (p.money ?? 0) > 1_000_000,
+      options: [
+        {
+          label: L(lang, 'Keep playing', 'Seguir jugando'),
+          outcomes: [
+            { weight: 0.4, badge: L(lang, 'A big night', 'Una gran noche'), effects: [{ type: 'money', delta: 900_000 }] },
+            { weight: 0.6, badge: L(lang, 'A very bad month', 'Un mes muy malo'), effects: [{ type: 'money', delta: -2_500_000 }, { type: 'morale', delta: -10 }, { type: 'form', delta: -6 }] },
+          ],
+        },
+        { label: L(lang, 'Get help and stop', 'Pedir ayuda y parar'), outcomes: [{ weight: 1, badge: L(lang, 'Back in control', 'De nuevo en control'), effects: [{ type: 'morale', delta: 7 }, { type: 'attr', attrs: { lea: 2 } }] }] },
+      ],
+    },
   ];
   return deck;
 }

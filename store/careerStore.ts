@@ -34,6 +34,10 @@ import {
 } from '@/lib/career/idolatry';
 import { areRivals, mainRival } from '@/data/career/rivals';
 import { seasonWage, getItem, canAfford } from '@/lib/career/shop';
+import {
+  evaluate as evalAchievements, loadUnlocked, saveUnlocked,
+  type Achievement, type Unlocked,
+} from '@/lib/career/achievements';
 
 export type CareerPhase =
   | 'landing' | 'wizard' | 'archetype' | 'career' | 'moment' | 'retire-decision' | 'summary';
@@ -94,6 +98,9 @@ interface CareerState {
   momentResult: MomentResult | null;
   /** headlines produced by the season just played */
   seasonNews: string[];
+  /** persistent achievements, and the ones that just popped */
+  unlocked: Unlocked;
+  achievementQueue: Achievement[];
 
   // actions
   chooseArchetype(id: string): void;
@@ -101,6 +108,8 @@ interface CareerState {
   pickMoment(optionId: string): void;
   dismissMoment(): void;
   buyItem(id: string): void;
+  checkAchievements(): void;
+  dismissAchievement(id: string): void;
   setLang(l: Lang): void;
   startCareer(): void;
   exitToLanding(): void;
@@ -155,6 +164,26 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   moment: null,
   momentResult: null,
   seasonNews: [],
+  unlocked: typeof window !== 'undefined' ? loadUnlocked() : {},
+  achievementQueue: [],
+
+  // Logros survive the career: evaluated against the run so far, persisted to
+  // localStorage, and surfaced as a toast the moment they pop.
+  checkAchievements() {
+    const s = get();
+    if (!s.player) return;
+    const fresh = evalAchievements(
+      { p: s.player, stages: s.stages, trophies: s.trophies }, s.unlocked);
+    if (!fresh.length) return;
+    const now = new Date().toISOString();
+    const unlocked = { ...s.unlocked };
+    for (const a of fresh) unlocked[a.id] = now;
+    saveUnlocked(unlocked);
+    set({ unlocked, achievementQueue: [...s.achievementQueue, ...fresh] });
+  },
+  dismissAchievement(id) {
+    set(st => ({ achievementQueue: st.achievementQueue.filter(a => a.id !== id) }));
+  },
 
   setLang(l) {
     if (l === get().lang) return;
@@ -269,6 +298,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       player: p, moment: res.moment, momentResult: res,
       seasonNews: [...s.seasonNews, s.lang === 'es' ? res.newsEs : res.newsEn],
     });
+    get().checkAchievements();
   },
 
   dismissMoment() {
@@ -291,6 +321,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     p.overall = overallFrom(p.attrs, p.position);
     p.peakOverall = Math.max(p.peakOverall, p.overall);
     set({ player: p });
+    get().checkAchievements();
   },
 
   resolveEvent(optionIndex) {
@@ -502,6 +533,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     }
 
     set({ player, stages, trophies, lastSeason: record, year, seasonNews: news });
+    get().checkAchievements();
 
     if (player.age >= CAREER.hardRetire) {
       set({ phase: 'summary' });
@@ -554,6 +586,8 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       player: null, year: CAREER.startYear, stages: [], trophies: [], lastSeason: null,
       wizard: { ...emptyWizard }, offseason: null, forced: null,
       archetypeOptions: [], moment: null, momentResult: null, seasonNews: [],
+      achievementQueue: [],
+      // note: `unlocked` is deliberately NOT reset — logros persist across runs
     });
   },
 }));

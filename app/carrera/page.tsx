@@ -15,6 +15,7 @@ import ArchetypePicker from '@/components/career/ArchetypePicker';
 import PreseasonCards from '@/components/career/PreseasonCards';
 import MomentModal from '@/components/career/MomentModal';
 import LegacyPanel from '@/components/career/LegacyPanel';
+import { AchievementToasts, AchievementsBook } from '@/components/career/Achievements';
 
 export default function CareerPage() {
   const language = useGameStore(s => s.language);
@@ -42,6 +43,7 @@ export default function CareerPage() {
           >
             {language === 'en' ? 'ES' : 'EN'}
           </button>
+          <AchievementsBook lang={lang} />
           <Link href="/" className="btn-ghost text-sm">{t.exit}</Link>
         </div>
       </header>
@@ -97,6 +99,7 @@ export default function CareerPage() {
       {phase === 'summary' && player && (
         <CareerSummary player={player} stages={stages} trophies={trophies} lang={lang} onReplay={reset} />
       )}
+      <AchievementToasts lang={lang} />
     </main>
   );
 }
