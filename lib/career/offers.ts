@@ -180,14 +180,36 @@ export function generateTransferOffers(p: CareerPlayer, rng: Rng): ClubOffer[] {
     ? CLUBS.filter(c => (c.leagueId === 'saudi-league' || c.leagueId === 'mls') && inBand(c))
     : [];
 
+  // 7. The road home. In your last years the clubs that made you come calling
+  //    again — the one that gave you your debut above all. They will take you
+  //    well past your best, because what they are signing is the story, not the
+  //    legs. Clubs you betrayed for a rival never phone.
+  const veteran = p.age >= 31 || declining;
+  const formerIds = [...new Set([p.debutClubId, ...(p.clubsPlayed ?? [])])];
+  const homecoming = veteran
+    ? formerIds
+        .filter((id): id is string => !!id && id !== p.clubId && !p.traitorAt?.[id])
+        .map(id => getClub(id))
+        .filter((c): c is CareerClub => !!c && c.strength <= p.overall + 8)
+    : [];
+
   const chosen = new Set<string>([p.clubId ?? '']);
   const offers: ClubOffer[] = [];
-  const take = (pool: CareerClub[], wildcard = false) => {
+  const take = (pool: CareerClub[], flags: { wildcard?: boolean; homecoming?: boolean } = {}) => {
     const avail = pool.filter(c => !chosen.has(c.id));
     if (!avail.length) return false;
-    const c = rng.weighted(avail, x => 1 / (1 + Math.abs(x.strength - target)) + 0.05);
+    // A homecoming leans hard toward the club that debuted you.
+    const c = rng.weighted(avail, x =>
+      (flags.homecoming && x.id === p.debutClubId ? 3 : 0)
+      + 1 / (1 + Math.abs(x.strength - target)) + 0.05);
     chosen.add(c.id);
-    offers.push({ clubId: c.id, verb: 'sign', role: roleFor(p, c), wildcard: wildcard || undefined });
+    offers.push({
+      clubId: c.id, verb: 'sign',
+      // the old club always offers you a place in the team, not a bench seat
+      role: flags.homecoming ? 'starter' : roleFor(p, c),
+      wildcard: flags.wildcard || undefined,
+      homecoming: flags.homecoming || undefined,
+    });
     return true;
   };
 
@@ -201,6 +223,13 @@ export function generateTransferOffers(p: CareerPlayer, rng: Rng): ClubOffer[] {
   else if (moneyMove.length && rng.chance(0.5)) take(moneyMove);
   else if (!take(sameRegion)) take(homeCountry);
 
+  // Slot 4 — the way back. Common once you are past it, and near-certain in the
+  // very last years, so the career gets the chance to end where it started.
+  if (homecoming.length) {
+    const chance = p.age >= 34 ? 0.85 : p.age >= 32 ? 0.6 : 0.35;
+    if (rng.chance(chance)) take(homecoming, { homecoming: true });
+  }
+
   // The wildcard: roughly one window in twelve somebody completely unexpected
   // calls. Rare and explicitly flagged, so it reads as a story beat rather than
   // the engine losing the plot.
@@ -210,7 +239,7 @@ export function generateTransferOffers(p: CareerPlayer, rng: Rng): ClubOffer[] {
       return !!l && l.confed !== currentConfed && l.confed !== homeConfed &&
         c.id !== p.clubId && c.strength >= p.overall - 6 && c.strength <= p.overall + 10;
     });
-    if (exotic.length) take(exotic, true);
+    if (exotic.length) take(exotic, { wildcard: true });
   }
 
   // Never leave the player with nothing.

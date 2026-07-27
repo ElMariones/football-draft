@@ -102,6 +102,12 @@ export function offerFlavor(player: CareerPlayer, offer: ClubOffer, lang: Lang):
   if (offer.verb === 'loan') {
     return pick(lang, 'Game time to develop.', 'Minutos para desarrollarte.');
   }
+  if (offer.homecoming) {
+    return offer.clubId === player.debutClubId
+      ? pick(lang, 'Where it all started. Finish the story here.',
+          'Donde empezó todo. Termina la historia aquí.')
+      : pick(lang, 'An old home wants you back.', 'Una vieja casa te quiere de vuelta.');
+  }
   // Honesty rule: a move is only a "step up" relative to the club you are
   // leaving, not to your own rating. Comparing against `player.overall` is how
   // a squad player at Real Madrid was told that Dortmund was a step up.

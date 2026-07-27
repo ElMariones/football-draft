@@ -46,6 +46,12 @@ function OfferCard({
           {lang === 'es' ? '🗡️ Clásico rival' : '🗡️ Arch rival'}
         </span>
       )}
+      {/* the club that made you, asking for one last chapter */}
+      {offer.homecoming && (
+        <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-wc/20 text-wc border border-wc/50">
+          {lang === 'es' ? '🏡 La vuelta a casa' : '🏡 Homecoming'}
+        </span>
+      )}
       {/* the rare out-of-region suitor, called out so it reads as a story beat */}
       {offer.wildcard && (
         <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-gold/20 text-gold border border-gold/40">

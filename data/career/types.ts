@@ -188,6 +188,8 @@ export interface ClubOffer {
   locked?: boolean;       // held in the force-transfer board
   /** an out-of-region surprise suitor — rare, and labelled as such in the UI */
   wildcard?: boolean;
+  /** a former club (usually the one that debuted you) asking you to come home */
+  homecoming?: boolean;
 }
 
 // ---- Events ----------------------------------------------------------------
