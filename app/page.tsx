@@ -923,7 +923,7 @@ function LandingPanel({
             <div className="text-[11px] text-white/55 mt-1">
               {language === 'en'
                 ? 'Create a player and live a full career — clubs, transfers, titles, dilemmas.'
-                : 'Creá un jugador y viví una carrera completa — clubes, pases, títulos, dilemas.'}
+                : 'Crea un jugador y vive una carrera completa — clubes, pases, títulos, dilemas.'}
             </div>
           </div>
           <span className="text-wc font-display text-lg group-hover:translate-x-1 transition-transform">▶</span>

@@ -9,16 +9,18 @@ import { getLeague, leagueName } from '@/data/career/leagues';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
 import { offerFlavor, seasonFlavor } from '@/lib/career/flavor';
 import { Crest } from './bits';
+import { LeagueBadge } from './crests';
+import { areRivals } from '@/data/career/rivals';
 
 function roleLabel(role: string, t: ReturnType<typeof careerT>) {
   return role === 'starter' ? t.roleStarter : role === 'rotation' ? t.roleRotation : t.roleProspect;
 }
 
 function OfferCard({
-  offer, chosen, onClick, lang, t, verbLabel, flavor,
+  offer, chosen, onClick, lang, t, verbLabel, flavor, betrayal,
 }: {
   offer: ClubOffer; chosen: boolean; onClick: () => void; lang: Lang;
-  t: ReturnType<typeof careerT>; verbLabel: string; flavor: string;
+  t: ReturnType<typeof careerT>; verbLabel: string; flavor: string; betrayal?: boolean;
 }) {
   const club = getClub(offer.clubId);
   if (!club) return null;
@@ -31,13 +33,31 @@ function OfferCard({
       whileTap={{ scale: 0.97 }}
       animate={chosen ? { scale: 1.02 } : { scale: 1 }}
       className={`flex flex-col items-center text-center gap-2 rounded-2xl border px-3 py-4 transition-colors ${
-        chosen ? 'border-wc bg-wc/15 shadow-[0_0_25px_rgba(0,223,162,0.25)]' : 'border-white/10 bg-white/5 hover:bg-white/10'
+        chosen ? 'border-wc bg-wc/15 shadow-[0_0_25px_rgba(0,223,162,0.25)]'
+          : betrayal ? 'border-red-500/40 bg-red-500/5 hover:bg-red-500/10'
+            : 'border-white/10 bg-white/5 hover:bg-white/10'
       }`}
     >
       <div className="text-[10px] tracking-widest text-white/40 uppercase">{verbLabel}</div>
+      {/* Signing for a direct rival is permanent and brutal — never let it be a
+          surprise, because the idolatry cap it applies can never be undone. */}
+      {betrayal && (
+        <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-400/50">
+          {lang === 'es' ? '🗡️ Clásico rival' : '🗡️ Arch rival'}
+        </span>
+      )}
+      {/* the rare out-of-region suitor, called out so it reads as a story beat */}
+      {offer.wildcard && (
+        <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-gold/20 text-gold border border-gold/40">
+          {lang === 'es' ? '✦ Oferta sorpresa' : '✦ Surprise bid'}
+        </span>
+      )}
       <div className="font-display text-lg leading-tight">{club.name}</div>
       <Crest clubId={club.id} size={52} />
-      <div className="text-[10px] text-white/45">{league ? leagueName(league.id, lang) : ''}</div>
+      <div className="flex items-center gap-1 text-[10px] text-white/45">
+        {league && <LeagueBadge leagueId={league.id} size={14} />}
+        {league ? leagueName(league.id, lang) : ''}
+      </div>
       <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10">{t.role}: {roleLabel(offer.role, t)}</span>
       <span className="text-[10px] text-wc/80 italic leading-tight">{flavor}</span>
     </motion.button>
@@ -194,6 +214,7 @@ function TransferZone({ lang }: { lang: Lang }) {
               chosen={offseason.chosenClubId === o.clubId && offseason.chosenVerb !== 'stay'}
               onClick={() => chooseOffer(i)}
               lang={lang} t={t} verbLabel={verbLabelFor(o)} flavor={offerFlavor(player, o, lang)}
+              betrayal={o.verb === 'sign' && areRivals(player.clubId, o.clubId)}
             />
           ))}
           {offseason.canStay && player.clubId && (
@@ -246,7 +267,16 @@ export default function CareerOffseason({ lang }: { lang: Lang }) {
   const { offseason, playSeason } = useCareerStore();
   const [simulating, setSimulating] = useState(false);
   if (!offseason) return null;
-  const ready = offseason.eventResolved && !!offseason.chosenClubId;
+  // A season cannot start until the event is resolved, a club is chosen, and
+  // the preseason card is taken (when one was dealt).
+  const cardReady = offseason.cards.length === 0 || !!offseason.cardChosen;
+  const ready = offseason.eventResolved && !!offseason.chosenClubId && cardReady;
+  // A dead button with no reason is the worst kind: name what is still missing.
+  const es = lang === 'es';
+  const missing: string[] = [];
+  if (!cardReady) missing.push(es ? 'elige una carta' : 'pick a card');
+  if (!offseason.eventResolved) missing.push(es ? 'resuelve el evento' : 'resolve the event');
+  if (!offseason.chosenClubId) missing.push(es ? 'elige club' : 'pick a club');
 
   const play = () => {
     if (!ready || simulating) return;
@@ -268,7 +298,9 @@ export default function CareerOffseason({ lang }: { lang: Lang }) {
         onClick={play}
         className="btn-primary w-full text-xl disabled:opacity-40"
       >
-        {lang === 'es' ? 'Jugar temporada ▶' : 'Play season ▶'}
+        {ready
+          ? (es ? 'Jugar temporada ▶' : 'Play season ▶')
+          : `${es ? 'Falta' : 'Missing'}: ${missing.join(' · ')}`}
       </motion.button>
 
       <AnimatePresence>

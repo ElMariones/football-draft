@@ -1,4 +1,5 @@
 import type { CareerClub } from './types';
+import { CLUBS_EXTRA } from './clubs-extra';
 
 // Tiered club pool. `strength` gates offers, drives sim output and title odds.
 // Crests are generated from colors + short tag (no trademarked assets).
@@ -7,7 +8,7 @@ const C = (
   primary: string, secondary: string,
 ): CareerClub => ({ id, name, short, leagueId, strength, colors: { primary, secondary } });
 
-export const CLUBS: CareerClub[] = [
+const CLUBS_CORE: CareerClub[] = [
   // ---- Premier League (tier 1) ----
   C('man-city', 'Manchester City', 'MCI', 'premier-league', 90, '#6CABDD', '#1C2C5B'),
   C('liverpool', 'Liverpool', 'LIV', 'premier-league', 88, '#C8102E', '#00B2A9'),
@@ -128,6 +129,9 @@ export const CLUBS: CareerClub[] = [
   C('madryn', 'Deportivo Madryn', 'MAD', 'liga-argentina-2', 52, '#0B5CA8', '#FFFFFF'),
   C('chaco', 'Chaco For Ever', 'CFE', 'liga-argentina-2', 51, '#000000', '#E30613'),
 ];
+
+// Core roster plus the expanded coverage (see clubs-extra.ts).
+export const CLUBS: CareerClub[] = [...CLUBS_CORE, ...CLUBS_EXTRA];
 
 const CLUB_BY_ID = new Map(CLUBS.map(c => [c.id, c]));
 export function getClub(id: string): CareerClub | undefined {

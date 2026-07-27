@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
 import { NATIONS } from '@/data/career/nations';
 import { careerT, Lang } from '@/lib/career/i18n';
@@ -16,6 +17,16 @@ const JERSEY: Record<string, [string, string]> = {
   BE: ['#E30613', '#FDDA24'], UY: ['#5CBFEB', '#ffffff'], HR: ['#ffffff', '#FF0000'],
   MX: ['#006847', '#ffffff'], US: ['#0A3161', '#ffffff'], JP: ['#000066', '#ffffff'],
   NG: ['#008751', '#ffffff'], MA: ['#C1272D', '#006233'], SN: ['#00853F', '#FDEF42'],
+  CO: ['#FCD116', '#003893'], CL: ['#0039A6', '#D52B1E'], PE: ['#D91023', '#ffffff'],
+  EC: ['#FFDD00', '#0033A0'], PY: ['#D52B1E', '#0038A8'], TR: ['#E30A17', '#ffffff'],
+  SC: ['#005EB8', '#ffffff'], GR: ['#0D5EAF', '#ffffff'], PL: ['#DC143C', '#ffffff'],
+  SE: ['#FECC00', '#006AA7'], NO: ['#BA0C2F', '#00205B'], DK: ['#C60C30', '#ffffff'],
+  CH: ['#DA291C', '#ffffff'], AT: ['#ED2939', '#ffffff'], CZ: ['#D7141A', '#11457E'],
+  RS: ['#C6363C', '#0C4076'], RU: ['#ffffff', '#0039A6'], UA: ['#FFD700', '#0057B7'],
+  IE: ['#169B62', '#ffffff'], KR: ['#CD2E3A', '#0047A0'], EG: ['#CE1126', '#ffffff'],
+  DZ: ['#006233', '#ffffff'], GH: ['#006B3F', '#FCD116'], CI: ['#F77F00', '#009E60'],
+  CM: ['#007A5E', '#CE1126'], AU: ['#FFCD00', '#00843D'], CA: ['#FF0000', '#ffffff'],
+  CR: ['#CE1126', '#002B7F'], SA: ['#006C35', '#ffffff'],
 };
 function jerseyColors(code: string): [string, string] {
   return JERSEY[code] ?? ['#3DA9FC', '#0C2D52'];
@@ -28,10 +39,22 @@ const POS_COORDS: Record<Position, [number, number]> = {
   RWB: [82, 68], LWB: [18, 68], CF: [50, 18],
 };
 
+function SectionLabel({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-2.5">
+      <span className="grid place-items-center w-5 h-5 rounded-full bg-wc/20 text-wc text-[11px] font-display">
+        {n}
+      </span>
+      <span className="text-[10px] tracking-[0.3em] text-white/45 uppercase">{children}</span>
+    </div>
+  );
+}
+
 export default function CareerWizard({ lang }: { lang: Lang }) {
   const t = careerT(lang);
-  const { wizard, setNation, setIdentity, setPosition, wizardNext, wizardBack, confirmIdentity } = useCareerStore();
+  const { wizard, setNation, setIdentity, setPosition, confirmIdentity, reset } = useCareerStore();
   const [query, setQuery] = useState('');
+  const es = lang === 'es';
 
   const nations = useMemo(() => {
     const sorted = [...NATIONS].sort((a, b) => a[lang].localeCompare(b[lang]));
@@ -40,52 +63,48 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
   }, [query, lang]);
 
   const [jp, js] = jerseyColors(wizard.nationCode || 'AR');
-  const stepTitle = wizard.step === 1 ? t.nationality : wizard.step === 2 ? t.identity : t.position;
-  const canContinue = wizard.step === 1 ? !!wizard.nationCode : wizard.step === 2 ? wizard.surname.trim().length > 0 : !!wizard.position;
+  const ready = !!wizard.nationCode && wizard.surname.trim().length > 0 && !!wizard.position;
+
+  // What is still missing, so the disabled button explains itself.
+  const missing: string[] = [];
+  if (!wizard.nationCode) missing.push(es ? 'nacionalidad' : 'nationality');
+  if (!wizard.surname.trim()) missing.push(es ? 'apellido' : 'surname');
+  if (!wizard.position) missing.push(es ? 'posición' : 'position');
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h2 className="font-display text-3xl mb-2">{stepTitle}</h2>
-      <div className="h-1.5 rounded-full bg-white/10 mb-6 overflow-hidden">
-        <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-wc transition-all" style={{ width: `${(wizard.step / 3) * 100}%` }} />
+    <div className="max-w-6xl mx-auto">
+      <div className="text-center mb-6">
+        <h2 className="font-display text-4xl sm:text-5xl leading-none">
+          {es ? 'CREA TU JUGADOR' : 'CREATE YOUR PLAYER'}
+        </h2>
+        <p className="text-white/50 text-sm mt-1.5">
+          {es ? 'Todo en una pantalla. Cuando esté listo, empieza la carrera.'
+              : 'All on one screen. When it looks right, start the career.'}
+        </p>
       </div>
 
-      {wizard.step === 1 && (
-        <div>
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder={`🔎  ${t.searchCountry}`}
-            className="w-full rounded-xl bg-white/5 border border-white/15 px-4 py-3 mb-3 focus:outline-none focus:border-wc/60 placeholder-white/30"
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[46vh] overflow-y-auto pr-1">
-            {nations.map(n => (
-              <button
-                key={n.code}
-                onClick={() => setNation(n.code)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border text-left transition-colors ${
-                  wizard.nationCode === n.code ? 'border-wc bg-wc/15' : 'border-white/10 bg-white/5 hover:bg-white/10'
-                }`}
-              >
-                <span className="text-xl">{n.flag}</span>
-                <span className="font-semibold text-sm truncate">{n[lang]}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-5 items-start">
+        {/* ---- identity + live shirt ---- */}
+        <div className="card p-4 order-1">
+          <SectionLabel n={1}>{t.identity}</SectionLabel>
+          <motion.div
+            key={`${jp}${js}`}
+            initial={{ scale: 0.96, opacity: 0.6 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 18 }}
+            className="grid place-items-center py-1"
+          >
+            <Jersey primary={jp} secondary={js} surname={wizard.surname} number={wizard.number} size={190} />
+          </motion.div>
 
-      {wizard.step === 2 && (
-        <div className="flex flex-col items-center gap-5">
-          <Jersey primary={jp} secondary={js} surname={wizard.surname} number={wizard.number} />
-          <div className="w-full grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[1fr_84px] gap-2 mt-3">
             <label className="block">
               <span className="text-[10px] tracking-widest text-white/40 uppercase">{t.surname}</span>
               <input
                 value={wizard.surname}
                 onChange={e => setIdentity({ surname: e.target.value.slice(0, 14), number: wizard.number, foot: wizard.foot })}
                 placeholder={t.surname.toUpperCase()}
-                className="w-full mt-1 rounded-xl bg-white/5 border border-white/15 px-4 py-3 uppercase focus:outline-none focus:border-wc/60 placeholder-white/30"
+                className="w-full mt-1 rounded-xl bg-white/5 border border-white/15 px-3 py-2.5 uppercase focus:outline-none focus:border-wc/60 placeholder-white/25"
               />
             </label>
             <label className="block">
@@ -93,19 +112,24 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
               <input
                 type="number" min={1} max={99}
                 value={wizard.number}
-                onChange={e => setIdentity({ surname: wizard.surname, number: parseInt(e.target.value || '10', 10), foot: wizard.foot })}
-                className="w-full mt-1 rounded-xl bg-white/5 border border-white/15 px-4 py-3 focus:outline-none focus:border-wc/60"
+                onChange={e => setIdentity({
+                  surname: wizard.surname,
+                  number: Math.max(1, Math.min(99, parseInt(e.target.value || '10', 10) || 10)),
+                  foot: wizard.foot,
+                })}
+                className="w-full mt-1 rounded-xl bg-white/5 border border-white/15 px-3 py-2.5 focus:outline-none focus:border-wc/60"
               />
             </label>
           </div>
-          <div className="w-full">
+
+          <div className="mt-3">
             <span className="text-[10px] tracking-widest text-white/40 uppercase">{t.foot}</span>
             <div className="grid grid-cols-2 gap-2 mt-1">
               {(['left', 'right'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setIdentity({ surname: wizard.surname, number: wizard.number, foot: f })}
-                  className={`rounded-xl px-4 py-3 border font-display tracking-wide transition-colors ${
+                  className={`rounded-xl px-3 py-2.5 border font-display tracking-wide transition-colors ${
                     wizard.foot === f ? 'border-wc bg-wc/15' : 'border-white/10 bg-white/5 hover:bg-white/10'
                   }`}
                 >
@@ -115,42 +139,77 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
             </div>
           </div>
         </div>
-      )}
 
-      {wizard.step === 3 && (
-        <div className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-2xl border border-white/15 overflow-hidden"
-          style={{ background: 'linear-gradient(180deg,#0b3d1f,#0d5e2a)' }}>
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(180deg,transparent,transparent 24px,#fff2 24px,#fff2 48px)' }} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full border border-white/25" />
-          <div className="absolute left-0 right-0 top-1/2 h-px bg-white/25" />
-          {PITCH_POSITIONS.map(pos => {
-            const [x, y] = POS_COORDS[pos];
-            const active = wizard.position === pos;
-            return (
+        {/* ---- nationality ---- */}
+        <div className="card p-4 order-3 lg:order-2">
+          <SectionLabel n={2}>{t.nationality}</SectionLabel>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={`🔎  ${t.searchCountry}`}
+            className="w-full rounded-xl bg-white/5 border border-white/15 px-3 py-2.5 mb-2.5 focus:outline-none focus:border-wc/60 placeholder-white/25"
+          />
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[330px] overflow-y-auto pr-1">
+            {nations.map(n => (
               <button
-                key={pos}
-                onClick={() => setPosition(pos)}
-                style={{ left: `${x}%`, top: `${y}%` }}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg font-display text-sm tracking-wide border transition-all ${
-                  active ? 'bg-wc text-black border-wc scale-110 shadow-lg' : 'bg-black/55 text-white border-white/25 hover:bg-black/75'
+                key={n.code}
+                onClick={() => setNation(n.code)}
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-2 border text-left transition-colors ${
+                  wizard.nationCode === n.code
+                    ? 'border-wc bg-wc/15'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
                 }`}
               >
-                {positionAbbr(pos, lang)}
+                <span className="text-lg leading-none">{n.flag}</span>
+                <span className="font-semibold text-xs truncate">{n[lang]}</span>
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      )}
 
-      <div className="flex gap-3 mt-6">
-        <button onClick={wizardBack} className="btn-ghost flex-1">{t.back}</button>
-        <button
-          disabled={!canContinue}
-          onClick={() => (wizard.step === 3 ? confirmIdentity() : wizardNext())}
-          className="btn-primary flex-1 disabled:opacity-40"
+        {/* ---- position ---- */}
+        <div className="card p-4 order-2 lg:order-3">
+          <SectionLabel n={3}>{t.position}</SectionLabel>
+          <div
+            className="relative w-full aspect-[3/4] rounded-xl border border-white/15 overflow-hidden"
+            style={{ background: 'linear-gradient(180deg,#0b3d1f,#0d5e2a)' }}
+          >
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(180deg,transparent,transparent 22px,#fff2 22px,#fff2 44px)' }} />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border border-white/25" />
+            <div className="absolute left-0 right-0 top-1/2 h-px bg-white/25" />
+            {PITCH_POSITIONS.map(pos => {
+              const [x, y] = POS_COORDS[pos];
+              const active = wizard.position === pos;
+              return (
+                <button
+                  key={pos}
+                  onClick={() => setPosition(pos)}
+                  style={{ left: `${x}%`, top: `${y}%` }}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 px-2 py-1 rounded-lg font-display text-xs tracking-wide border transition-all ${
+                    active
+                      ? 'bg-wc text-black border-wc scale-110 shadow-lg'
+                      : 'bg-black/55 text-white border-white/25 hover:bg-black/80'
+                  }`}
+                >
+                  {positionAbbr(pos, lang)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3 mt-5 max-w-md mx-auto">
+        <button onClick={reset} className="btn-ghost flex-1">{t.back}</button>
+        <motion.button
+          disabled={!ready}
+          whileHover={ready ? { scale: 1.02 } : undefined}
+          whileTap={ready ? { scale: 0.98 } : undefined}
+          onClick={confirmIdentity}
+          className="btn-primary flex-[2] disabled:opacity-40"
         >
-          {wizard.step === 3 ? t.confirm : t.continue}
-        </button>
+          {ready ? t.confirm : `${es ? 'Falta' : 'Missing'}: ${missing.join(', ')}`}
+        </motion.button>
       </div>
     </div>
   );

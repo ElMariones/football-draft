@@ -20,7 +20,7 @@ export function transferHeadline(
   if (opts.loan) {
     return pick(lang,
       'Your club wants you to get minutes elsewhere. Pick where to keep growing.',
-      'Tu club quiere que sumes minutos en otro equipo. Elegí dónde seguir creciendo.');
+      'Tu club quiere que sumes minutos en otro equipo. Elige dónde seguir creciendo.');
   }
   const stepUp = offers.some(o => {
     const c = getClub(o.clubId);
@@ -60,7 +60,7 @@ const STEP_UP = {
   es: [
     'Clubes más grandes te miran. ¿Listo para el salto?',
     'Tu nivel tiene a los cazatalentos dando vueltas. Llega un nuevo desafío.',
-    'El mercado arde por vos este verano.',
+    'El mercado arde por ti este verano.',
   ],
 };
 const DECLINE = {
@@ -82,8 +82,8 @@ const NORMAL = {
     'A few clubs are keen. The choice is yours.',
   ],
   es: [
-    'Llegaron ofertas tras tu última campaña. ¿Te quedás o buscás nuevo rumbo?',
-    'El mercado está abierto. Pesá tus opciones.',
+    'Llegaron ofertas tras tu última campaña. ¿Te quedas o buscás nuevo rumbo?',
+    'El mercado está abierto. Sopesa tus opciones.',
     'Algunos clubes te quieren. La decisión es tuya.',
   ],
 };

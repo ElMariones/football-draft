@@ -31,6 +31,19 @@ export interface CareerClub {
   colors: { primary: string; secondary: string };
 }
 
+// ---- Attributes ------------------------------------------------------------
+
+/** The five attributes that compose `overall` (see lib/career/attributes.ts). */
+export interface Attrs {
+  tec: number;  // technique / finishing / handling
+  pac: number;  // pace
+  phy: number;  // physical
+  vis: number;  // vision
+  lea: number;  // leadership
+}
+
+export type IdolLevel = 'one-more' | 'beloved' | 'reference' | 'idol' | 'legend';
+
 // ---- Titles / awards -------------------------------------------------------
 
 export type TitleKind = 'club' | 'national' | 'individual';
@@ -98,6 +111,38 @@ export interface CareerPlayer {
   // flags set by events (for legacy badges / gating)
   flags: Record<string, boolean>;
   clubsPlayed: string[];
+
+  // ---- Legend update -------------------------------------------------------
+  /** the five attributes `overall` is composed from */
+  attrs: Attrs;
+  /** permanent identity chosen at the start of the career */
+  archetypeId: string | null;
+  /** 1-in-100 generational talent */
+  wonderkid: boolean;
+
+  /** idolatry per club id (0-100) — the scoring spine */
+  idolatry: Record<string, number>;
+  /** club ids you betrayed by signing for a direct rival */
+  traitorAt: Record<string, boolean>;
+  /** titles won per club — lifts that club's idolatry ceiling to 100 */
+  titlesByClub: Record<string, number>;
+  /** the club that gave you your debut */
+  debutClubId: string | null;
+  /** consecutive seasons at the current club */
+  stayStreak: number;
+
+  /** derby goals — worth 10x a normal goal to the terraces */
+  derbyGoals: number;
+  /** stamina 0-100, drains with minutes, restored in preseason */
+  stamina: number;
+  /** career earnings, spent in the shop */
+  money: number;
+  /** seasons until another clutch moment can fire */
+  momentCooldown: number;
+  /** clutch moments won across the career */
+  clutchWon: number;
+  /** shop items owned */
+  owned: string[];
 }
 
 export interface SeasonRecord {
@@ -113,6 +158,17 @@ export interface SeasonRecord {
   onLoan: boolean;
   titles: Title[];
   eventId?: string;
+
+  // ---- Legend update ----
+  derbyGoals?: number;
+  /** idolatry gained at this club this season */
+  idolGain?: number;
+  /** idolatry at this club after the season */
+  idolAfter?: number;
+  /** season headlines (ticker) */
+  news?: string[];
+  /** preseason card taken before this season */
+  cardId?: string;
 }
 
 // ---- Transfers -------------------------------------------------------------
@@ -125,6 +181,8 @@ export interface ClubOffer {
   verb: OfferVerb;
   role: OfferRole;
   locked?: boolean;       // held in the force-transfer board
+  /** an out-of-region surprise suitor — rare, and labelled as such in the UI */
+  wildcard?: boolean;
 }
 
 // ---- Events ----------------------------------------------------------------
@@ -150,6 +208,10 @@ export type Effect =
   | { type: 'flag'; name: string }
   | { type: 'contract'; years: number }
   | { type: 'title'; key: string; kind: TitleKind; scope: TitleScope }
+  | { type: 'attr'; attrs: Partial<Attrs> }
+  | { type: 'idol'; delta: number }
+  | { type: 'money'; delta: number }
+  | { type: 'stamina'; delta: number }
   | { type: 'retire' };
 
 export interface EventOutcome {

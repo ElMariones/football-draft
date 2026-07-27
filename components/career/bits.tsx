@@ -5,8 +5,9 @@ import { motion, AnimatePresence, useMotionValue, useTransform, animate } from '
 import type { Title } from '@/data/career/types';
 import { getClub, clubLogoUrl } from '@/data/career/clubs';
 import { nationFlag } from '@/data/career/nations';
-import { trophyImageUrl, trophyEmoji } from '@/lib/career/trophies';
+import { trophyImageUrl } from '@/lib/career/trophies';
 import { ovrTier } from '@/lib/career/format';
+import { ClubCrest, TrophyIcon } from './crests';
 
 // Animated count-up number.
 export function CountUp({ value, format }: { value: number; format?: (n: number) => string }) {
@@ -19,7 +20,7 @@ export function CountUp({ value, format }: { value: number; format?: (n: number)
   return <motion.span>{text}</motion.span>;
 }
 
-// Real club badge from the CDN, falling back to a color monogram on error.
+// Real club badge from the CDN, falling back to a generated crest on error.
 export function Crest({ clubId, size = 40 }: { clubId: string; size?: number }) {
   const club = getClub(clubId);
   const [failed, setFailed] = useState(false);
@@ -36,26 +37,12 @@ export function Crest({ clubId, size = 40 }: { clubId: string; size?: number }) 
       />
     );
   }
-  const { primary, secondary } = club.colors;
-  return (
-    <div
-      className="grid place-items-center font-display flex-shrink-0 rounded-lg"
-      style={{
-        width: size, height: size,
-        background: `linear-gradient(135deg, ${primary} 0%, ${primary} 55%, ${secondary} 55%, ${secondary} 100%)`,
-        border: `2px solid ${secondary}`,
-        color: contrast(primary),
-        fontSize: size * 0.34,
-        lineHeight: 1,
-      }}
-      title={club.name}
-    >
-      {club.short}
-    </div>
-  );
+  // No licensed logo: draw a real badge from the club's own identity rather
+  // than showing a flat colour square.
+  return <ClubCrest clubId={clubId} size={size} />;
 }
 
-// A trophy/award icon: real PNG when available, emoji otherwise. Scales up and
+// A trophy/award icon: real PNG when available, a generated one otherwise. Scales up and
 // reveals its name on hover.
 export function TrophyBadge({ title, label, size = 22 }: { title: Title; label: string; size?: number }) {
   const url = trophyImageUrl(title);
@@ -73,7 +60,7 @@ export function TrophyBadge({ title, label, size = 22 }: { title: Title; label: 
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url!} alt={label} onError={() => setFailed(true)} className="object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" style={{ width: size, height: size }} />
         ) : (
-          <span style={{ fontSize: size * 0.82, lineHeight: 1 }}>{trophyEmoji(title)}</span>
+          <TrophyIcon title={title} size={size} />
         )}
       </motion.span>
       <AnimatePresence>
@@ -117,35 +104,85 @@ export function Flag({ code, className = '' }: { code: string; className?: strin
   return <span className={className}>{nationFlag(code)}</span>;
 }
 
-// A simple jersey preview in the nation's colours.
+// Jersey preview (back view) in the nation's colours. Raglan sleeves in the
+// secondary colour, a collar band, soft fabric shading, and the name arched
+// over the number the way it actually sits on a shirt.
+const SHIRT_BODY =
+  'M84 30 C96 50 144 50 156 30 L168 62 L172 116 L178 246 L62 246 L68 116 L72 62 Z';
+const SLEEVE_L = 'M84 30 L40 50 L20 106 L64 122 L72 62 Z';
+const SLEEVE_R = 'M156 30 L200 50 L220 106 L176 122 L168 62 Z';
+
 export function Jersey({
-  primary, secondary, surname, number,
-}: { primary: string; secondary: string; surname: string; number: number }) {
+  primary, secondary, surname, number, size = 200,
+}: { primary: string; secondary: string; surname: string; number: number; size?: number }) {
   const txt = contrast(primary);
+  const trim = contrast(secondary);
+  const uid = `${primary}${secondary}`.replace(/[^a-z0-9]/gi, '');
   return (
-    <svg viewBox="0 0 200 200" width="180" height="180" role="img" aria-label="jersey">
+    <svg
+      viewBox="0 0 240 260" width={size} height={size} role="img"
+      aria-label={`Camiseta ${number} ${surname}`}
+      style={{ filter: 'drop-shadow(0 10px 18px rgba(0,0,0,.45))' }}
+    >
       <defs>
-        <clipPath id="shirt">
-          <path d="M70 20 L50 30 L20 55 L35 80 L55 70 L55 175 L145 175 L145 70 L165 80 L180 55 L150 30 L130 20 C120 35 80 35 70 20 Z" />
-        </clipPath>
+        {/* fabric shading: lit at the top, falling off toward the hem */}
+        <linearGradient id={`fab${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.20" />
+          <stop offset="45%" stopColor="#fff" stopOpacity="0.03" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.22" />
+        </linearGradient>
+        {/* a soft crease down the middle so it doesn't read as a flat sticker */}
+        <linearGradient id={`crease${uid}`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#000" stopOpacity="0.10" />
+          <stop offset="50%" stopColor="#fff" stopOpacity="0.07" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.10" />
+        </linearGradient>
+        <clipPath id={`body${uid}`}><path d={SHIRT_BODY} /></clipPath>
+        <path id={`arc${uid}`} d="M72 108 Q120 88 168 108" fill="none" />
       </defs>
-      <g>
-        <path
-          d="M70 20 L50 30 L20 55 L35 80 L55 70 L55 175 L145 175 L145 70 L165 80 L180 55 L150 30 L130 20 C120 35 80 35 70 20 Z"
-          fill={primary} stroke={secondary} strokeWidth="3"
-        />
-        {/* two vertical stripes in the secondary colour */}
-        <g clipPath="url(#shirt)">
-          <rect x="85" y="20" width="12" height="160" fill={secondary} opacity="0.85" />
-          <rect x="103" y="20" width="12" height="160" fill={secondary} opacity="0.85" />
-        </g>
-        <text x="100" y="105" textAnchor="middle" fontFamily="Bebas Neue, Impact, sans-serif" fontSize="16" fill={txt} letterSpacing="1">
-          {(surname || 'APELLIDO').slice(0, 12).toUpperCase()}
-        </text>
-        <text x="100" y="150" textAnchor="middle" fontFamily="Bebas Neue, Impact, sans-serif" fontSize="52" fill={txt}>
-          {number || 10}
-        </text>
+
+      {/* sleeves sit behind the body */}
+      <path d={SLEEVE_L} fill={secondary} />
+      <path d={SLEEVE_R} fill={secondary} />
+      <path d={SLEEVE_L} fill={`url(#fab${uid})`} />
+      <path d={SLEEVE_R} fill={`url(#fab${uid})`} />
+      {/* cuffs */}
+      <path d="M20 106 L64 122 L61 132 L17 116 Z" fill={primary} opacity="0.9" />
+      <path d="M220 106 L176 122 L179 132 L223 116 Z" fill={primary} opacity="0.9" />
+
+      {/* body */}
+      <path d={SHIRT_BODY} fill={primary} />
+      <g clipPath={`url(#body${uid})`}>
+        <rect x="96" y="0" width="48" height="260" fill={`url(#crease${uid})`} />
+        <rect x="0" y="0" width="240" height="260" fill={`url(#fab${uid})`} />
       </g>
+
+      {/* collar band */}
+      <path
+        d="M84 30 C96 50 144 50 156 30 L150 24 C140 40 100 40 90 24 Z"
+        fill={secondary}
+      />
+      <path d="M84 30 C96 50 144 50 156 30" fill="none" stroke={trim} strokeWidth="1.5" opacity="0.55" />
+
+      {/* outline last so it sits above the shading */}
+      <path d={SHIRT_BODY} fill="none" stroke="rgba(0,0,0,.35)" strokeWidth="2" />
+
+      {/* name arched above the number */}
+      <text
+        fontFamily="Bebas Neue, Impact, sans-serif" fontSize="19"
+        fill={txt} letterSpacing="2.5" opacity="0.95"
+      >
+        <textPath href={`#arc${uid}`} startOffset="50%" textAnchor="middle">
+          {(surname || 'APELLIDO').slice(0, 12).toUpperCase()}
+        </textPath>
+      </text>
+      <text
+        x="120" y="196" textAnchor="middle"
+        fontFamily="Bebas Neue, Impact, sans-serif" fontSize="76"
+        fill={txt} letterSpacing="-2"
+      >
+        {number || 10}
+      </text>
     </svg>
   );
 }

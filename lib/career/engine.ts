@@ -2,7 +2,9 @@ import type { Position } from '@/data/types';
 import type { CareerPlayer, CareerClub, Foot } from '@/data/career/types';
 import { getClub, clubsInLeague } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
+import { rivalsOf } from '@/data/career/rivals';
 import { Rng, clamp, logistic, smoothstep } from './rng';
+import { startingAttrs, overallFrom, addAttrs, gainAttrs, ageDecay, ATTR_KEYS, weightsFor } from './attributes';
 import {
   CAREER, developmentByAge, declineByAge, leagueGamesByTier, CONTINENTAL_GAMES,
   ageMinutesBias, isKeeperOrDef, leaguePremium, ageValueMul, valueBase,
@@ -19,6 +21,10 @@ export interface SeasonOutput {
   minutesFactor: number;
   inContinental: boolean;
   effOverall: number;
+  /** goals scored in derbies — worth 10x to the terraces */
+  derbyGoals: number;
+  /** derby fixtures played this season */
+  derbyGames: number;
 }
 
 // ---- creation --------------------------------------------------------------
@@ -36,9 +42,17 @@ export interface CreateOpts {
 export function createPlayer(o: CreateOpts): CareerPlayer {
   const { rng } = o;
   const [omin, omax] = CAREER.startOverallRange;
-  const overall = Math.round(rng.range(omin, omax + 1));
+  const base = Math.round(rng.range(omin, omax + 1));
+
+  // 1-in-100 generational talent. Rolled before anything else so the banner can
+  // be shown on the very first screen, exactly like the reference game.
+  const wonderkid = rng.chance(CAREER.wonderkidChance);
+  let attrs = startingAttrs(o.position, base);
+  if (wonderkid) attrs = addAttrs(attrs, { tec: 8, pac: 8, phy: 8, vis: 8, lea: 8 });
+
+  const overall = overallFrom(attrs, o.position);
   const [pmin, pmax] = CAREER.potentialRange;
-  const potential = clamp(overall + 12, 99, Math.round(rng.gauss((pmin + pmax) / 2, 6)));
+  const potential = clamp(overall + 12, 99, Math.round(rng.gauss((pmin + pmax) / 2, 6)) + (wonderkid ? 6 : 0));
   const p: CareerPlayer = {
     nationCode: o.nationCode,
     ntNationCode: o.nationCode,
@@ -76,10 +90,32 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     ntGoals: 0,
     flags: {},
     clubsPlayed: [],
+
+    // ---- Legend update ----
+    attrs,
+    archetypeId: null,
+    wonderkid,
+    idolatry: {},
+    traitorAt: {},
+    titlesByClub: {},
+    debutClubId: null,
+    stayStreak: 0,
+    derbyGoals: 0,
+    stamina: 70,
+    money: 0,
+    momentCooldown: 0,
+    clutchWon: 0,
+    owned: [],
   };
   p.value = computeValue(p, 4);
   p.peakValue = p.value;
   return p;
+}
+
+/** Derby games available in a season — only rivals in the same league. */
+export function derbyGamesFor(club: CareerClub): number {
+  const inLeague = rivalsOf(club.id).filter(r => getClub(r)?.leagueId === club.leagueId);
+  return Math.min(6, inLeague.length * 2);
 }
 
 // ---- league helpers --------------------------------------------------------
@@ -157,7 +193,23 @@ export function simulateSeason(p: CareerPlayer, club: CareerClub, rng: Rng): Sea
   }
   const rating = clamp(5.0, 9.7, 6.0 + outputScore * 1.35 + (effOverall - 72) / 45 + (apps < 10 ? -0.4 : 0));
 
-  return { apps, goals, assists, cleanSheets, rating, minutesFactor, inContinental, effOverall };
+  // Derby goals. Big-game players (leadership) turn up on the day; the rate is
+  // your normal scoring rate nudged by clutch, over the derby fixtures you were
+  // fit for. These are worth 10x to idolatry, so they matter far beyond the tally.
+  const derbyGames = Math.round(derbyGamesFor(club) * minutesFactor);
+  let derbyGoals = 0;
+  if (derbyGames > 0 && goals > 0) {
+    const perGame = goals / Math.max(1, apps);
+    const clutchMul = 0.75 + (p.attrs.lea / 100) * 0.7;
+    const expected = perGame * derbyGames * clutchMul;
+    derbyGoals = clamp(0, derbyGames * 3, Math.round(expected + rng.gauss(0, 0.4)));
+    derbyGoals = Math.min(derbyGoals, goals);
+  }
+
+  return {
+    apps, goals, assists, cleanSheets, rating, minutesFactor, inContinental, effOverall,
+    derbyGoals, derbyGames,
+  };
 }
 
 // ---- progression (mutates player) ------------------------------------------
@@ -202,9 +254,43 @@ export function applyProgression(
   const devGrowth = CAREER.growthK * dev * playFactor * (gap / 18) * moraleMod;
   const perfGrowth = Math.max(0, out.rating - 6.8) * playFactor * 0.5 * (gap > 0 ? 1 : 0);
   const growth = devGrowth + perfGrowth + (p.form - 50) / 220 + 0.5 * bigTitles;
+
+  // Growth is distributed *into attributes*, weighted toward what the position
+  // actually uses — a striker's good year shows up as finishing and pace, a
+  // holding midfielder's as physique and vision. Overall is then recomputed
+  // from the attributes and never written directly, so the card the player
+  // stares at is always the honest sum of their five numbers.
+  // Growth is capped by the headroom left under the ceiling, and the per-
+  // attribute shares are normalised so the weighted sum equals exactly that
+  // much overall. Without this the dominant attribute races away (a 20-year-old
+  // ending on 93 technique while his overall sat at 74) because `overall` was
+  // clamped to potential but the attributes feeding it never were.
+  const ceilingRoom = Math.max(0, p.potential - overallFrom(p.attrs, p.position));
+  const effective = Math.min(growth, ceilingRoom);
+  if (effective > 0) {
+    const k = weightsFor(p.position);
+    const share: Record<string, number> = {};
+    let weighted = 0;
+    for (const key of ATTR_KEYS) {
+      share[key] = k[key] * 0.7 + 0.06 + rng.range(-0.015, 0.035);
+      weighted += k[key] * share[key];
+    }
+    const scale = weighted > 0 ? effective / weighted : 0;
+    const delta: Record<string, number> = {};
+    for (const key of ATTR_KEYS) delta[key] = share[key] * scale;
+    p.attrs = gainAttrs(p.attrs, delta, p.potential);
+  }
+  // Ageing bites the attributes themselves, scaled by the existing curve.
   const decline = declineByAge(p.age);
-  const grown = Math.min(p.potential, p.overall + Math.max(0, growth));
-  p.overall = clamp(40, 99, grown - decline);
+  if (decline > 0) {
+    const dec = ageDecay(p.age);
+    const scaled: Record<string, number> = {};
+    for (const [key, v] of Object.entries(dec)) scaled[key] = (v as number) * 0.5;
+    // the curve hands veterans a little leadership back each year — cap it too,
+    // or a 40-year-old drifts to 99 leadership on an 82 ceiling
+    p.attrs = gainAttrs(p.attrs, scaled, p.potential);
+  }
+  p.overall = clamp(40, 99, Math.min(p.potential, overallFrom(p.attrs, p.position)));
   p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall));
 
   // form follows the season rating

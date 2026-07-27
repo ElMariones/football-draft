@@ -11,6 +11,10 @@ import CareerHud from '@/components/career/CareerHud';
 import CareerOffseason from '@/components/career/CareerOffseason';
 import CareerTimeline from '@/components/career/CareerTimeline';
 import CareerSummary from '@/components/career/CareerSummary';
+import ArchetypePicker from '@/components/career/ArchetypePicker';
+import PreseasonCards from '@/components/career/PreseasonCards';
+import MomentModal from '@/components/career/MomentModal';
+import LegacyPanel from '@/components/career/LegacyPanel';
 
 export default function CareerPage() {
   const language = useGameStore(s => s.language);
@@ -53,11 +57,21 @@ export default function CareerPage() {
 
       {phase === 'wizard' && <CareerWizard lang={lang} />}
 
-      {(phase === 'career' || phase === 'retire-decision') && player && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-5">
-          <div className="space-y-4">
+      {phase === 'archetype' && <ArchetypePicker lang={lang} />}
+
+      {(phase === 'career' || phase === 'moment' || phase === 'retire-decision') && player && (
+        // Three rails: your card on the left, the actual decisions in the wide
+        // middle, the timeline on the right. The side rails stick and scroll
+        // internally so the season you are playing stays on screen.
+        <div className="grid grid-cols-1 lg:grid-cols-[290px_minmax(0,1fr)_300px] gap-5 items-start">
+          <div className="space-y-4 lg:sticky lg:top-4 order-2 lg:order-1">
             <CareerHud player={player} trophies={trophies} lang={lang} />
-            {phase === 'career' && <CareerOffseason lang={lang} />}
+            <LegacyPanel lang={lang} />
+          </div>
+
+          <div className="space-y-4 order-1 lg:order-2">
+            {(phase === 'career' || phase === 'moment') && <PreseasonCards lang={lang} />}
+            {(phase === 'career' || phase === 'moment') && <CareerOffseason lang={lang} />}
             {phase === 'retire-decision' && (
               <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="card p-5 text-center">
                 <motion.div animate={{ rotate: [0, -8, 8, -4, 0] }} transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 1 }} className="text-5xl mb-2">🥾</motion.div>
@@ -70,10 +84,13 @@ export default function CareerPage() {
               </motion.div>
             )}
           </div>
-          <CareerTimeline
-            player={player} stages={stages} lang={lang}
-            choosing={phase === 'career' && !!offseason && !offseason.chosenClubId}
-          />
+          <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] overflow-y-auto order-3">
+            <CareerTimeline
+              player={player} stages={stages} lang={lang}
+              choosing={phase === 'career' && !!offseason && !offseason.chosenClubId}
+            />
+          </div>
+          {phase === 'moment' && <MomentModal lang={lang} />}
         </div>
       )}
 

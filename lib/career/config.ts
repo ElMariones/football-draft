@@ -15,6 +15,14 @@ export const CAREER = {
     baseRerolls: 3,
     desperationPerReroll: 22,
   },
+
+  // ---- Legend update ----
+  /** 1-in-100 generational talent, rolled at creation */
+  wonderkidChance: 0.01,
+  /** seasons before another clutch moment can fire */
+  momentCooldown: 3,
+  /** preseason cards dealt each offseason */
+  preseasonCards: 3,
 };
 
 // Development speed by age (multiplier on growth). Fast when young, ~0 by 29.

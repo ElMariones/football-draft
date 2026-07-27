@@ -22,9 +22,21 @@ import {
 import { buildEventDeck, selectEvent, applyEffects } from '@/lib/career/events';
 import { transferHeadline } from '@/lib/career/flavor';
 import type { Lang } from '@/lib/career/i18n';
+import { offerArchetypes, getArchetype, type Archetype } from '@/lib/career/archetypes';
+import { addAttrs, gainAttrs, overallFrom } from '@/lib/career/attributes';
+import { dealPreseason, getCard, type PreseasonCard } from '@/lib/career/preseason';
+import {
+  createMoment, resolveMoment, shouldFireMoment, staminaAfterSeason,
+  type Moment, type MomentResult, type MomentStakes,
+} from '@/lib/career/moments';
+import {
+  addIdol, applyExit, creditTitle, seasonIdolGain, legacyOf, legacyScore, idolAt,
+} from '@/lib/career/idolatry';
+import { areRivals, mainRival } from '@/data/career/rivals';
+import { seasonWage, getItem, canAfford } from '@/lib/career/shop';
 
 export type CareerPhase =
-  | 'landing' | 'wizard' | 'career' | 'retire-decision' | 'summary';
+  | 'landing' | 'wizard' | 'archetype' | 'career' | 'moment' | 'retire-decision' | 'summary';
 
 interface Offseason {
   event: CareerEvent | null;
@@ -38,6 +50,9 @@ interface Offseason {
   chosenClubId: string | null;
   chosenVerb: 'sign' | 'stay' | 'loan' | null;
   chosenRole: 'starter' | 'rotation' | 'prospect';
+  // ---- Legend update ----
+  cards: PreseasonCard[];
+  cardChosen: string | null;
 }
 
 interface Forced {
@@ -73,7 +88,19 @@ interface CareerState {
   offseason: Offseason | null;
   forced: Forced | null;
 
+  // ---- Legend update ----
+  archetypeOptions: Archetype[];
+  moment: Moment | null;
+  momentResult: MomentResult | null;
+  /** headlines produced by the season just played */
+  seasonNews: string[];
+
   // actions
+  chooseArchetype(id: string): void;
+  chooseCard(id: string): void;
+  pickMoment(optionId: string): void;
+  dismissMoment(): void;
+  buyItem(id: string): void;
   setLang(l: Lang): void;
   startCareer(): void;
   exitToLanding(): void;
@@ -124,6 +151,10 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   wizard: { ...emptyWizard },
   offseason: null,
   forced: null,
+  archetypeOptions: [],
+  moment: null,
+  momentResult: null,
+  seasonNews: [],
 
   setLang(l) {
     if (l === get().lang) return;
@@ -167,19 +198,99 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       player.secondNationCode = rng.pick(others).code;
     }
     const deck = buildEventDeck(lang);
-    const youthOffers = generateYouthOffers(player, rng);
+    // The identity pick comes before the first club: three of the position's
+    // archetypes, drawn by the seed, so you choose who you are under constraint.
     set({
-      phase: 'career', seed, rng, player, deck, firedEventById: {},
+      phase: 'archetype', seed, rng, player, deck, firedEventById: {},
       year: CAREER.startYear, stages: [], trophies: [], lastSeason: null,
-      forced: null,
+      forced: null, offseason: null, moment: null, momentResult: null, seasonNews: [],
+      archetypeOptions: offerArchetypes(player.position, rng),
+    });
+  },
+
+  chooseArchetype(id) {
+    const s = get();
+    if (!s.player || !s.rng) return;
+    const arch = getArchetype(s.player.position, id);
+    if (!arch) return;
+    const player = { ...s.player, attrs: gainAttrs(s.player.attrs, arch.delta, s.player.potential) };
+    player.archetypeId = arch.id;
+    player.overall = overallFrom(player.attrs, player.position);
+    player.peakOverall = Math.max(player.peakOverall, player.overall);
+
+    const youthOffers = generateYouthOffers(player, s.rng);
+    set({
+      phase: 'career', player, archetypeOptions: [],
       offseason: {
         event: null, eventResolved: true, eventBadges: [], eventOptionChosen: null,
         offers: youthOffers,
         canStay: false, isYouth: true,
-        flavor: transferHeadline(player, youthOffers, { youth: true, loan: false }, lang, rng),
+        flavor: transferHeadline(player, youthOffers, { youth: true, loan: false }, s.lang, s.rng),
         chosenClubId: null, chosenVerb: null, chosenRole: 'starter',
+        cards: [], cardChosen: null,
       },
     });
+  },
+
+  chooseCard(id) {
+    const s = get();
+    const os = s.offseason;
+    if (!os || !s.player || os.cardChosen) return;
+    const card = getCard(id);
+    if (!card || !os.cards.some(c => c.id === id)) return;
+
+    const p = { ...s.player };
+    if (card.attrs) p.attrs = gainAttrs(p.attrs, card.attrs, p.potential);
+    if (card.form) p.form = clamp(15, 99, p.form + card.form);
+    if (card.fitness) p.fitness = clamp(30, 99, p.fitness + card.fitness);
+    if (card.morale) p.morale = clamp(5, 100, p.morale + card.morale);
+    if (card.reputation) p.reputation = clamp(0, 100, p.reputation + card.reputation);
+    if (card.stamina) p.stamina = clamp(20, 100, p.stamina + card.stamina);
+    if (card.minutesBias) p.roleBias += card.minutesBias;
+    if (card.idol) addIdol(p, p.clubId, card.idol);
+    p.overall = overallFrom(p.attrs, p.position);
+    p.peakOverall = Math.max(p.peakOverall, p.overall);
+
+    set({ player: p, offseason: { ...os, cardChosen: id } });
+  },
+
+  pickMoment(optionId) {
+    const s = get();
+    if (!s.moment || !s.player || s.moment.resolved) return;
+    const res = resolveMoment(s.moment, optionId);
+    const p = { ...s.player };
+    p.reputation = clamp(0, 100, p.reputation + res.reputation);
+    p.morale = clamp(5, 100, p.morale + res.morale);
+    p.form = clamp(15, 99, p.form + res.form);
+    if (res.won) p.clutchWon = (p.clutchWon ?? 0) + 1;
+    addIdol(p, s.moment.clubId, res.idol);
+    p.momentCooldown = CAREER.momentCooldown;
+    set({
+      player: p, moment: res.moment, momentResult: res,
+      seasonNews: [...s.seasonNews, s.lang === 'es' ? res.newsEs : res.newsEn],
+    });
+  },
+
+  dismissMoment() {
+    set({ moment: null, momentResult: null, phase: 'career' });
+  },
+
+  buyItem(id) {
+    const s = get();
+    const item = getItem(id);
+    if (!s.player || !item || !canAfford(s.player, item)) return;
+    const p = { ...s.player };
+    p.money -= item.price;
+    p.owned = [...(p.owned ?? []), item.id];
+    if (item.attrs) p.attrs = gainAttrs(p.attrs, item.attrs, p.potential);
+    if (item.fitness) p.fitness = clamp(30, 99, p.fitness + item.fitness);
+    if (item.stamina) p.stamina = clamp(20, 100, p.stamina + item.stamina);
+    if (item.morale) p.morale = clamp(5, 100, p.morale + item.morale);
+    if (item.reputation) p.reputation = clamp(0, 100, p.reputation + item.reputation);
+    if (item.idol) addIdol(p, p.clubId, item.idol);
+    p.overall = overallFrom(p.attrs, p.position);
+    p.peakOverall = Math.max(p.peakOverall, p.overall);
+    set({ player: p });
   },
 
   resolveEvent(optionIndex) {
@@ -276,17 +387,39 @@ export const useCareerStore = create<CareerState>((set, get) => ({
 
     // apply the transfer choice
     const parentClub = player.clubId;
+    const news: string[] = [];
     if (os.chosenVerb === 'loan') {
       player.loanFromClubId = parentClub;
       player.clubId = club.id;
+      player.stayStreak = 0;
     } else if (os.chosenVerb === 'sign') {
+      // Leaving costs you at the club you're walking out on — and crossing to a
+      // direct rival brands you a traitor there forever (idolatry caps at 49).
+      if (parentClub && parentClub !== club.id) {
+        const wasRival = areRivals(parentClub, club.id);
+        applyExit(player, parentClub, club.id);
+        const oldName = getClub(parentClub)?.name ?? '';
+        news.push(
+          wasRival
+            ? (s.lang === 'es'
+                ? `🗡️ Firmaste para el clásico rival. En ${oldName} no te lo perdonan más.`
+                : `🗡️ You signed for the arch rival. ${oldName} will never forgive you.`)
+            : (s.lang === 'es'
+                ? `✈️ Dejas ${oldName}. La gente lo va a sentir.`
+                : `✈️ You leave ${oldName}. The terraces will feel it.`),
+        );
+      }
       player.clubId = club.id;
       player.contractYears = os.isYouth ? 3 : 4;
       if (!os.isYouth) player.loyalty = clamp(0, 100, player.loyalty * 0.5 + 25);
       player.loanFromClubId = null;
+      player.stayStreak = 1;
+      if (!player.debutClubId) player.debutClubId = club.id;
     } else {
-      // stay
+      // stay — loyalty compounds, and after five years the terraces adopt you
       player.clubId = club.id;
+      player.stayStreak = (player.stayStreak ?? 0) + 1;
+      if (!player.debutClubId) player.debutClubId = club.id;
     }
     player.roleBias += roleBiasFor(os.chosenRole);
     if (!player.clubsPlayed.includes(club.id)) player.clubsPlayed.push(club.id);
@@ -302,6 +435,31 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     const awards = rollAwards(player, club, out, clubT, intl, rng);
     const allTitles: Title[] = [...clubT.titles, ...intl.titles, ...awards];
 
+    // ---- Legend update: idolatry, derbies, wages, stamina ----
+    player.derbyGoals = (player.derbyGoals ?? 0) + out.derbyGoals;
+
+    // Club silverware lifts this club's idolatry ceiling from 80 to 100.
+    const clubSilver = clubT.titles.filter(t => t.kind === 'club').length;
+    if (clubSilver > 0) creditTitle(player, club.id, clubSilver);
+
+    const idolGain = os.chosenVerb === 'loan' ? 0 : seasonIdolGain(player, club.id, {
+      goals: out.goals,
+      assists: out.assists,
+      derbyGoals: out.derbyGoals,
+      cleanSheets: out.cleanSheets,
+      titles: allTitles.map(t => ({ scope: t.scope, kind: t.kind })),
+      clutchWon: 0, // moments credit themselves the instant they resolve
+    });
+    if (out.derbyGoals > 0) {
+      news.push(s.lang === 'es'
+        ? `🔥 ${out.derbyGoals} gol${out.derbyGoals > 1 ? 'es' : ''} en el clásico. Eso no se olvida.`
+        : `🔥 ${out.derbyGoals} derby goal${out.derbyGoals > 1 ? 's' : ''}. That is never forgotten.`);
+    }
+
+    player.money = (player.money ?? 0) + seasonWage(player.value, club.strength, out.apps);
+    player.stamina = staminaAfterSeason(player, out.apps);
+    player.momentCooldown = Math.max(0, (player.momentCooldown ?? 0) - 1);
+
     // returning from a loan: go back to the parent club
     if (os.chosenVerb === 'loan' && parentClub) {
       player.clubId = parentClub;
@@ -316,6 +474,11 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       onLoan: os.chosenVerb === 'loan',
       titles: allTitles,
       eventId: os.event?.id,
+      derbyGoals: out.derbyGoals,
+      idolGain: Math.round(idolGain * 10) / 10,
+      idolAfter: Math.round(idolAt(player, club.id) * 10) / 10,
+      news,
+      cardId: os.cardChosen ?? undefined,
     };
 
     player.age += 1;
@@ -334,7 +497,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       if (rng.chance(chance)) retire = true;
     }
 
-    set({ player, stages, trophies, lastSeason: record, year });
+    set({ player, stages, trophies, lastSeason: record, year, seasonNews: news });
 
     if (player.age >= CAREER.hardRetire) {
       set({ phase: 'summary' });
@@ -345,6 +508,30 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       return;
     }
     setupOffseason(set, get);
+
+    // A clutch moment interrupts the offseason: the season you just played
+    // earned you a final, a derby, or a microphone. These are rare on purpose.
+    const kind = shouldFireMoment(player, {
+      bigTitleShot: bigTitles > 0 || out.inContinental,
+      playedDerby: out.derbyGames > 0,
+    }, rng);
+    if (kind) {
+      const stakes: MomentStakes =
+        clubT.titles.some(t => t.scope === 'continent') ? 'continental'
+          : intl.titles.length ? 'national'
+            : out.derbyGames > 0 && rng.chance(0.5) ? 'derby'
+              : bigTitles > 0 ? 'cup' : 'league';
+      const rivalClub = stakes === 'derby' ? getClub(mainRival(club.id) ?? '') : null;
+      set({
+        phase: 'moment',
+        moment: createMoment(player, {
+          kind, stakes, clubId: club.id,
+          rivalName: rivalClub?.name,
+          year: seasonYear,
+        }, rng),
+        momentResult: null,
+      });
+    }
   },
 
   retireDecision(oneMore) {
@@ -362,6 +549,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       phase: 'landing', seed: 0, rng: null, deck: [], firedEventById: {},
       player: null, year: CAREER.startYear, stages: [], trophies: [], lastSeason: null,
       wizard: { ...emptyWizard }, offseason: null, forced: null,
+      archetypeOptions: [], moment: null, momentResult: null, seasonNews: [],
     });
   },
 }));
@@ -407,6 +595,8 @@ function setupOffseason(
       chosenClubId: null,
       chosenVerb: null,
       chosenRole: 'starter',
+      cards: dealPreseason(player, rng, CAREER.preseasonCards),
+      cardChosen: null,
     },
   });
 }

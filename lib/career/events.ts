@@ -15,7 +15,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       id: 'injury-knock', category: 'injury', weight: 1.2, cooldown: 1,
       title: L(lang, 'Nagging knock', 'Una molestia'),
       desc: L(lang, 'You pick up a knock before a big run of games. Push through or rest it?',
-        'Arrastrás una molestia antes de un tramo importante. ¿La aguantás o descansás?'),
+        'Arrastras una molestia antes de un tramo importante. ¿La aguantas o descansás?'),
       when: () => true,
       options: [
         {
@@ -35,7 +35,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       id: 'injury-major', category: 'injury', weight: 0.5, cooldown: 4,
       title: L(lang, 'Serious injury', 'Lesión grave'),
       desc: L(lang, 'A bad tackle leaves you facing a long spell out. How do you rehab?',
-        'Una entrada fuerte te deja mucho tiempo afuera. ¿Cómo encarás la recuperación?'),
+        'Una entrada fuerte te deja mucho tiempo fuera. ¿Cómo encaras la recuperación?'),
       when: p => p.age >= 19,
       options: [
         {
@@ -47,7 +47,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
         },
         {
           label: L(lang, 'Full rehab', 'Recuperación completa'),
-          outcomes: [{ weight: 1, badge: L(lang, 'Miss 16, come back strong', 'Perdés 16, volvés entero'), effects: [{ type: 'injury', games: 16 }, { type: 'fitness', delta: 8 }] }],
+          outcomes: [{ weight: 1, badge: L(lang, 'Miss 16, come back strong', 'Perdés 16, vuelves entero'), effects: [{ type: 'injury', games: 16 }, { type: 'fitness', delta: 8 }] }],
         },
       ],
     },
@@ -93,7 +93,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
     {
       id: 'training-bustup', category: 'discipline', weight: 0.8, cooldown: 2,
       title: L(lang, 'Training-ground bust-up', 'Cruce en el entrenamiento'),
-      desc: L(lang, 'You clash with a teammate in training.', 'Te cruzás con un compañero en la práctica.'),
+      desc: L(lang, 'You clash with a teammate in training.', 'Te cruzas con un compañero en la práctica.'),
       when: () => true,
       options: [
         { label: L(lang, 'Apologize', 'Pedir disculpas'), outcomes: [{ weight: 1, badge: L(lang, 'Peace restored', 'Paz'), effects: [{ type: 'morale', delta: 4 }, { type: 'discipline', delta: 4 }] }] },
@@ -148,7 +148,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       id: 'nationality-switch', category: 'nation', weight: 1.4, onceOnly: true,
       title: L(lang, 'A choice of nations', 'Elegir selección'),
       desc: L(lang, 'You are eligible for two national teams. Commit before your first competitive cap.',
-        'Sos elegible para dos selecciones. Tenés que decidir antes de tu primer partido oficial.'),
+        'Sos elegible para dos selecciones. Tienes que decidir antes de tu primer partido oficial.'),
       when: p => !!p.secondNationCode && !p.ntCapped,
       options: [
         { label: L(lang, 'Switch allegiance', 'Cambiar de selección'), outcomes: [{ weight: 1, badge: L(lang, 'New nation', 'Nueva selección'), effects: [{ type: 'switchNation' }] }] },
@@ -170,7 +170,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       id: 'contract-renewal', category: 'contract', weight: 1.1,
       title: L(lang, 'Contract on the table', 'Contrato sobre la mesa'),
       desc: L(lang, 'Your deal is running down. Renew, or run it to a free transfer?',
-        'Se te termina el contrato. ¿Renovás o lo dejás correr para irte libre?'),
+        'Se te termina el contrato. ¿Renovás o lo dejas correr para irte libre?'),
       when: p => p.contractYears <= 1 && !!p.clubId,
       options: [
         { label: L(lang, 'Renew', 'Renovar'), outcomes: [{ weight: 1, badge: L(lang, 'Loyalty + security', 'Lealtad y seguridad'), effects: [{ type: 'loyalty', delta: 8 }, { type: 'morale', delta: 5 }, { type: 'contract', years: 3 }] }] },
