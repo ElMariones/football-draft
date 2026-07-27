@@ -2,6 +2,7 @@ import type {
   CareerPlayer, CareerEvent, Effect, Title,
 } from '@/data/career/types';
 import { Rng, clamp } from './rng';
+import { applyOverallDelta, overallFrom, gainAttrs } from './attributes';
 import { CAREER } from './config';
 import type { Lang } from './i18n';
 
@@ -279,7 +280,18 @@ export function applyEffects(p: CareerPlayer, effects: Effect[], rng: Rng): Effe
   const res: EffectResult = { titles: [], retire: false };
   for (const e of effects) {
     switch (e.type) {
-      case 'ovr': p.overall = clamp(40, 99, p.overall + e.delta); p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall)); break;
+      case 'ovr':
+        // shift the attributes so the gain survives the end-of-season recompute
+        p.attrs = applyOverallDelta(p.attrs, e.delta);
+        p.overall = overallFrom(p.attrs, p.position);
+        p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall));
+        break;
+      case 'attr':
+        p.attrs = gainAttrs(p.attrs, e.attrs, p.potential);
+        p.overall = overallFrom(p.attrs, p.position);
+        break;
+      case 'stamina': p.stamina = clamp(0, 100, (p.stamina ?? 70) + e.delta); break;
+      case 'money': p.money = Math.max(0, (p.money ?? 0) + e.delta); break;
       case 'ovrTemp': p.ovrTemp.push({ delta: e.delta, years: e.years }); break;
       case 'value': p.value = Math.round(p.value * e.mult); p.peakValue = Math.max(p.peakValue, p.value); break;
       case 'morale': p.morale = clamp(5, 100, p.morale + e.delta); break;

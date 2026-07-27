@@ -10,6 +10,8 @@ import { SHOP, itemName, canAfford } from '@/lib/career/shop';
 import { mainRival } from '@/data/career/rivals';
 import type { Lang } from '@/lib/career/i18n';
 
+const clampPct = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+
 function money(n: number): string {
   if (n >= 1_000_000) return `€${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `€${Math.round(n / 1000)}K`;
@@ -66,6 +68,56 @@ export default function LegacyPanel({ lang }: { lang: Lang }) {
             );
           })}
         </div>
+      </div>
+
+      {/* ---- condition: the four hidden stats that actually drive the sim ----
+          Estado and Resistencia decide how much of the season you are available
+          for, Fama gates which clubs will call, and Minutos is the standing the
+          manager gives you. They were invisible before, which made the cards
+          and shop items that move them feel arbitrary. */}
+      <div>
+        <div className="text-[10px] tracking-[0.3em] text-white/40 uppercase mb-2">
+          {es ? 'Condición' : 'Condition'}
+        </div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {([
+            ['Estado', 'Fitness', Math.round(player.fitness), 'bg-emerald-400',
+              es ? 'Sube tus minutos' : 'Raises your minutes'],
+            ['Resistencia', 'Stamina', Math.round(player.stamina ?? 70), 'bg-cl',
+              es ? 'Bajo = te pierdes partidos' : 'Low = you miss games'],
+            ['Fama', 'Fame', Math.round(player.reputation), 'bg-gold',
+              es ? 'Abre clubes y premios' : 'Unlocks clubs and awards'],
+            ['Minutos', 'Standing', Math.round(50 + player.roleBias * 4), 'bg-purple-400',
+              es ? 'Tu sitio en el once' : 'Your place in the XI'],
+          ] as const).map(([esL, enL, v, bar, hint]) => (
+            <div key={enL} title={hint}>
+              <div className="flex justify-between text-[10px] text-white/50">
+                <span>{es ? esL : enL}</span>
+                <span className="text-white/70">{clampPct(v)}</span>
+              </div>
+              <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                <motion.div
+                  className={`h-full rounded-full ${bar}`}
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${clampPct(v)}%` }}
+                  transition={{ type: 'spring', stiffness: 90, damping: 18 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        {player.rolePromise && player.rolePromiseYears > 0 && (
+          <p className="text-[10px] text-wc/80 mt-1.5">
+            📄 {es ? 'El club te prometió ser ' : 'The club promised you '}
+            <strong>
+              {player.rolePromise === 'starter' ? (es ? 'titular' : 'a starter')
+                : player.rolePromise === 'rotation' ? (es ? 'rotación' : 'rotation')
+                  : (es ? 'promesa' : 'a prospect')}
+            </strong>
+            {es ? ` — se respeta ${player.rolePromiseYears} temporada(s) más.`
+                : ` — honoured for ${player.rolePromiseYears} more season(s).`}
+          </p>
+        )}
       </div>
 
       {/* ---- idolatry at the current club ---- */}

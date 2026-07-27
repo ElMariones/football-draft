@@ -26,7 +26,22 @@ function Row({ s, lang, t, isLatest }: { s: SeasonRecord; lang: Lang; t: ReturnT
           {club && <Crest clubId={club.id} size={22} />}
           <span className="truncate text-sm">{club?.name}</span>
           {s.onLoan && <span className="text-[9px] px-1 rounded bg-white/10 text-white/50">{lang === 'es' ? 'PRÉST' : 'LOAN'}</span>}
-          {s.titles.slice(0, 4).map((tt, i) => <TrophyBadge key={i} title={tt} label={titleLabel(tt.key, lang)} size={16} />)}
+          {/* Trophies overlap into a stack so a big haul can't widen the table
+              and force a horizontal scroll. Hovering the row fans them out;
+              hovering one lifts it clear and shows its name. */}
+          {s.titles.length > 0 && (
+            <div className="group/tr flex items-center shrink-0 ml-auto pl-1">
+              {s.titles.map((tt, i) => (
+                <span
+                  key={i}
+                  className="-ml-2 first:ml-0 transition-[margin] duration-200 group-hover/tr:ml-0.5 hover:z-20 relative"
+                  style={{ zIndex: s.titles.length - i }}
+                >
+                  <TrophyBadge title={tt} label={titleLabel(tt.key, lang)} size={16} />
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </td>
       <td className="py-2 text-center"><span className={`inline-grid place-items-center w-7 h-7 rounded-md text-xs font-display ${PILL[ovrTier(s.overallAtSeason)]}`}>{s.overallAtSeason}</span></td>

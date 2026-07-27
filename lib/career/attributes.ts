@@ -105,6 +105,21 @@ export function gainAttrs(base: Attrs, delta: Partial<Attrs>, potential: number)
   return out;
 }
 
+/**
+ * Move overall by exactly `delta` by shifting the underlying attributes.
+ *
+ * Anything that claims to grant "+5 OVR" has to go through here. Writing
+ * `p.overall` directly does nothing lasting, because overall is recomputed from
+ * the attributes at the end of every season — the boost silently evaporated the
+ * next time any other stat changed. Since the position weights sum to 1, adding
+ * `delta` to every attribute moves the weighted mean by exactly `delta`.
+ */
+export function applyOverallDelta(base: Attrs, delta: number): Attrs {
+  const out = { ...base };
+  for (const k of ATTR_KEYS) out[k] = clamp(20, 99, out[k] + delta);
+  return out;
+}
+
 /** Ageing: attributes decay at different rates (pace goes first, vision lasts). */
 export function ageDecay(age: number): Partial<Attrs> {
   if (age <= 29) return {};

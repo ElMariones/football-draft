@@ -8,7 +8,6 @@
 // badge that looks deliberate — and nothing here reproduces a real crest.
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
-import type { Title } from '@/data/career/types';
 
 // ---- deterministic hash ----------------------------------------------------
 function hash(s: string): number {
@@ -158,77 +157,6 @@ export function LeagueBadge({ leagueId, size = 28 }: { leagueId: string; size?: 
           cy="80" r="2.4" fill="#fff" fillOpacity="0.85"
         />
       ))}
-    </svg>
-  );
-}
-
-// ---- trophies --------------------------------------------------------------
-
-// Scope drives the silhouette so a league title, a cup and an individual award
-// are distinguishable at a glance, and colour separates the tiers.
-function trophyStyle(title: Title): { body: string; accent: string; kind: 'cup' | 'plate' | 'ball' | 'star' } {
-  if (title.kind === 'individual') {
-    return { body: '#FFD700', accent: '#B8860B', kind: title.key.includes('shoe') || title.key.includes('boot') ? 'ball' : 'star' };
-  }
-  if (title.scope === 'world') return { body: '#FFD700', accent: '#8A6D00', kind: 'cup' };
-  if (title.scope === 'continent') return { body: '#C0C0C0', accent: '#6E6E6E', kind: 'cup' };
-  if (title.scope === 'league') return { body: '#E7C46B', accent: '#8A6D00', kind: 'plate' };
-  return { body: '#CD7F32', accent: '#7A4A1D', kind: 'cup' };
-}
-
-export function TrophyIcon({ title, size = 22 }: { title: Title; size?: number }) {
-  const { body, accent, kind } = trophyStyle(title);
-  const uid = `t${hash(title.key + title.scope).toString(36)}`;
-  return (
-    <svg
-      viewBox="0 0 60 60" width={size} height={size} role="img" aria-label={title.key}
-      className="flex-shrink-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.5))' }}
-    >
-      <defs>
-        <linearGradient id={`tg${uid}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0.75" />
-          <stop offset="45%" stopColor={body} />
-          <stop offset="100%" stopColor={accent} />
-        </linearGradient>
-      </defs>
-      {kind === 'cup' && (
-        <g fill={`url(#tg${uid})`}>
-          <path d="M18 8 H42 V22 C42 32 36 38 30 38 C24 38 18 32 18 22 Z" />
-          <path d="M18 10 H10 V18 C10 25 14 29 20 30 L19 25 C15 24 14 21 14 18 V14 H18 Z" />
-          <path d="M42 10 H50 V18 C50 25 46 29 40 30 L41 25 C45 24 46 21 46 18 V14 H42 Z" />
-          <rect x="27" y="37" width="6" height="9" />
-          <rect x="19" y="45" width="22" height="5" rx="1.5" />
-          <rect x="15" y="49" width="30" height="5" rx="2" />
-        </g>
-      )}
-      {kind === 'plate' && (
-        <g fill={`url(#tg${uid})`}>
-          <ellipse cx="30" cy="26" rx="21" ry="15" />
-          <path d="M9 26 C9 34 18 40 30 40 C42 40 51 34 51 26 L51 30 C51 38 42 44 30 44 C18 44 9 38 9 30 Z" />
-          <rect x="26" y="43" width="8" height="6" />
-          <rect x="18" y="48" width="24" height="5" rx="2" />
-        </g>
-      )}
-      {kind === 'ball' && (
-        <g>
-          <circle cx="30" cy="26" r="16" fill={`url(#tg${uid})`} />
-          <path d="M30 14 L36 20 L34 28 H26 L24 20 Z" fill={accent} opacity="0.85" />
-          <rect x="26" y="42" width="8" height="6" fill={accent} />
-          <rect x="18" y="47" width="24" height="6" rx="2" fill={`url(#tg${uid})`} />
-        </g>
-      )}
-      {kind === 'star' && (
-        <g>
-          <path
-            d="M30 8 L36.5 22 L51 24 L40.5 34.5 L43 49 L30 42 L17 49 L19.5 34.5 L9 24 L23.5 22 Z"
-            fill={`url(#tg${uid})`}
-          />
-          <path
-            d="M30 8 L36.5 22 L51 24 L40.5 34.5 L43 49 L30 42 L17 49 L19.5 34.5 L9 24 L23.5 22 Z"
-            fill="none" stroke={accent} strokeWidth="1.5"
-          />
-        </g>
-      )}
     </svg>
   );
 }

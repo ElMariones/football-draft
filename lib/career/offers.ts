@@ -265,7 +265,7 @@ export function fillForcedSlots(
 }
 
 export function roleBiasFor(role: OfferRole): number {
-  return role === 'starter' ? 6 : role === 'rotation' ? 0 : -6;
+  return role === 'starter' ? 9 : role === 'rotation' ? 0 : -8;
 }
 
 export { getClub };

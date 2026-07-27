@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import type { Title } from '@/data/career/types';
 import { getClub, clubLogoUrl } from '@/data/career/clubs';
+import { CREST_URL } from '@/data/career/crest-urls';
 import { nationFlag } from '@/data/career/nations';
 import { trophyImageUrl } from '@/lib/career/trophies';
 import { ovrTier } from '@/lib/career/format';
-import { ClubCrest, TrophyIcon } from './crests';
+import { ClubCrest } from './crests';
+import { TrophyIcon } from './TrophyArt';
 
 // Animated count-up number.
 export function CountUp({ value, format }: { value: number; format?: (n: number) => string }) {
@@ -25,7 +27,9 @@ export function Crest({ clubId, size = 40 }: { clubId: string; size?: number }) 
   const club = getClub(clubId);
   const [failed, setFailed] = useState(false);
   if (!club) return null;
-  const logo = clubLogoUrl(clubId);
+  // Real crest first (Wikipedia-resolved), then the legacy CDN, then a
+  // generated badge so nothing ever renders as a blank square.
+  const logo = CREST_URL[clubId] ?? clubLogoUrl(clubId);
   if (logo && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
     return (

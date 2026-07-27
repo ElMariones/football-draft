@@ -422,6 +422,10 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       if (!player.debutClubId) player.debutClubId = club.id;
     }
     player.roleBias += roleBiasFor(os.chosenRole);
+    // Signing (or staying) locks in the role the club promised. Loans always
+    // come with a starting berth — that is the point of going out on loan.
+    player.rolePromise = os.chosenVerb === 'loan' ? 'starter' : os.chosenRole;
+    player.rolePromiseYears = os.chosenVerb === 'stay' ? 1 : 2;
     if (!player.clubsPlayed.includes(club.id)) player.clubsPlayed.push(club.id);
 
     // simulate

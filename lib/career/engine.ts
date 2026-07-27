@@ -106,6 +106,8 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     momentCooldown: 0,
     clutchWon: 0,
     owned: [],
+    rolePromise: null,
+    rolePromiseYears: 0,
   };
   p.value = computeValue(p, 4);
   p.peakValue = p.value;
@@ -154,11 +156,29 @@ export function simulateSeason(p: CareerPlayer, club: CareerClub, rng: Rng): Sea
     (p.morale - 50) / 12 +
     (p.fitness - 70) / 15 +
     p.roleBias;
-  const minutesFactor = clamp(0.08, 1, logistic(roleScore, 0.3));
+  let minutesFactor = clamp(0.08, 1, logistic(roleScore, 0.3));
+
+  // The club promised you a role when you signed; for as long as that promise
+  // binds, the manager honours it. Without this floor a "guaranteed starter"
+  // deal at a strong club still produced eleven appearances, which makes the
+  // whole role choice a lie.
+  if (p.rolePromise && p.rolePromiseYears > 0) {
+    const floor = p.rolePromise === 'starter' ? 0.72
+      : p.rolePromise === 'rotation' ? 0.42
+        : 0.16;
+    minutesFactor = Math.max(minutesFactor, floor);
+  }
+
+  // Stamina gates how much of the season you are actually available for: a
+  // drained player cannot hold a starting place through a long campaign.
+  const staminaFactor = clamp(0.7, 1, 0.7 + (p.stamina ?? 70) / 333);
+  minutesFactor = clamp(0.05, 1, minutesFactor * staminaFactor);
 
   const inContinental = qualifiesContinental(club);
   const availableGames = leagueGamesByTier(tier) + (inContinental ? CONTINENTAL_GAMES : 0);
-  const gamesMissed = p.injuryGamesNext;
+  // Low stamina also means more knocks — extra games missed on top of injuries.
+  const fatigueGames = p.stamina < 45 ? Math.round((45 - p.stamina) / 7) : 0;
+  const gamesMissed = p.injuryGamesNext + fatigueGames;
   const apps = clamp(0, availableGames, Math.round(availableGames * minutesFactor) - gamesMissed);
 
   const formMul = 0.85 + p.form / 300;              // mild ~0.85–1.18
@@ -315,6 +335,8 @@ export function applyProgression(
 
   // decays / consumption
   p.roleBias *= 0.45;
+  // the promise covers the season just played, then lapses
+  if (p.rolePromiseYears > 0) p.rolePromiseYears -= 1;
   p.injuryProneness = clamp(6, 100, p.injuryProneness - 1);
   p.injuryGamesNext = 0;
   p.contractYears = Math.max(0, p.contractYears - 1);

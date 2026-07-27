@@ -102,14 +102,29 @@ export function offerFlavor(player: CareerPlayer, offer: ClubOffer, lang: Lang):
   if (offer.verb === 'loan') {
     return pick(lang, 'Game time to develop.', 'Minutos para desarrollarte.');
   }
-  if (league && league.tier === 1 && league.nationCode !== player.nationCode) {
+  // Honesty rule: a move is only a "step up" relative to the club you are
+  // leaving, not to your own rating. Comparing against `player.overall` is how
+  // a squad player at Real Madrid was told that Dortmund was a step up.
+  const from = player.clubId ? getClub(player.clubId) : null;
+  const fromLeague = from ? getLeague(from.leagueId) : null;
+  const diff = from ? club.strength - from.strength : 0;
+  const alreadyElite = fromLeague ? fromLeague.tier === 1 : false;
+
+  if (league && league.tier === 1 && !alreadyElite) {
     return pick(lang, 'Your leap to the European elite.', 'Tu salto a la elite europea.');
   }
+  if (from && diff >= 6) return pick(lang, 'A big step up.', 'Un salto de categoría.');
+  if (from && diff >= 2) return pick(lang, 'A stronger side.', 'Un equipo más fuerte.');
+  if (from && diff <= -8) {
+    return offer.role === 'starter'
+      ? pick(lang, 'A step down, but you play every week.', 'Bajas un escalón, pero juegas siempre.')
+      : pick(lang, 'A clear step down.', 'Un paso atrás claro.');
+  }
+  if (from && diff <= -3) return pick(lang, 'A smaller club.', 'Un club más chico.');
   if (offer.role === 'prospect') return pick(lang, 'The big challenge.', 'El gran desafío.');
   if (offer.role === 'starter' && club.strength <= player.overall - 2) {
     return pick(lang, "You'll be the star of the team.", 'Serás la figura del equipo.');
   }
-  if (club.strength > player.overall) return pick(lang, 'A step up in level.', 'Un salto de categoría.');
   return pick(lang, 'A fresh start.', 'Un nuevo comienzo.');
 }
 

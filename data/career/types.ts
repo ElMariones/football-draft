@@ -143,6 +143,11 @@ export interface CareerPlayer {
   clutchWon: number;
   /** shop items owned */
   owned: string[];
+
+  /** the role the club promised when you signed — honoured while it lasts */
+  rolePromise: OfferRole | null;
+  /** seasons the promise still binds the manager (1 = this coming season) */
+  rolePromiseYears: number;
 }
 
 export interface SeasonRecord {
