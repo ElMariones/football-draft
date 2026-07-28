@@ -330,9 +330,8 @@ export default function CareerOffseason({ lang }: { lang: Lang }) {
     window.setTimeout(() => {
       playSeason();
       setSimulating(false);
-      // The new season opens at the top of the page — the player should never
-      // have to scroll back up to find the next set of decisions.
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // scrolling to the top is handled centrally in app/carrera/page.tsx, so
+      // every transition (moment, retirement, new season) behaves the same
     }, 850);
   };
 

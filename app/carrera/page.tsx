@@ -16,16 +16,31 @@ import PreseasonCards from '@/components/career/PreseasonCards';
 import MomentModal from '@/components/career/MomentModal';
 import LegacyPanel from '@/components/career/LegacyPanel';
 import { AchievementToasts, AchievementsBook } from '@/components/career/Achievements';
+import Celebration from '@/components/career/Celebration';
+import MiniGame from '@/components/career/MiniGame';
 
 export default function CareerPage() {
   const language = useGameStore(s => s.language);
   const setStoreLang = useGameStore(s => s.setLanguage);
   const {
-    lang, phase, player, stages, trophies, offseason,
+    lang, phase, player, stages, trophies, offseason, year,
+    celebrating, dismissCelebration,
     setLang, startCareer, reset, retireDecision,
   } = useCareerStore();
 
   useEffect(() => { setLang(language === 'en' ? 'en' : 'es'); }, [language, setLang]);
+
+  // Jump back to the top whenever the game moves to a new beat. Doing this in
+  // the "play season" click handler alone missed every other path — dismissing
+  // a moment, the retire prompt, picking an archetype — and could also fire
+  // before the new (shorter) content had rendered, leaving the window scrolled
+  // past the end. Keying it on the year and phase covers all of them.
+  useEffect(() => {
+    if (phase === 'landing') return;
+    const id = window.requestAnimationFrame(() =>
+      window.scrollTo({ top: 0, behavior: 'smooth' }));
+    return () => window.cancelAnimationFrame(id);
+  }, [year, phase]);
   const t = careerT(lang);
 
   return (
@@ -99,6 +114,8 @@ export default function CareerPage() {
       {phase === 'summary' && player && (
         <CareerSummary player={player} stages={stages} trophies={trophies} lang={lang} onReplay={reset} />
       )}
+      <MiniGame lang={lang} />
+      <Celebration title={celebrating} lang={lang} onDone={dismissCelebration} />
       <AchievementToasts lang={lang} />
     </main>
   );

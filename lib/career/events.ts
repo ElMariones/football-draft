@@ -555,6 +555,113 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
         { label: L(lang, 'Get help and stop', 'Pedir ayuda y parar'), outcomes: [{ weight: 1, badge: L(lang, 'Back in control', 'De nuevo en control'), effects: [{ type: 'morale', delta: 7 }, { type: 'attr', attrs: { lea: 2 } }] }] },
       ],
     },
+    // ---------- money, brands and the big-money leagues ----------
+    {
+      id: 'boot-sponsor-war', category: 'offfield', weight: 0.9, cooldown: 3,
+      title: L(lang, 'Two brands, one signature', 'Dos marcas, una firma'),
+      desc: L(lang, 'Both giants want your feet. One offers more money, the other more say.',
+        'Las dos grandes quieren tus pies. Una ofrece más dinero, la otra más voz.'),
+      when: p => p.reputation > 45,
+      options: [
+        { label: L(lang, 'Take the bigger cheque', 'Agarrar el cheque más grande'), outcomes: [{ weight: 1, badge: L(lang, 'Paid', 'Pagado'), effects: [{ type: 'money', delta: 2_500_000 }, { type: 'reputation', delta: 4 }] }] },
+        { label: L(lang, 'Take the signature boot', 'Quedarte con la bota con tu nombre'), outcomes: [{ weight: 1, badge: L(lang, 'Your name on it', 'Tu nombre en ella'), effects: [{ type: 'money', delta: 900_000 }, { type: 'reputation', delta: 12 }] }] },
+      ],
+    },
+    {
+      id: 'invest-restaurant', category: 'offfield', weight: 0.8, cooldown: 4,
+      title: L(lang, 'They offer you a business', 'Te ofrecen un negocio'),
+      desc: L(lang, 'A friend wants you to put money into a restaurant chain back home.',
+        'Un amigo quiere que pongas dinero en una cadena de restaurantes en tu país.'),
+      when: p => (p.money ?? 0) > 1_500_000,
+      options: [
+        {
+          label: L(lang, 'Invest', 'Invertir'),
+          outcomes: [
+            { weight: 0.55, badge: L(lang, 'It works', 'Funciona'), effects: [{ type: 'money', delta: 2_200_000 }] },
+            { weight: 0.45, badge: L(lang, 'It folds', 'Quiebra'), effects: [{ type: 'money', delta: -1_400_000 }, { type: 'morale', delta: -6 }] },
+          ],
+        },
+        { label: L(lang, 'Keep it in the bank', 'Dejarlo en el banco'), outcomes: [{ weight: 1, badge: L(lang, 'Safe', 'Seguro'), effects: [{ type: 'money', delta: 150_000 }] }] },
+      ],
+    },
+    {
+      id: 'invest-property', category: 'offfield', weight: 0.8, cooldown: 4,
+      title: L(lang, 'Bricks and mortar', 'Ladrillos'),
+      desc: L(lang, 'Your accountant says property is the only thing that survives a career.',
+        'Tu contador dice que los ladrillos son lo único que sobrevive a una carrera.'),
+      when: p => (p.money ?? 0) > 3_000_000,
+      options: [
+        {
+          label: L(lang, 'Buy the buildings', 'Comprar los edificios'),
+          outcomes: [
+            { weight: 0.7, badge: L(lang, 'Steady returns', 'Renta segura'), effects: [{ type: 'money', delta: 3_000_000 }] },
+            { weight: 0.3, badge: L(lang, 'The market turns', 'El mercado se da vuelta'), effects: [{ type: 'money', delta: -1_800_000 }] },
+          ],
+        },
+        { label: L(lang, 'Not your world', 'No es lo tuyo'), outcomes: [{ weight: 1, badge: L(lang, 'Focused on football', 'Enfocado en el fútbol'), effects: [{ type: 'form', delta: 5 }] }] },
+      ],
+    },
+    {
+      id: 'crypto-promo', category: 'media', weight: 0.7, cooldown: 4,
+      title: L(lang, 'They want you to promote a token', 'Te quieren para promocionar un token'),
+      desc: L(lang, 'Enormous money to post three times about something you do not understand.',
+        'Dinero enorme por publicar tres veces sobre algo que no entiendes.'),
+      when: p => p.reputation > 55,
+      options: [
+        {
+          label: L(lang, 'Post it', 'Publicarlo'),
+          outcomes: [
+            { weight: 0.45, badge: L(lang, 'Paid and forgotten', 'Cobrado y olvidado'), effects: [{ type: 'money', delta: 3_000_000 }] },
+            { weight: 0.55, badge: L(lang, 'It collapses on your fans', 'Se cae encima de tus hinchas'), effects: [{ type: 'money', delta: 3_000_000 }, { type: 'idol', delta: -12 }, { type: 'reputation', delta: -10 }] },
+          ],
+        },
+        { label: L(lang, 'Say no', 'Decir que no'), outcomes: [{ weight: 1, badge: L(lang, 'Clean hands', 'Manos limpias'), effects: [{ type: 'idol', delta: 3 }] }] },
+      ],
+    },
+    {
+      id: 'local-ad', category: 'media', weight: 0.8, cooldown: 3,
+      title: L(lang, 'The supermarket advert', 'El anuncio del supermercado'),
+      desc: L(lang, 'A cheesy local ad. Small money, and the whole city will quote it at you.',
+        'Un anuncio local malísimo. Poco dinero, y toda la ciudad te lo va a repetir.'),
+      when: () => true,
+      options: [
+        { label: L(lang, 'Do it, badly, happily', 'Hacerlo, mal y feliz'), outcomes: [{ weight: 1, badge: L(lang, 'A local hero', 'Ídolo popular'), effects: [{ type: 'money', delta: 250_000 }, { type: 'idol', delta: 4 }, { type: 'reputation', delta: 2 }] }] },
+        { label: L(lang, 'Too embarrassing', 'Demasiada vergüenza'), outcomes: [{ weight: 1, badge: L(lang, 'Dignity intact', 'Dignidad intacta'), effects: [{ type: 'morale', delta: 2 }] }] },
+      ],
+    },
+    {
+      id: 'saudi-call', category: 'transfer', weight: 0.9, cooldown: 3,
+      title: L(lang, 'A call from the owner', 'Una llamada del dueño'),
+      desc: L(lang, 'A private number. A man who owns half a league explains, calmly, that he has decided you are joining. The figure he says next does not sound real.',
+        'Un número privado. Un hombre que es dueño de media liga te explica, tranquilo, que ya decidió que vas a ir. La cifra que dice después no suena real.'),
+      when: p => p.age >= 27 && p.reputation > 60,
+      options: [
+        { label: L(lang, 'Fly out and sign', 'Volar y firmar'), outcomes: [{ weight: 1, badge: L(lang, 'Generational money', 'Dinero para generaciones'), effects: [{ type: 'money', delta: 30_000_000 }, { type: 'idol', delta: -10 }, { type: 'reputation', delta: -6 }, { type: 'flag', name: 'forcedTransfer' }] }] },
+        { label: L(lang, 'Politely decline', 'Rechazar con educación'), outcomes: [{ weight: 1, badge: L(lang, 'Still about football', 'Sigue siendo por el fútbol'), effects: [{ type: 'idol', delta: 8 }, { type: 'form', delta: 6 }] }] },
+      ],
+    },
+    {
+      id: 'mls-project', category: 'transfer', weight: 0.8, cooldown: 3,
+      title: L(lang, 'The American project', 'El proyecto americano'),
+      desc: L(lang, 'A franchise offers a house on the beach, an ownership stake when you retire, and a league where nobody presses you at 34.',
+        'Una franquicia ofrece casa en la playa, una parte del club cuando te retires, y una liga donde nadie te presiona a los 34.'),
+      when: p => p.age >= 29,
+      options: [
+        { label: L(lang, 'Take the deal', 'Aceptar'), outcomes: [{ weight: 1, badge: L(lang, 'A new life', 'Otra vida'), effects: [{ type: 'money', delta: 9_000_000 }, { type: 'morale', delta: 12 }, { type: 'idol', delta: -4 }] }] },
+        { label: L(lang, 'Not finished here', 'Todavía no terminaste acá'), outcomes: [{ weight: 1, badge: L(lang, 'One more year at the top', 'Un año más arriba'), effects: [{ type: 'form', delta: 8 }, { type: 'idol', delta: 4 }] }] },
+      ],
+    },
+    {
+      id: 'testimonial', category: 'offfield', weight: 0.7, onceOnly: true,
+      title: L(lang, 'Your testimonial match', 'Tu partido homenaje'),
+      desc: L(lang, 'The club fills the ground for one night that belongs entirely to you.',
+        'El club llena el estadio por una noche que es enteramente tuya.'),
+      when: p => p.age >= 33 && (p.stayStreak ?? 0) >= 4,
+      options: [
+        { label: L(lang, 'Give the takings away', 'Donar la recaudación'), outcomes: [{ weight: 1, badge: L(lang, 'They will never forget it', 'No lo van a olvidar'), effects: [{ type: 'idol', delta: 12 }, { type: 'reputation', delta: 6 }] }] },
+        { label: L(lang, 'Keep it for the family', 'Guardarla para la familia'), outcomes: [{ weight: 1, badge: L(lang, 'Earned it', 'Te la ganaste'), effects: [{ type: 'money', delta: 2_000_000 }, { type: 'morale', delta: 6 }] }] },
+      ],
+    },
   ];
   return deck;
 }

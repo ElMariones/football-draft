@@ -38,6 +38,9 @@ import {
   evaluate as evalAchievements, loadUnlocked, saveUnlocked,
   type Achievement, type Unlocked,
 } from '@/lib/career/achievements';
+import { pickCelebration } from '@/components/career/Celebration';
+import { rollLeagueMoves, moveNews, resetLeagues } from '@/lib/career/promotion';
+import type { MiniGameSpec, MiniStake } from '@/components/career/MiniGame';
 
 export type CareerPhase =
   | 'landing' | 'wizard' | 'archetype' | 'career' | 'moment' | 'retire-decision' | 'summary';
@@ -101,6 +104,10 @@ interface CareerState {
   /** persistent achievements, and the ones that just popped */
   unlocked: Unlocked;
   achievementQueue: Achievement[];
+  /** a major honour waiting to be celebrated full-screen */
+  celebrating: Title | null;
+  /** an interactive minigame blocking the offseason */
+  miniGame: MiniGameSpec | null;
 
   // actions
   chooseArchetype(id: string): void;
@@ -110,6 +117,8 @@ interface CareerState {
   buyItem(id: string): void;
   checkAchievements(): void;
   dismissAchievement(id: string): void;
+  dismissCelebration(): void;
+  resolveMiniGame(won: boolean): void;
   setLang(l: Lang): void;
   startCareer(): void;
   exitToLanding(): void;
@@ -166,6 +175,40 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   seasonNews: [],
   unlocked: typeof window !== 'undefined' ? loadUnlocked() : {},
   achievementQueue: [],
+  celebrating: null,
+  miniGame: null,
+
+  dismissCelebration() { set({ celebrating: null }); },
+
+  // Minigames pay out immediately: a passed fitness test wipes the injury, a
+  // finished wonder goal is worth reputation and the terraces, a won derby is
+  // idolatry you cannot buy.
+  resolveMiniGame(won) {
+    const s = get();
+    const g = s.miniGame;
+    if (!s.player || !g) { set({ miniGame: null }); return; }
+    const p = { ...s.player };
+    const es = s.lang === 'es';
+    let line = '';
+    if (g.stake === 'injury') {
+      if (won) { p.injuryGamesNext = Math.max(0, p.injuryGamesNext - 8); p.fitness = clamp(30, 99, p.fitness + 10);
+        line = es ? '🩹 Pasaste el test físico y volviste antes de lo previsto.' : '🩹 You passed the fitness test and came back early.'; }
+      else { p.injuryGamesNext += 4; p.morale = clamp(5, 100, p.morale - 6);
+        line = es ? '🩹 No pasaste el test. Cuatro partidos más afuera.' : '🩹 You failed the test. Four more games out.'; }
+    } else if (g.stake === 'wonder-goal') {
+      if (won) { p.reputation = clamp(0, 100, p.reputation + 8); p.form = clamp(15, 99, p.form + 10); addIdol(p, p.clubId, 5);
+        line = es ? '🚀 Golazo. Da la vuelta al mundo en una hora.' : '🚀 A wonder goal. Around the world within the hour.'; }
+      else { p.form = clamp(15, 99, p.form - 4);
+        line = es ? '🚀 La mandaste a la tribuna. Se ríen una semana.' : '🚀 You put it in the stands. A week of jokes.'; }
+    } else {
+      if (won) { addIdol(p, p.clubId, 9); p.morale = clamp(5, 100, p.morale + 10); p.form = clamp(15, 99, p.form + 8);
+        line = es ? '⚔️ Ganaste el clásico. La ciudad es tuya.' : '⚔️ You won the derby. The city is yours.'; }
+      else { addIdol(p, p.clubId, -3); p.morale = clamp(5, 100, p.morale - 8);
+        line = es ? '⚔️ Perdiste el clásico. Una semana sin salir.' : '⚔️ You lost the derby. A week indoors.'; }
+    }
+    set({ player: p, miniGame: null, seasonNews: [...s.seasonNews, line] });
+    get().checkAchievements();
+  },
 
   // Logros survive the career: evaluated against the run so far, persisted to
   // localStorage, and surfaced as a toast the moment they pop.
@@ -227,6 +270,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       player.secondNationCode = rng.pick(others).code;
     }
     const deck = buildEventDeck(lang);
+    resetLeagues();   // promotions from a previous career must not carry over
     // The identity pick comes before the first club: three of the position's
     // archetypes, drawn by the seed, so you choose who you are under constraint.
     set({
@@ -492,6 +536,32 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     }
 
     player.money = (player.money ?? 0) + seasonWage(player.value, club.strength, out.apps);
+
+    // Divisions shuffle once the season is done, so the offers drawn next are
+    // against the new table — including your own club going up or down.
+    const moves = rollLeagueMoves(rng);
+    news.push(...moveNews(moves, player.clubId, s.lang));
+
+    // A minigame fires off the back of what actually happened this season: a
+    // layoff to recover from, a chance worth burying, or a derby to win.
+    let mini: MiniGameSpec | null = null;
+    const stakes: MiniStake[] = [];
+    if (player.injuryGamesNext > 0) stakes.push('injury');
+    if (out.derbyGames > 0) stakes.push('derby');
+    if (out.goals >= 8) stakes.push('wonder-goal');
+    if (stakes.length && rng.chance(0.4)) {
+      const stake = stakes[rng.int(stakes.length)];
+      const kind = stake === 'injury' ? 'memory' : stake === 'derby' ? 'luck' : 'skill';
+      // the sweet spot narrows as the stakes rise; technique widens it back out
+      const width = clamp(9, 30, 26 - (stake === 'derby' ? 8 : 0) + (player.attrs.tec - 70) / 5);
+      mini = {
+        kind, stake,
+        luckIndex: rng.int(3),
+        sequence: Array.from({ length: player.attrs.vis >= 80 ? 3 : 4 }, () => rng.int(4)),
+        target: 18 + rng.int(64),
+        width,
+      };
+    }
     player.stamina = staminaAfterSeason(player, out.apps);
     player.momentCooldown = Math.max(0, (player.momentCooldown ?? 0) - 1);
 
@@ -532,7 +602,12 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       if (rng.chance(chance)) retire = true;
     }
 
-    set({ player, stages, trophies, lastSeason: record, year, seasonNews: news });
+    set({
+      player, stages, trophies, lastSeason: record, year, seasonNews: news,
+      // the biggest honour of the season stops the game for a moment
+      celebrating: pickCelebration(allTitles),
+      miniGame: mini,
+    });
     get().checkAchievements();
 
     if (player.age >= CAREER.hardRetire) {

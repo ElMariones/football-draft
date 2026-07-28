@@ -133,6 +133,22 @@ const CLUBS_CORE: CareerClub[] = [
 // Core roster plus the expanded coverage (see clubs-extra.ts).
 export const CLUBS: CareerClub[] = [...CLUBS_CORE, ...CLUBS_EXTRA];
 
+// ---- promotion / relegation ------------------------------------------------
+// A club's division changes over a career, so `leagueId` is mutable at runtime.
+// The originals are kept so a new career starts from a clean table.
+const ORIGINAL_LEAGUE: Record<string, string> = Object.fromEntries(
+  CLUBS.map(c => [c.id, c.leagueId]),
+);
+
+export function setClubLeague(clubId: string, leagueId: string) {
+  const c = CLUBS.find(x => x.id === clubId);
+  if (c) c.leagueId = leagueId;
+}
+
+export function resetLeagues() {
+  for (const c of CLUBS) c.leagueId = ORIGINAL_LEAGUE[c.id] ?? c.leagueId;
+}
+
 const CLUB_BY_ID = new Map(CLUBS.map(c => [c.id, c]));
 export function getClub(id: string): CareerClub | undefined {
   return CLUB_BY_ID.get(id);
