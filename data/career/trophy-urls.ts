@@ -2,6 +2,9 @@
 // seven trophies (see lib/career/trophies.ts); everything else is resolved from
 // Wikipedia and hotlinked, since these images are non-free. Anything missing
 // falls back to the drawn icon in components/career/TrophyArt.tsx.
+// The World Cup award keys are deliberately absent: Wikipedia returns a press
+// photo of that year's winner rather than the award, which looks wrong next to
+// real trophy art, so they use the drawn icons instead.
 export const TROPHY_WIKI: Record<string, string> = {
   "euro": "https://upload.wikimedia.org/wikipedia/commons/8/81/Coupe_Henri_Delaunay_2017.jpg",
   "asian-cup": "https://upload.wikimedia.org/wikipedia/en/4/4d/AFC_Asian_Cup.png",
@@ -14,7 +17,4 @@ export const TROPHY_WIKI: Record<string, string> = {
   "ballon-dor": "https://upload.wikimedia.org/wikipedia/commons/0/04/2016_Ballon_dOr_CR7Museum.jpg",
   "the-best": "https://upload.wikimedia.org/wikipedia/commons/0/03/The_Best_FIFA_Football_Awards.svg",
   "golden-shoe": "https://upload.wikimedia.org/wikipedia/en/2/2b/Golden_Shoe%2C_Lionel_Messi_2012-2013.jpg",
-  "world-cup-golden-ball": "https://upload.wikimedia.org/wikipedia/commons/5/50/Pau_Cubarsi_Rodri_Unai_Simon_Argentina_v_Spain_19_July_2026-298.jpg",
-  "world-cup-golden-boot": "https://upload.wikimedia.org/wikipedia/commons/5/50/Pau_Cubarsi_Rodri_Unai_Simon_Argentina_v_Spain_19_July_2026-298.jpg",
-  "ucl-mvp": "https://upload.wikimedia.org/wikipedia/en/f/f5/UEFA_Champions_League.svg"
 };
