@@ -165,6 +165,50 @@ function EventZone({ lang }: { lang: Lang }) {
               );
             })}
           </div>
+
+          {/* What the choice actually did. Without this the numbers moved in
+              the side panel with nothing linking them to the decision — and a
+              reward that got clamped away looked identical to one that
+              applied. */}
+          {offseason.eventResolved && offseason.eventDeltas.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5"
+            >
+              <div className="text-[9px] tracking-[0.3em] text-white/40 uppercase mb-1.5">
+                {lang === 'es' ? 'Resultado' : 'Result'}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {offseason.eventDeltas.map((d, i) => {
+                  const up = d.delta > 0;
+                  const money = d.label.startsWith('€');
+                  const bad = d.label.includes('fuera') || d.label.includes('Games out');
+                  const good = bad ? !up : up;
+                  const shown = money
+                    ? `${up ? '+' : '-'}€${Math.abs(d.delta) >= 1_000_000
+                        ? (Math.abs(d.delta) / 1_000_000).toFixed(1) + 'M'
+                        : Math.round(Math.abs(d.delta) / 1000) + 'K'}`
+                    : `${up ? '+' : ''}${d.delta}`;
+                  return (
+                    <motion.span
+                      key={d.label}
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.2 + i * 0.05, type: 'spring', stiffness: 300, damping: 18 }}
+                      className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${
+                        good
+                          ? 'border-wc/50 bg-wc/15 text-wc'
+                          : 'border-red-400/50 bg-red-500/15 text-red-300'
+                      }`}
+                    >
+                      {shown} {money ? d.label.slice(2) : d.label}
+                    </motion.span>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
         </>
       )}
     </motion.div>

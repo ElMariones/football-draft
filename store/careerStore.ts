@@ -60,6 +60,8 @@ interface Offseason {
   // ---- Legend update ----
   cards: PreseasonCard[];
   cardChosen: string | null;
+  /** what the resolved event actually changed, for on-screen feedback */
+  eventDeltas: { label: string; delta: number }[];
 }
 
 interface Forced {
@@ -300,7 +302,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         canStay: false, isYouth: true,
         flavor: transferHeadline(player, youthOffers, { youth: true, loan: false }, s.lang, s.rng),
         chosenClubId: null, chosenVerb: null, chosenRole: 'starter',
-        cards: [], cardChosen: null,
+        cards: [], cardChosen: null, eventDeltas: [],
       },
     });
   },
@@ -374,14 +376,50 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (!os || !os.event || os.eventResolved || !s.rng || !s.player) return;
     const opt = os.event.options[optionIndex];
     const outcome = s.rng.weighted(opt.outcomes, o => o.weight);
-    const player = { ...s.player };
+    // deep-copy the parts applyEffects mutates in place, or the "before"
+    // snapshot below would already contain the changes
+    const player: CareerPlayer = {
+      ...s.player,
+      attrs: { ...s.player.attrs },
+      flags: { ...s.player.flags },
+      ovrTemp: [...s.player.ovrTemp],
+      idolatry: { ...s.player.idolatry },
+    };
+    const es = s.lang === 'es';
+    const snap = (p: CareerPlayer) => ({
+      [es ? 'Media' : 'Overall']: Math.round(p.overall),
+      [es ? 'Técnica' : 'Technique']: Math.round(p.attrs.tec),
+      [es ? 'Velocidad' : 'Pace']: Math.round(p.attrs.pac),
+      [es ? 'Físico' : 'Physical']: Math.round(p.attrs.phy),
+      [es ? 'Visión' : 'Vision']: Math.round(p.attrs.vis),
+      [es ? 'Liderazgo' : 'Leadership']: Math.round(p.attrs.lea),
+      [es ? 'Ánimo' : 'Morale']: Math.round(p.morale),
+      [es ? 'Forma' : 'Form']: Math.round(p.form),
+      [es ? 'Estado' : 'Fitness']: Math.round(p.fitness),
+      [es ? 'Resistencia' : 'Stamina']: Math.round(p.stamina ?? 0),
+      [es ? 'Fama' : 'Fame']: Math.round(p.reputation),
+      [es ? 'Disciplina' : 'Discipline']: Math.round(p.discipline),
+    });
+    const before = snap(player);
     const res = applyEffects(player, outcome.effects, s.rng);
+    const after = snap(player);
+    const eventDeltas = Object.keys(after)
+      .map(k => ({ label: k, delta: after[k] - before[k] }))
+      .filter(d => d.delta !== 0);
+    // money and games missed are not in the snapshot but are worth showing
+    const moneyDelta = (player.money ?? 0) - (s.player.money ?? 0);
+    if (moneyDelta) eventDeltas.push({ label: es ? '€ Dinero' : '€ Money', delta: moneyDelta });
+    const gamesOut = player.injuryGamesNext - s.player.injuryGamesNext;
+    if (gamesOut) eventDeltas.push({ label: es ? 'Partidos fuera' : 'Games out', delta: gamesOut });
     const trophies = res.titles.length ? [...s.trophies, ...res.titles] : s.trophies;
     const firedEventById = { ...s.firedEventById, [os.event.id]: s.year };
     // event may end a career (retirement injury etc.)
     set({
       player, trophies, firedEventById,
-      offseason: { ...os, eventResolved: true, eventBadges: [outcome.badge], eventOptionChosen: optionIndex },
+      offseason: {
+        ...os, eventResolved: true, eventBadges: [outcome.badge],
+        eventOptionChosen: optionIndex, eventDeltas,
+      },
     });
     if (res.retire) {
       set({ phase: 'summary', player });
@@ -710,6 +748,7 @@ function setupOffseason(
       chosenRole: 'starter',
       cards: dealPreseason(player, rng, CAREER.preseasonCards),
       cardChosen: null,
+      eventDeltas: [],
     },
   });
 }
