@@ -75,9 +75,16 @@ export function rollAwards(
   }
 
   // ---- World ----
-  if (score >= rng.gauss(0.95, 0.05) && (bigClub || intl.won) && p.reputation >= 84) {
-    add('ballon-dor', 'world', 0.7);
-    add('the-best', 'world', 0.55);
+  // One player on earth wins this each year. It needs an exceptional season at
+  // an elite club *and* silverware — previously 75% of careers won at least one
+  // and the median career won three.
+  const ballonCase = score >= rng.gauss(1.12, 0.05)
+    && out.rating >= 8.4
+    && p.reputation >= 88
+    && bigClub && (intl.won || clubT.titles.some(t => t.scope === 'continent' || t.key === 'league'));
+  if (ballonCase) {
+    add('ballon-dor', 'world', 0.42);
+    add('the-best', 'world', 0.4);
   }
   if (p.age <= 21 && score >= rng.gauss(0.82, 0.05) && p.reputation >= 66) add('world-best-young', 'world', 0.55);
   if (g.keeper && worldContext && out.rating >= 7.8 && score >= 0.7) add('world-best-keeper', 'world', 0.55);
@@ -86,9 +93,16 @@ export function rollAwards(
   if (g.forwardWorld && worldContext && out.rating >= 7.7 && out.goals >= goalBar) add('world-best-forward', 'world', 0.5);
 
   // ---- Tournament ----
-  if (intl.finalist) {
-    if (score >= rng.gauss(0.7, 0.06)) add('tournament-golden-ball', 'tournament', 0.5);
-    if (isAttacker(p.position)) add('tournament-golden-boot', 'tournament', 0.4);
+  // The Golden Ball is a World Cup award, not something handed out at every
+  // continental championship. The equivalent for a club season is the
+  // Champions League player of the season, so that is what a European winner
+  // competes for instead.
+  if (intl.finalist && intl.played === 'world') {
+    if (score >= rng.gauss(0.7, 0.06)) add('world-cup-golden-ball', 'tournament', 0.5);
+    if (isAttacker(p.position)) add('world-cup-golden-boot', 'tournament', 0.4);
+  }
+  if (clubT.titles.some(t => t.key === 'champions') && score >= rng.gauss(0.68, 0.06)) {
+    add('ucl-mvp', 'continent', 0.5);
   }
 
   return titles;

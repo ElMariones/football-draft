@@ -15,7 +15,20 @@ function continentalKey(confed: Confederation, elite: boolean): string {
   }
 }
 
-const BIG = new Set(['league', 'champions', 'libertadores', 'world-cup', 'continental-cup']);
+const BIG = new Set([
+  'league', 'champions', 'libertadores', 'world-cup',
+  'euro', 'copa-america', 'asian-cup', 'afcon', 'gold-cup',
+]);
+
+// Each confederation's own championship — "Copa Continental" was a placeholder
+// standing in for five real, very different trophies.
+const CONTINENTAL_KEY: Record<string, string> = {
+  UEFA: 'euro',
+  CONMEBOL: 'copa-america',
+  AFC: 'asian-cup',
+  CAF: 'afcon',
+  CONCACAF: 'gold-cup',
+};
 export function isBigTitle(key: string): boolean {
   return BIG.has(key);
 }
@@ -107,7 +120,9 @@ export function rollInternational(p: CareerPlayer, out: SeasonOutput, year: numb
   res.finalist = rng.chance(finalistChance);
   if (res.finalist && rng.chance(winChance / Math.max(0.05, finalistChance))) {
     res.won = true;
-    const key = tour === 'world' ? 'world-cup' : 'continental-cup';
+    const key = tour === 'world'
+      ? 'world-cup'
+      : (CONTINENTAL_KEY[nation.confed] ?? 'euro');
     res.titles.push({ key, kind: 'national', scope: 'national', age: p.age, nationCode: p.ntNationCode });
     p.flags[tour === 'world' ? 'wonWorldCup' : 'wonContinental'] = true;
   }

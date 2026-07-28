@@ -12,13 +12,13 @@ import { titleLabel, type Lang } from '@/lib/career/i18n';
 /** Honours big enough to stop the game for. */
 export const CELEBRATED = new Set([
   'ballon-dor', 'the-best', 'world-cup', 'champions', 'libertadores',
-  'club-world-cup', 'continental-cup', 'golden-shoe',
+  'club-world-cup', 'euro', 'copa-america', 'asian-cup', 'afcon', 'gold-cup', 'golden-shoe',
 ]);
 
 export function pickCelebration(titles: Title[]): Title | null {
   // If several land at once, celebrate the biggest.
   const order = ['world-cup', 'ballon-dor', 'champions', 'libertadores',
-    'club-world-cup', 'the-best', 'continental-cup', 'golden-shoe'];
+    'club-world-cup', 'the-best', 'euro', 'copa-america', 'asian-cup', 'afcon', 'gold-cup', 'golden-shoe'];
   for (const key of order) {
     const t = titles.find(x => x.key === key);
     if (t) return t;

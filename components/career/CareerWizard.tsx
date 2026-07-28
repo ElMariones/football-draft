@@ -54,7 +54,12 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
   const t = careerT(lang);
   const { wizard, setNation, setIdentity, setPosition, confirmIdentity, reset } = useCareerStore();
   const [query, setQuery] = useState('');
+  // The shirt number is held as free text while you type, so the field can be
+  // emptied and retyped. It is only committed to the store when it is a real
+  // number, and "ready" below refuses to start until it is 1-99.
+  const [numText, setNumText] = useState(String(wizard.number));
   const es = lang === 'es';
+  const numValid = /^\d{1,2}$/.test(numText) && +numText >= 1 && +numText <= 99;
 
   const nations = useMemo(() => {
     const sorted = [...NATIONS].sort((a, b) => a[lang].localeCompare(b[lang]));
@@ -63,13 +68,15 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
   }, [query, lang]);
 
   const [jp, js] = jerseyColors(wizard.nationCode || 'AR');
-  const ready = !!wizard.nationCode && wizard.surname.trim().length > 0 && !!wizard.position;
+  const ready = !!wizard.nationCode && wizard.surname.trim().length > 0
+    && !!wizard.position && numValid;
 
   // What is still missing, so the disabled button explains itself.
   const missing: string[] = [];
   if (!wizard.nationCode) missing.push(es ? 'nacionalidad' : 'nationality');
   if (!wizard.surname.trim()) missing.push(es ? 'apellido' : 'surname');
   if (!wizard.position) missing.push(es ? 'posición' : 'position');
+  if (!numValid) missing.push(es ? 'dorsal 1-99' : 'number 1-99');
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -94,7 +101,10 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
             transition={{ type: 'spring', stiffness: 220, damping: 18 }}
             className="grid place-items-center py-1"
           >
-            <Jersey primary={jp} secondary={js} surname={wizard.surname} number={wizard.number} size={190} />
+            <Jersey
+              primary={jp} secondary={js} surname={wizard.surname}
+              number={numValid ? +numText : wizard.number} size={190}
+            />
           </motion.div>
 
           <div className="grid grid-cols-[1fr_84px] gap-2 mt-3">
@@ -110,14 +120,23 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
             <label className="block">
               <span className="text-[10px] tracking-widest text-white/40 uppercase">{t.number}</span>
               <input
-                type="number" min={1} max={99}
-                value={wizard.number}
-                onChange={e => setIdentity({
-                  surname: wizard.surname,
-                  number: Math.max(1, Math.min(99, parseInt(e.target.value || '10', 10) || 10)),
-                  foot: wizard.foot,
-                })}
-                className="w-full mt-1 rounded-xl bg-white/5 border border-white/15 px-3 py-2.5 focus:outline-none focus:border-wc/60"
+                type="text" inputMode="numeric" maxLength={2} placeholder="10"
+                value={numText}
+                onChange={e => {
+                  // accept an empty field and partial input; only push a valid
+                  // number through to the store
+                  const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+                  setNumText(raw);
+                  const n = parseInt(raw, 10);
+                  if (n >= 1 && n <= 99) {
+                    setIdentity({ surname: wizard.surname, number: n, foot: wizard.foot });
+                  }
+                }}
+                className={`w-full mt-1 rounded-xl bg-white/5 border px-3 py-2.5 focus:outline-none placeholder-white/25 ${
+                  numText === '' || numValid
+                    ? 'border-white/15 focus:border-wc/60'
+                    : 'border-red-500/60'
+                }`}
               />
             </label>
           </div>

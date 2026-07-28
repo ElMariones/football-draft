@@ -18,7 +18,7 @@ function grouped(titles: Title[]): { key: string; n: number; sample: Title }[] {
 
 const TITLE_WEIGHT: Record<string, number> = {
   'world-cup': 60, 'ballon-dor': 55, champions: 45, 'the-best': 40, libertadores: 30,
-  'continental-cup': 30, 'golden-shoe': 25, league: 18, europa: 18, 'club-world-cup': 20,
+  euro: 30, 'copa-america': 30, 'asian-cup': 26, afcon: 26, 'gold-cup': 24, 'ucl-mvp': 24, 'world-cup-golden-ball': 34, 'golden-shoe': 25, league: 18, europa: 18, 'club-world-cup': 20,
   'best-player-continent': 22, 'world-best-keeper': 22, 'world-best-defender': 22,
   'world-best-midfielder': 22, 'world-best-forward': 22, 'world-best-young': 18,
 };

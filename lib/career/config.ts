@@ -8,7 +8,9 @@ export const CAREER = {
   retireFrom: 34,
   hardRetire: 41,
   startOverallRange: [46, 55] as const,
-  potentialRange: [72, 96] as const,
+  potentialRange: [70, 97] as const,
+  /** most a career can add to the ceiling it was born with */
+  maxBreakout: 4,
   growthK: 2.4,
   eventChanceBase: 0.55,
   transfer: {
@@ -27,9 +29,10 @@ export const CAREER = {
 
 // Development speed by age (multiplier on growth). Fast when young, ~0 by 29.
 export function developmentByAge(age: number): number {
+  // Peak arrives at 26-28: growth is nearly spent by 27 and gone at 29.
   const table: Record<number, number> = {
-    16: 1.05, 17: 1.0, 18: 0.92, 19: 0.82, 20: 0.72, 21: 0.62, 22: 0.52,
-    23: 0.42, 24: 0.33, 25: 0.25, 26: 0.17, 27: 0.1, 28: 0.05,
+    16: 1.05, 17: 1.0, 18: 0.92, 19: 0.82, 20: 0.72, 21: 0.60, 22: 0.48,
+    23: 0.37, 24: 0.27, 25: 0.18, 26: 0.11, 27: 0.05, 28: 0.02,
   };
   if (age <= 16) return table[16];
   return table[age] ?? 0;
@@ -37,11 +40,14 @@ export function developmentByAge(age: number): number {
 
 // Age-related OVR decline per season (0 until ~30, ramps after).
 export function declineByAge(age: number): number {
-  if (age <= 29) return 0;
+  if (age <= 27) return 0;
+  // The old curve started at 30 and was so gentle that average overall still
+  // rose into the late thirties. A player now clearly fades after his peak.
   const table: Record<number, number> = {
-    30: 0.3, 31: 0.6, 32: 1.0, 33: 1.4, 34: 1.9, 35: 2.4, 36: 2.9, 37: 3.4,
+    28: 0.2, 29: 0.5, 30: 1.0, 31: 1.5, 32: 2.1, 33: 2.7,
+    34: 3.3, 35: 3.9, 36: 4.5, 37: 5.1,
   };
-  return table[age] ?? 3.8;
+  return table[age] ?? 5.6;
 }
 
 // How many games a club plays in a season (league) by league tier.

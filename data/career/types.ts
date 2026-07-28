@@ -144,6 +144,8 @@ export interface CareerPlayer {
   /** shop items owned */
   owned: string[];
 
+  /** the ceiling this player was born with, before any late-bloomer breakout */
+  basePotential: number;
   /** the role the club promised when you signed — honoured while it lasts */
   rolePromise: OfferRole | null;
   /** seasons the promise still binds the manager (1 = this coming season) */

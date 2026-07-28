@@ -51,8 +51,19 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
   if (wonderkid) attrs = addAttrs(attrs, { tec: 8, pac: 8, phy: 8, vis: 8, lea: 8 });
 
   const overall = overallFrom(attrs, o.position);
-  const [pmin, pmax] = CAREER.potentialRange;
-  const potential = clamp(overall + 12, 99, Math.round(rng.gauss((pmin + pmax) / 2, 6)) + (wonderkid ? 6 : 0));
+
+  // Potential is the one thing a career cannot argue with, so it has to carry
+  // real variance. Previously it was `clamp(overall + 12, ...)`, which quietly
+  // floored every low roll back up — nobody was ever dealt a modest ceiling.
+  // Now most players land in the 72-84 band, a minority push into the low 90s,
+  // and a genuine world-beater is rare.
+  const roll = rng.next();
+  const band =
+    roll < 0.45 ? rng.range(70, 80)        // journeyman
+      : roll < 0.78 ? rng.range(80, 87)    // good pro
+        : roll < 0.95 ? rng.range(87, 92)  // star
+          : rng.range(92, 97);             // generational
+  const potential = clamp(overall + 4, 97, Math.round(band) + (wonderkid ? 5 : 0));
   const p: CareerPlayer = {
     nationCode: o.nationCode,
     ntNationCode: o.nationCode,
@@ -106,6 +117,7 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     momentCooldown: 0,
     clutchWon: 0,
     owned: [],
+    basePotential: potential,
     rolePromise: null,
     rolePromiseYears: 0,
   };
@@ -254,14 +266,19 @@ export function applyProgression(
   const goalThreshold = isKeeperOrDef(p.position) ? 2 : 10;
   // Reaching world class requires performing in a strong league — each tier
   // caps how high your ceiling can be pushed by breakouts.
-  const tierCeiling = tier <= 1 ? 97 : tier <= 2 ? 93 : tier <= 3 ? 88 : tier <= 4 ? 84 : 79;
-  const headroom = clamp(0.15, 1, (94 - p.potential) / 18 + 0.15);
+  const tierCeiling = tier <= 1 ? 95 : tier <= 2 ? 90 : tier <= 3 ? 86 : tier <= 4 ? 82 : 78;
+  // A career may out-perform its ceiling by a few points at most. Without this
+  // budget every good season ratcheted potential upward, so 78% of careers ended
+  // at 90+ and nobody was ever ordinary.
+  const breakoutBudget = (p.basePotential ?? p.potential) + CAREER.maxBreakout;
+  const headroom = clamp(0.1, 1, (breakoutBudget - p.potential) / 6);
   const rawBreak =
-    Math.max(0, out.rating - 7.3) * 1.1 +
-    bigTitles * 0.7 +
-    (out.goals >= goalThreshold ? 0.8 : 0);
-  if (rawBreak > 0 && p.age <= 30 && out.apps >= 10) {
-    const raised = Math.min(p.potential + rawBreak * headroom, tierCeiling);
+    Math.max(0, out.rating - 7.8) * 0.7 +
+    bigTitles * 0.35 +
+    (out.goals >= goalThreshold ? 0.35 : 0);
+  // late bloomers exist, but the window closes at the usual peak
+  if (rawBreak > 0 && p.age <= 26 && out.apps >= 15) {
+    const raised = Math.min(p.potential + rawBreak * headroom, tierCeiling, breakoutBudget);
     p.potential = Math.max(p.potential, raised); // never lowered by playing down
   }
 
@@ -305,7 +322,7 @@ export function applyProgression(
   if (decline > 0) {
     const dec = ageDecay(p.age);
     const scaled: Record<string, number> = {};
-    for (const [key, v] of Object.entries(dec)) scaled[key] = (v as number) * 0.5;
+    for (const [key, v] of Object.entries(dec)) scaled[key] = (v as number) * 1.15;
     // the curve hands veterans a little leadership back each year — cap it too,
     // or a 40-year-old drifts to 99 leadership on an 82 ceiling
     p.attrs = gainAttrs(p.attrs, scaled, p.potential);

@@ -164,7 +164,11 @@ const TITLE_LABELS: Record<string, [string, string]> = {
   'club-world-cup': ['Club World Cup', 'Mundial de Clubes'],
   // national
   'world-cup': ['World Cup', 'Copa del Mundo'],
-  'continental-cup': ['Continental Cup', 'Copa Continental'],
+  euro: ['European Championship', 'Eurocopa'],
+  'copa-america': ['Copa América', 'Copa América'],
+  'asian-cup': ['AFC Asian Cup', 'Copa Asiática'],
+  afcon: ['Africa Cup of Nations', 'Copa Africana de Naciones'],
+  'gold-cup': ['CONCACAF Gold Cup', 'Copa Oro'],
   'nations-league': ['Nations League', 'Nations League'],
   // individual
   'ballon-dor': ["Ballon d'Or", 'Balón de Oro'],
@@ -185,8 +189,9 @@ const TITLE_LABELS: Record<string, [string, string]> = {
   'world-best-defender': ['World Best Defender', 'Mejor Defensor del Mundo'],
   'world-best-midfielder': ['World Best Midfielder', 'Mejor Mediocampista del Mundo'],
   'world-best-forward': ['World Best Forward', 'Mejor Delantero del Mundo'],
-  'tournament-golden-ball': ['Tournament Golden Ball', 'Balón de Oro del Torneo'],
-  'tournament-golden-boot': ['Tournament Golden Boot', 'Botín de Oro del Torneo'],
+  'world-cup-golden-ball': ['World Cup Golden Ball', 'Balón de Oro del Mundial'],
+  'world-cup-golden-boot': ['World Cup Golden Boot', 'Botín de Oro del Mundial'],
+  'ucl-mvp': ['Champions League MVP', 'MVP de la Champions League'],
 };
 
 export function titleLabel(key: string, lang: Lang): string {
