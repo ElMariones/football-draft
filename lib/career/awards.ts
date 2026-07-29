@@ -75,17 +75,6 @@ export function rollAwards(
   }
 
   // ---- World ----
-  // One player on earth wins this each year. It needs an exceptional season at
-  // an elite club *and* silverware — previously 75% of careers won at least one
-  // and the median career won three.
-  const ballonCase = score >= rng.gauss(1.12, 0.05)
-    && out.rating >= 8.4
-    && p.reputation >= 88
-    && bigClub && (intl.won || clubT.titles.some(t => t.scope === 'continent' || t.key === 'league'));
-  if (ballonCase) {
-    add('ballon-dor', 'world', 0.42);
-    add('the-best', 'world', 0.4);
-  }
   if (p.age <= 21 && score >= rng.gauss(0.82, 0.05) && p.reputation >= 66) add('world-best-young', 'world', 0.55);
   if (g.keeper && worldContext && out.rating >= 7.8 && score >= 0.7) add('world-best-keeper', 'world', 0.55);
   if (g.defender && worldContext && out.rating >= 7.7 && score >= 0.72) add('world-best-defender', 'world', 0.5);
@@ -103,6 +92,58 @@ export function rollAwards(
   }
   if (clubT.titles.some(t => t.key === 'champions') && score >= rng.gauss(0.68, 0.06)) {
     add('ucl-mvp', 'continent', 0.5);
+  }
+
+  // ---- Ballon d'Or ----
+  // This used to be a stack of hard gates — score >= 1.12 AND rating >= 8.4 AND
+  // reputation >= 88 AND a Champions League. The score ceiling for a season
+  // without an international title was about 1.05, so the first gate alone shut
+  // the award off almost entirely: you could be a 95-overall league MVP and top
+  // scorer for a decade and never come close.
+  //
+  // It is now a contest instead. Your season is scored, the rest of the planet's
+  // best season that year is drawn from a distribution, and the better one wins.
+  // Sweeping the individual awards above is exactly the evidence that should
+  // carry it, so those count directly.
+  const honours = titles.filter(t => [
+    'league-mvp', 'league-top-scorer', 'league-top-assist', 'best-player-continent',
+    'golden-shoe', 'continent-top-scorer', 'ucl-mvp',
+    'world-best-forward', 'world-best-midfielder', 'world-best-defender', 'world-best-keeper',
+    'league-best-forward', 'league-best-midfielder', 'league-best-defender', 'league-best-keeper',
+  ].includes(t.key)).length;
+
+  let ballon = 0;
+  // A freak rating alone must not carry it — ratings run high, so cap what one
+  // hot season can contribute and let *being* the best player do the rest.
+  ballon += Math.min(1.6, (out.rating - 7.2) * 0.9);
+  ballon += (out.effOverall - 82) * 0.09;      // 95 overall is worth far more than 88
+  ballon += (p.reputation - 70) * 0.012;       // how big the name is
+  ballon += honours * 0.2;                     // the cabinet agrees
+  if (wonLeague) ballon += 0.25;
+  if (bigClub) ballon += 0.5;                  // a Champions League still decides most of them
+  if (intl.won) ballon += 0.45;
+  else if (intl.finalist && intl.played === 'world') ballon += 0.2;
+  if (!majorTrophy) ballon -= 0.6;             // winning nothing is a real handicap, not a veto
+  if (tier >= 3) ballon -= 0.8;                // nobody wins it from the third tier of world football
+  if (g.defender || g.keeper) ballon -= 0.4;   // as the voters have always been
+  // Without this a player who once reaches the top never comes off it: the field
+  // is redrawn every year and he clears it every year, so careers were ending
+  // with twelve. A reigning winner has to be beaten by a rival's breakout season
+  // eventually, and the voters get restless.
+  ballon -= Math.min(1.2, (p.ballonWins ?? 0) * 0.3);
+
+  // the best season anyone else on earth had
+  // Calibrated against 100 simulated careers: ~35% of careers win at least one,
+  // a generational player wins 3-6 spread across his peak, and a merely very
+  // good one wins none.
+  const field = rng.gauss(4.0, 0.65);
+  const ballonCase = out.apps >= 20 && p.reputation >= 72 && ballon >= field;
+  if (ballonCase) {
+    titles.push({ key: 'ballon-dor', kind: 'individual', scope: 'world', age: p.age, clubId: club.id });
+    add('the-best', 'world', 0.72);
+  } else if (out.apps >= 20 && p.reputation >= 72 && ballon >= field - 0.35) {
+    // pipped to the Ballon d'Or but still the pick of a different jury
+    add('the-best', 'world', 0.3);
   }
 
   return titles;

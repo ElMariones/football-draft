@@ -59,6 +59,8 @@ interface Offseason {
   chosenClubId: string | null;
   chosenVerb: 'sign' | 'stay' | 'loan' | null;
   chosenRole: 'starter' | 'rotation' | 'prospect';
+  /** set once a forced move is accepted — the window is closed, no going back */
+  forcedLocked: boolean;
   // ---- Legend update ----
   cards: PreseasonCard[];
   cardChosen: string | null;
@@ -328,7 +330,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         offers: youthOffers,
         canStay: false, isYouth: true,
         flavor: transferHeadline(player, youthOffers, { youth: true, loan: false }, s.lang, s.rng),
-        chosenClubId: null, chosenVerb: null, chosenRole: 'starter',
+        chosenClubId: null, chosenVerb: null, chosenRole: 'starter', forcedLocked: false,
         cards: [], cardChosen: null, eventDeltas: [],
       },
     });
@@ -456,7 +458,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   chooseOffer(index) {
     const s = get();
     const os = s.offseason;
-    if (!os) return;
+    // once you have forced a move the window is shut — the other cards are
+    // shown greyed out, and clicking one must not quietly undo the transfer
+    if (!os || os.forcedLocked) return;
     const offer = os.offers[index];
     if (!offer) return;
     set({ offseason: { ...os, chosenClubId: offer.clubId, chosenVerb: offer.verb, chosenRole: offer.role } });
@@ -464,12 +468,12 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   stay() {
     const s = get();
     const os = s.offseason;
-    if (!os || !s.player?.clubId) return;
+    if (!os || os.forcedLocked || !s.player?.clubId) return;
     set({ offseason: { ...os, chosenClubId: s.player.clubId, chosenVerb: 'stay', chosenRole: 'starter' } });
   },
   clearChoice() {
     const s = get();
-    if (!s.offseason) return;
+    if (!s.offseason || s.offseason.forcedLocked) return;
     set({ offseason: { ...s.offseason, chosenClubId: null, chosenVerb: null } });
   },
 
@@ -508,9 +512,24 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     player.loyalty = clamp(0, 100, player.loyalty - 18);
     player.morale = clamp(5, 100, player.morale - 5);
     player.flags = { ...player.flags, forcedMove: true };
+    // The forced club was never in the offer grid, so accepting it used to leave
+    // the board showing nothing selected — and every other offer still live, one
+    // click away from silently overwriting the move you just forced. Put the club
+    // into the grid, select it there, and close the window.
+    const offers = s.offseason.offers.some(o => o.clubId === offer.clubId && o.verb === 'sign')
+      ? s.offseason.offers
+      : [...s.offseason.offers, { ...offer, locked: undefined }];
     set({
       player,
-      offseason: { ...s.offseason, chosenClubId: offer.clubId, chosenVerb: 'sign', chosenRole: offer.role },
+      offseason: {
+        ...s.offseason,
+        offers,
+        canStay: false,
+        chosenClubId: offer.clubId,
+        chosenVerb: 'sign',
+        chosenRole: offer.role,
+        forcedLocked: true,
+      },
       forced: null,
     });
   },
@@ -596,6 +615,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       intl.titles.filter(t => isBigTitle(t.key)).length;
     applyProgression(player, club, out, bigTitles, rng);
     const awards = rollAwards(player, club, out, clubT, intl, rng);
+    // each one you win makes the next one harder — see the fatigue term in awards.ts
+    player.ballonWins = (player.ballonWins ?? 0)
+      + awards.filter(a => a.key === 'ballon-dor').length;
     const allTitles: Title[] = [...clubT.titles, ...intl.titles, ...awards];
 
     // ---- Legend update: idolatry, derbies, wages, stamina ----
@@ -641,9 +663,12 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       const width = clamp(9, 30, 6 + (nationStr - 55) * 0.35 + (player.overall - 70) * 0.45);
       const kindRoll = rng.next();
       mini = {
-        kind: kindRoll < 0.45 ? 'skill' : kindRoll < 0.75 ? 'luck' : 'memory',
+        kind: kindRoll < 0.55 ? 'skill' : kindRoll < 0.75 ? 'luck' : 'memory',
         stake: 'tournament',
         luckIndex: rng.int(3),
+        // a blind one-in-three is not a football decision — carrying the side
+        // earns you a second look before the ball is revealed
+        picks: width >= 19 ? 2 : 1,
         sequence: Array.from({ length: nationStr >= 82 ? 3 : 4 }, () => rng.int(4)),
         target: 18 + rng.int(64),
         width,
@@ -656,19 +681,44 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (player.injuryGamesNext > 0) stakes.push('injury');
     if (out.derbyGames > 0) stakes.push('derby');
     if (out.goals >= 8) stakes.push('wonder-goal');
-    if (!mini && stakes.length && rng.chance(0.4)) {
+    // Club minigames used to fire on 40% of seasons, which meant the derby came
+    // round nearly every year. They are a special occasion, so: a cooldown after
+    // each one, and a lower rate on top of that.
+    if (!mini && stakes.length && (player.miniCooldown ?? 0) <= 0 && rng.chance(0.35)) {
       const stake = stakes[rng.int(stakes.length)];
-      const kind = stake === 'injury' ? 'memory' : stake === 'derby' ? 'luck' : 'skill';
-      // the sweet spot narrows as the stakes rise; technique widens it back out
-      const width = clamp(9, 30, 26 - (stake === 'derby' ? 8 : 0) + (player.attrs.tec - 70) / 5);
+      // The derby was a pure three-shirt guess, so a 95-overall striker and a
+      // 62-overall reserve had exactly the same 33% of winning it. Now it is a
+      // test of the player: the shot-timing game most of the time, the winger's
+      // run occasionally, and never a blind coin flip.
+      const kindRoll = rng.next();
+      const kind = stake === 'injury'
+        ? 'memory'
+        : stake === 'derby'
+          ? (kindRoll < 0.7 ? 'skill' : 'memory')
+          : 'skill';
+      // How good you are is what opens the window. A derby is still the tightest
+      // night of the season, but being the best player on the pitch shows up.
+      const quality = (player.overall - 70) * 0.42 + (player.attrs.tec - 70) * 0.18;
+      const width = clamp(10, 32, 20 - (stake === 'derby' ? 5 : 0) + quality);
       mini = {
         kind, stake,
         luckIndex: rng.int(3),
-        sequence: Array.from({ length: player.attrs.vis >= 80 ? 3 : 4 }, () => rng.int(4)),
+        picks: 1,
+        // sharper players read the run off fewer touches
+        sequence: Array.from(
+          { length: player.attrs.vis >= 84 ? 3 : player.attrs.vis >= 72 ? 4 : 5 },
+          () => rng.int(4),
+        ),
         target: 18 + rng.int(64),
         width,
       };
     }
+    // Only club minigames spend the cooldown. Sharing it with the international
+    // ones meant tournament nights ate the budget and the derby stopped showing
+    // up at all — they are different occasions and should not compete.
+    player.miniCooldown = (mini && mini.stake !== 'tournament')
+      ? 2
+      : Math.max(0, (player.miniCooldown ?? 0) - 1);
     player.stamina = staminaAfterSeason(player, out.apps);
     player.momentCooldown = Math.max(0, (player.momentCooldown ?? 0) - 1);
 
@@ -815,6 +865,7 @@ function setupOffseason(
       chosenClubId: null,
       chosenVerb: null,
       chosenRole: 'starter',
+      forcedLocked: false,
       cards: dealPreseason(player, rng, CAREER.preseasonCards),
       cardChosen: null,
       eventDeltas: [],

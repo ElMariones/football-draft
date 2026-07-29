@@ -17,10 +17,14 @@ function roleLabel(role: string, t: ReturnType<typeof careerT>) {
 }
 
 function OfferCard({
-  offer, chosen, onClick, lang, t, verbLabel, flavor, betrayal,
+  offer, chosen, onClick, lang, t, verbLabel, flavor, betrayal, dimmed, forced,
 }: {
   offer: ClubOffer; chosen: boolean; onClick: () => void; lang: Lang;
   t: ReturnType<typeof careerT>; verbLabel: string; flavor: string; betrayal?: boolean;
+  /** the choice is already locked in elsewhere — this card is out of play */
+  dimmed?: boolean;
+  /** this is the club you forced your way to */
+  forced?: boolean;
 }) {
   const club = getClub(offer.clubId);
   if (!club) return null;
@@ -29,15 +33,30 @@ function OfferCard({
     <motion.button
       layout
       onClick={onClick}
-      whileHover={{ scale: chosen ? 1.02 : 1.04, y: -2 }}
-      whileTap={{ scale: 0.97 }}
+      disabled={dimmed}
+      whileHover={dimmed ? undefined : { scale: chosen ? 1.02 : 1.04, y: -2 }}
+      whileTap={dimmed ? undefined : { scale: 0.97 }}
       animate={chosen ? { scale: 1.02 } : { scale: 1 }}
-      className={`flex flex-col items-center text-center gap-2 rounded-2xl border px-3 py-4 transition-colors ${
-        chosen ? 'border-wc bg-wc/15 shadow-[0_0_25px_rgba(0,223,162,0.25)]'
-          : betrayal ? 'border-red-500/40 bg-red-500/5 hover:bg-red-500/10'
-            : 'border-white/10 bg-white/5 hover:bg-white/10'
+      className={`relative flex flex-col items-center text-center gap-2 rounded-2xl border px-3 py-4 transition-colors ${
+        chosen
+          ? forced
+            ? 'border-amber-400 bg-amber-400/15 shadow-[0_0_25px_rgba(251,191,36,0.25)]'
+            : 'border-wc bg-wc/15 shadow-[0_0_25px_rgba(0,223,162,0.25)]'
+          : dimmed ? 'border-white/5 bg-white/[0.02] opacity-35 grayscale cursor-not-allowed'
+            : betrayal ? 'border-red-500/40 bg-red-500/5 hover:bg-red-500/10'
+              : 'border-white/10 bg-white/5 hover:bg-white/10'
       }`}
     >
+      {chosen && (
+        <span className={`absolute top-2 right-2 w-5 h-5 rounded-full grid place-items-center text-[11px] font-bold text-black ${forced ? 'bg-amber-400' : 'bg-wc'}`}>
+          ✓
+        </span>
+      )}
+      {forced && chosen && (
+        <span className="absolute top-2 left-2 text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/50">
+          {lang === 'es' ? '🔁 Forzado' : '🔁 Forced'}
+        </span>
+      )}
       <div className="text-[10px] tracking-widest text-white/40 uppercase">{verbLabel}</div>
       {/* Signing for a direct rival is permanent and brutal — never let it be a
           surprise, because the idolatry cap it applies can never be undone. */}
@@ -297,16 +316,21 @@ function TransferZone({ lang }: { lang: Lang }) {
         <div className="text-white/50 text-sm py-4 text-center">{t.noOffers}</div>
       ) : (
         <div className={`grid gap-3 ${offseason.canStay || offseason.offers.length >= 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
-          {offseason.offers.map((o, i) => (
-            <OfferCard
-              key={o.clubId + i}
-              offer={o}
-              chosen={offseason.chosenClubId === o.clubId && offseason.chosenVerb !== 'stay'}
-              onClick={() => chooseOffer(i)}
-              lang={lang} t={t} verbLabel={verbLabelFor(o)} flavor={offerFlavor(player, o, lang)}
-              betrayal={o.verb === 'sign' && areRivals(player.clubId, o.clubId)}
-            />
-          ))}
+          {offseason.offers.map((o, i) => {
+            const isChosen = offseason.chosenClubId === o.clubId && offseason.chosenVerb !== 'stay';
+            return (
+              <OfferCard
+                key={o.clubId + i}
+                offer={o}
+                chosen={isChosen}
+                dimmed={offseason.forcedLocked && !isChosen}
+                forced={offseason.forcedLocked}
+                onClick={() => chooseOffer(i)}
+                lang={lang} t={t} verbLabel={verbLabelFor(o)} flavor={offerFlavor(player, o, lang)}
+                betrayal={o.verb === 'sign' && areRivals(player.clubId, o.clubId)}
+              />
+            );
+          })}
           {offseason.canStay && player.clubId && (
             <OfferCard
               offer={{ clubId: player.clubId, verb: 'stay', role: 'starter' }}
@@ -319,7 +343,15 @@ function TransferZone({ lang }: { lang: Lang }) {
         </div>
       )}
 
-      {!offseason.isYouth && !forced && (
+      {offseason.forcedLocked && (
+        <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-200 text-center">
+          {lang === 'es'
+            ? 'Forzaste la salida. El pase ya está cerrado — no hay vuelta atrás.'
+            : 'You forced the move. The transfer is done — there is no going back.'}
+        </div>
+      )}
+
+      {!offseason.isYouth && !forced && !offseason.forcedLocked && (
         <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} onClick={openForced}
           className="mt-3 w-full rounded-xl border border-amber-400/30 bg-amber-400/5 py-2.5 text-sm text-amber-200 hover:bg-amber-400/10 transition-colors">
           🔁 {t.requestTransfer}

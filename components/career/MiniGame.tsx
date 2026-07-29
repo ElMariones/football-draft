@@ -24,6 +24,8 @@ export interface MiniGameSpec {
   /** where the sweet spot sits, 0-100, and how wide it is */
   target: number;
   width: number;
+  /** how many shirts you may lift in the luck game before it is over */
+  picks?: number;
   /** for the tournament stake: what is on the line, and against whom */
   label?: string;
   round?: string;
@@ -62,6 +64,7 @@ export default function MiniGame({ lang }: { lang: Lang }) {
   const [flash, setFlash] = useState(-1);
   const [entered, setEntered] = useState<number[]>([]);
   const [bar, setBar] = useState(0);
+  const [lifted, setLifted] = useState<number[]>([]);
   const [result, setResult] = useState<boolean | null>(null);
   const raf = useRef<number>();
   const dir = useRef(1);
@@ -69,7 +72,7 @@ export default function MiniGame({ lang }: { lang: Lang }) {
   // reset whenever a new minigame arrives
   useEffect(() => {
     setPhase(miniGame?.kind === 'memory' ? 'watch' : 'play');
-    setEntered([]); setResult(null); setBar(0); setFlash(-1);
+    setEntered([]); setResult(null); setBar(0); setFlash(-1); setLifted([]);
   }, [miniGame]);
 
   // memory: play the sequence back to the player first
@@ -115,8 +118,11 @@ export default function MiniGame({ lang }: { lang: Lang }) {
   };
 
   const pickShirt = (i: number) => {
-    if (phase !== 'play') return;
-    finish(i === miniGame.luckIndex);
+    if (phase !== 'play' || lifted.includes(i)) return;
+    if (i === miniGame.luckIndex) { finish(true); return; }
+    const next = [...lifted, i];
+    setLifted(next);
+    if (next.length >= (miniGame.picks ?? 1)) finish(false);
   };
 
   const pressPad = (i: number) => {
@@ -165,24 +171,39 @@ export default function MiniGame({ lang }: { lang: Lang }) {
 
           {/* ---- luck: three shirts ---- */}
           {miniGame.kind === 'luck' && (
+            <>
             <div className="grid grid-cols-3 gap-3 mt-5">
               {[0, 1, 2].map(i => {
                 const reveal = phase === 'done' && i === miniGame.luckIndex;
+                const empty = lifted.includes(i);
+                const live = phase === 'play' && !empty;
                 return (
                   <motion.button
                     key={i}
-                    whileHover={phase === 'play' ? { scale: 1.06, y: -4 } : undefined}
-                    whileTap={phase === 'play' ? { scale: 0.94 } : undefined}
+                    animate={empty ? { rotate: [0, -6, 6, 0], opacity: 0.35 } : { opacity: 1 }}
+                    whileHover={live ? { scale: 1.06, y: -4 } : undefined}
+                    whileTap={live ? { scale: 0.94 } : undefined}
                     onClick={() => pickShirt(i)}
+                    disabled={!live}
                     className={`aspect-square rounded-2xl border-2 grid place-items-center text-4xl transition-colors ${
-                      reveal ? 'border-wc bg-wc/20' : 'border-white/15 bg-white/5 hover:bg-white/10'
+                      reveal ? 'border-wc bg-wc/20'
+                        : empty ? 'border-white/10 bg-white/[0.02]'
+                          : 'border-white/15 bg-white/5 hover:bg-white/10'
                     }`}
                   >
-                    {reveal ? '⚽' : '👕'}
+                    {reveal ? '⚽' : empty ? '·' : '👕'}
                   </motion.button>
                 );
               })}
             </div>
+            {(miniGame.picks ?? 1) > 1 && phase === 'play' && (
+              <div className="text-[11px] text-wc mt-2">
+                {es
+                  ? `Tu nivel te da ${(miniGame.picks ?? 1) - lifted.length} intento${(miniGame.picks ?? 1) - lifted.length > 1 ? 's' : ''} más.`
+                  : `Your level earns you ${(miniGame.picks ?? 1) - lifted.length} pick${(miniGame.picks ?? 1) - lifted.length > 1 ? 's' : ''}.`}
+              </div>
+            )}
+            </>
           )}
 
           {/* ---- memory: four pads ---- */}

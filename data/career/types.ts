@@ -141,6 +141,10 @@ export interface CareerPlayer {
   money: number;
   /** seasons until another clutch moment can fire */
   momentCooldown: number;
+  /** seasons left before another minigame may fire */
+  miniCooldown: number;
+  /** Ballons d'Or already won — a reigning winner faces a tougher field */
+  ballonWins: number;
   /** clutch moments won across the career */
   clutchWon: number;
   /** shop items owned */

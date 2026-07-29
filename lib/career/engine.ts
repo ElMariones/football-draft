@@ -116,6 +116,8 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     stamina: 70,
     money: 0,
     momentCooldown: 0,
+    miniCooldown: 0,
+    ballonWins: 0,
     clutchWon: 0,
     owned: [],
     face: randomFace(o.nationCode, rng),
