@@ -157,16 +157,16 @@ export default function Face({
               as round. Wide rather than tall is what fits. */}
           {style === 'afro' && (
             <>
-              <ellipse cx="50" cy="34" rx="37" ry="29" />
-              {[[18, 18], [34, 7], [50, 4], [66, 7], [82, 18], [14, 44], [86, 44]].map(([x, y], i) => (
-                <circle key={i} cx={x} cy={y} r="11" />
+              <ellipse cx="50" cy="36" rx="37" ry="28" />
+              {[[20, 22], [34, 14], [50, 12], [66, 14], [80, 22], [14, 46], [86, 46]].map(([x, y], i) => (
+                <circle key={i} cx={x} cy={y} r="10" />
               ))}
             </>
           )}
           {style === 'curly' && (
             <>
               <ellipse cx="50" cy="30" rx="33" ry="25" />
-              {[[20, 34], [28, 16], [50, 10], [72, 16], [80, 34], [16, 50], [84, 50]].map(([x, y], i) => (
+              {[[20, 34], [28, 18], [50, 13], [72, 18], [80, 34], [16, 50], [84, 50]].map(([x, y], i) => (
                 <circle key={i} cx={x} cy={y} r="9" />
               ))}
             </>
@@ -213,6 +213,13 @@ export default function Face({
       <path d={headPath} fill={`url(#sk${uid})`} />
 
       <g clipPath={`url(#head${uid})`}>
+        {/* The skull outline lives in here, first, so that everything drawn
+            afterwards covers it — hair above all. Drawn last and unclipped, as
+            it used to be, it painted a pale arc straight across the fringe.
+            Clipping it also keeps only the inner half of the stroke, which is
+            what gives a clean silhouette rather than a rim around the head. */}
+        <path d={headPath} fill="none" stroke={shade(skin, 0.7)} strokeWidth="2" />
+
         {/* freckles */}
         {genes.freckles && [...Array(10)].map((_, i) => (
           <circle key={i} cx={34 + (i % 5) * 8} cy={54 + Math.floor(i / 5) * 5}
@@ -356,8 +363,6 @@ export default function Face({
         </g>
       )}
 
-      {/* outline last */}
-      <path d={headPath} fill="none" stroke={shade(skin, 0.7)} strokeWidth="1.1" />
     </svg>
   );
 }
