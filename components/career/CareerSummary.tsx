@@ -14,6 +14,7 @@ import { patrimony } from '@/lib/career/shop';
 import { Crest, OvrBadge, CountUp, TrophyBadge } from './bits';
 import { LeagueBadge } from './crests';
 import { TrophyIcon } from './TrophyArt';
+import { NationalTeamHistory } from './NationalTeam';
 
 const TITLE_WEIGHT: Record<string, number> = {
   'world-cup': 60, 'ballon-dor': 55, champions: 45, 'the-best': 40, libertadores: 30,
@@ -427,15 +428,7 @@ export default function CareerSummary({
         </Section>
 
         <Section label={t.nationalTeam}>
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{nationFlag(player.ntNationCode)}</span>
-            <div>
-              <div className="font-display text-xl leading-none">{nationName(player.ntNationCode, lang)}</div>
-              <div className="text-white/50 text-sm mt-0.5">
-                {player.ntCaps} {t.caps} · {player.ntGoals} {t.goals}
-              </div>
-            </div>
-          </div>
+          <NationalTeamHistory player={player} lang={lang} />
           <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-white/10 text-center">
             <div>
               <div className="font-display text-xl text-wc">{player.derbyGoals ?? 0}</div>

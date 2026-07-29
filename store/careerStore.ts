@@ -13,7 +13,8 @@ import { CAREER, declineByAge } from '@/lib/career/config';
 import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
 } from '@/lib/career/engine';
-import { rollClubTitles, rollInternational, isBigTitle } from '@/lib/career/titles';
+import { rollClubTitles, isBigTitle } from '@/lib/career/titles';
+import { rollNationalTeam, intlNews } from '@/lib/career/international';
 import { rollAwards } from '@/lib/career/awards';
 import {
   generateYouthOffers, generateLoanOffers, generateTransferOffers,
@@ -544,7 +545,26 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     // simulate
     const out: SeasonOutput = simulateSeason(player, club, rng);
     const clubT = rollClubTitles(player, club, out, rng);
-    const intl = rollInternational(player, out, seasonYear, rng);
+    // Full international resolution: selection, squad role, caps, goals,
+    // qualification and how far the country went.
+    const nt = rollNationalTeam(player, {
+      apps: out.apps, goals: out.goals, assists: out.assists,
+      rating: out.rating, effOverall: out.effOverall,
+    }, seasonYear, rng);
+    player.ntHistory = [...(player.ntHistory ?? []), nt.season];
+    const intl = {
+      titles: nt.wonKey
+        ? [{ key: nt.wonKey, kind: 'national' as const, scope: 'national' as const,
+             age: player.age, nationCode: player.ntNationCode }]
+        : [],
+      played: nt.season.tournament ? nt.season.tournament.kind : null,
+      finalist: nt.finalist,
+      won: !!nt.wonKey,
+    };
+    if (nt.season.tournament) {
+      const tt = nt.season.tournament;
+      news.push(intlNews(tt, player.ntNationCode, nt.season, s.lang));
+    }
     const bigTitles =
       clubT.titles.filter(t => isBigTitle(t.key)).length +
       intl.titles.filter(t => isBigTitle(t.key)).length;

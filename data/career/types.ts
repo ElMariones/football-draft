@@ -1,5 +1,6 @@
 // Career simulator — core types. Positions reuse the game-wide union.
 import type { Position } from '@/data/types';
+import type { NtSeason } from '@/lib/career/international';
 
 export type Foot = 'left' | 'right';
 export type Confederation = 'UEFA' | 'CONMEBOL' | 'CONCACAF' | 'AFC' | 'CAF';
@@ -144,6 +145,8 @@ export interface CareerPlayer {
   /** shop items owned */
   owned: string[];
 
+  /** one entry per season of international football (see lib/career/international.ts) */
+  ntHistory: NtSeason[];
   /** the ceiling this player was born with, before any late-bloomer breakout */
   basePotential: number;
   /** the role the club promised when you signed — honoured while it lasts */

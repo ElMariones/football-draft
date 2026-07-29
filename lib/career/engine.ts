@@ -117,6 +117,7 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     momentCooldown: 0,
     clutchWon: 0,
     owned: [],
+    ntHistory: [],
     basePotential: potential,
     rolePromise: null,
     rolePromiseYears: 0,

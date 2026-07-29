@@ -85,46 +85,5 @@ function tournamentThisYear(year: number): null | 'world' | 'continental' {
   return null;
 }
 
-export function rollInternational(p: CareerPlayer, out: SeasonOutput, year: number, rng: Rng): IntlResult {
-  const nation = getNation(p.ntNationCode);
-  const res: IntlResult = { titles: [], played: null, finalist: false, won: false };
-  if (!nation) return res;
-
-  // call-up gate
-  const threshold = clamp(35, 82, nation.strength - 24);
-  if (!p.ntCapped) {
-    if (p.reputation >= threshold && p.overall >= 68) {
-      p.ntCapped = true;
-      p.flags['ntDebut'] = true;
-    } else {
-      return res;
-    }
-  }
-
-  // caps + goals for the year
-  const yearCaps = Math.round(rng.range(6, 11));
-  p.ntCaps += yearCaps;
-  if (isAttacker(p.position)) {
-    p.ntGoals += Math.max(0, Math.round(rng.gauss(yearCaps * 0.35 * (p.overall / 85), 1.5)));
-  }
-
-  const tour = tournamentThisYear(year);
-  if (!tour) return res;
-  res.played = tour;
-
-  const eff = out.effOverall;
-  const base = nation.strength + eff * 0.15 - (tour === 'world' ? 97 : 95);
-  const winChance = clamp(0.01, 0.6, logistic(base * 0.28));
-  const finalistChance = clamp(0.03, 0.75, logistic((base + 4) * 0.26));
-
-  res.finalist = rng.chance(finalistChance);
-  if (res.finalist && rng.chance(winChance / Math.max(0.05, finalistChance))) {
-    res.won = true;
-    const key = tour === 'world'
-      ? 'world-cup'
-      : (CONTINENTAL_KEY[nation.confed] ?? 'euro');
-    res.titles.push({ key, kind: 'national', scope: 'national', age: p.age, nationCode: p.ntNationCode });
-    p.flags[tour === 'world' ? 'wonWorldCup' : 'wonContinental'] = true;
-  }
-  return res;
-}
+// rollInternational moved to lib/career/international.ts, which models
+// selection, squad role, qualification and tournament results properly.
