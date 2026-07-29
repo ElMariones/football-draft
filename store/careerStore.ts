@@ -5,7 +5,7 @@ import type { Position } from '@/data/types';
 import type {
   CareerPlayer, CareerEvent, ClubOffer, SeasonRecord, Title, Foot,
 } from '@/data/career/types';
-import { NATIONS } from '@/data/career/nations';
+import { NATIONS, getNation } from '@/data/career/nations';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { makeRng, Rng, randomSeed, clamp } from '@/lib/career/rng';
@@ -14,7 +14,7 @@ import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
 } from '@/lib/career/engine';
 import { rollClubTitles, isBigTitle } from '@/lib/career/titles';
-import { rollNationalTeam, intlNews } from '@/lib/career/international';
+import { rollNationalTeam, intlNews, resultLabel } from '@/lib/career/international';
 import { rollAwards } from '@/lib/career/awards';
 import {
   generateYouthOffers, generateLoanOffers, generateTransferOffers,
@@ -22,9 +22,10 @@ import {
 } from '@/lib/career/offers';
 import { buildEventDeck, selectEvent, applyEffects } from '@/lib/career/events';
 import { transferHeadline } from '@/lib/career/flavor';
-import type { Lang } from '@/lib/career/i18n';
+import { titleLabel, type Lang } from '@/lib/career/i18n';
 import { offerArchetypes, getArchetype, type Archetype } from '@/lib/career/archetypes';
 import { addAttrs, gainAttrs, overallFrom } from '@/lib/career/attributes';
+import { randomFace, type FaceGenes } from '@/lib/career/face';
 import { dealPreseason, getCard, type PreseasonCard } from '@/lib/career/preseason';
 import {
   createMoment, resolveMoment, shouldFireMoment, staminaAfterSeason,
@@ -74,6 +75,8 @@ interface Forced {
 interface Wizard {
   step: 1 | 2 | 3;
   nationCode: string;
+  /** previewed in the creation screen and carried into the career */
+  face: FaceGenes | null;
   surname: string;
   number: number;
   foot: Foot;
@@ -126,6 +129,7 @@ interface CareerState {
   startCareer(): void;
   exitToLanding(): void;
   setNation(code: string): void;
+  rerollFace(): void;
   setIdentity(p: { surname: string; number: number; foot: Foot }): void;
   setPosition(pos: Position): void;
   wizardNext(): void;
@@ -149,7 +153,7 @@ interface CareerState {
 }
 
 const emptyWizard: Wizard = {
-  step: 1, nationCode: '', surname: '', number: 10, foot: 'right', position: null,
+  step: 1, nationCode: '', face: null, surname: '', number: 10, foot: 'right', position: null,
 };
 
 function currentClubStrength(p: CareerPlayer): number {
@@ -203,6 +207,17 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         line = es ? '🚀 Golazo. Da la vuelta al mundo en una hora.' : '🚀 A wonder goal. Around the world within the hour.'; }
       else { p.form = clamp(15, 99, p.form - 4);
         line = es ? '🚀 La mandaste a la tribuna. Se ríen una semana.' : '🚀 You put it in the stands. A week of jokes.'; }
+    } else if (g.stake === 'tournament') {
+      if (won) {
+        p.ntGoals += 1; p.reputation = clamp(0, 100, p.reputation + 10);
+        p.morale = clamp(5, 100, p.morale + 12);
+        line = es ? '🌍 Decidiste el partido con tu selección. El país no lo olvida.'
+                  : '🌍 You decided the tie for your country. The nation will not forget it.';
+      } else {
+        p.reputation = clamp(0, 100, p.reputation - 4); p.morale = clamp(5, 100, p.morale - 10);
+        line = es ? '🌍 Fallaste en el momento clave con tu selección.'
+                  : '🌍 You came up short at the decisive moment for your country.';
+      }
     } else {
       if (won) { addIdol(p, p.clubId, 9); p.morale = clamp(5, 100, p.morale + 10); p.form = clamp(15, 99, p.form + 8);
         line = es ? '⚔️ Ganaste el clásico. La ciudad es tuya.' : '⚔️ You won the derby. The city is yours.'; }
@@ -243,7 +258,17 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     get().reset();
   },
 
-  setNation(code) { set(s => ({ wizard: { ...s.wizard, nationCode: code } })); },
+  setNation(code) {
+    // the face follows the flag: pick a country and you get a plausible one
+    const rng = makeRng(randomSeed());
+    set(s => ({ wizard: { ...s.wizard, nationCode: code, face: randomFace(code, rng) } }));
+  },
+  rerollFace() {
+    const s = get();
+    if (!s.wizard.nationCode) return;
+    const rng = makeRng(randomSeed());
+    set({ wizard: { ...s.wizard, face: randomFace(s.wizard.nationCode, rng) } });
+  },
   setIdentity(p) { set(s => ({ wizard: { ...s.wizard, ...p } })); },
   setPosition(pos) { set(s => ({ wizard: { ...s.wizard, position: pos } })); },
   wizardNext() { set(s => ({ wizard: { ...s.wizard, step: Math.min(3, s.wizard.step + 1) as 1 | 2 | 3 } })); },
@@ -267,6 +292,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       seed,
       rng,
     });
+    if (wizard.face) player.face = wizard.face;
     // ~30% chance of dual nationality → enables the switch event
     if (rng.chance(0.3)) {
       const others = NATIONS.filter(n => n.code !== player.nationCode);
@@ -603,11 +629,34 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     // A minigame fires off the back of what actually happened this season: a
     // layoff to recover from, a chance worth burying, or a derby to win.
     let mini: MiniGameSpec | null = null;
+
+    // A knockout tie with your country outranks anything at club level. The
+    // difficulty comes from both sides of the equation: a weak nation makes the
+    // window tighter, being their best player widens it back out.
+    const tt = nt.season.tournament;
+    if (tt && tt.qualified && nt.season.role && nt.season.role !== 'fringe'
+        && ['r16', 'qf', 'sf', 'runner-up', 'champion'].includes(tt.result)) {
+      const nationStr = getNation(player.ntNationCode)?.strength ?? 70;
+      // 9 (brutal) to 30 (comfortable)
+      const width = clamp(9, 30, 6 + (nationStr - 55) * 0.35 + (player.overall - 70) * 0.45);
+      const kindRoll = rng.next();
+      mini = {
+        kind: kindRoll < 0.45 ? 'skill' : kindRoll < 0.75 ? 'luck' : 'memory',
+        stake: 'tournament',
+        luckIndex: rng.int(3),
+        sequence: Array.from({ length: nationStr >= 82 ? 3 : 4 }, () => rng.int(4)),
+        target: 18 + rng.int(64),
+        width,
+        label: titleLabel(tt.key, s.lang),
+        round: resultLabel(tt.result, s.lang),
+      };
+    }
     const stakes: MiniStake[] = [];
+    if (mini) stakes.length = 0;
     if (player.injuryGamesNext > 0) stakes.push('injury');
     if (out.derbyGames > 0) stakes.push('derby');
     if (out.goals >= 8) stakes.push('wonder-goal');
-    if (stakes.length && rng.chance(0.4)) {
+    if (!mini && stakes.length && rng.chance(0.4)) {
       const stake = stakes[rng.int(stakes.length)];
       const kind = stake === 'injury' ? 'memory' : stake === 'derby' ? 'luck' : 'skill';
       // the sweet spot narrows as the stakes rise; technique widens it back out

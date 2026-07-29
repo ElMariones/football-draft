@@ -14,6 +14,7 @@ import { patrimony } from '@/lib/career/shop';
 import { Crest, OvrBadge, CountUp, TrophyBadge } from './bits';
 import { LeagueBadge } from './crests';
 import { TrophyIcon } from './TrophyArt';
+import Face from './Face';
 import { NationalTeamHistory } from './NationalTeam';
 
 const TITLE_WEIGHT: Record<string, number> = {
@@ -146,6 +147,8 @@ export default function CareerSummary({
           className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-wc/20 blur-3xl"
         />
         <div className="relative flex flex-wrap items-center gap-5">
+          {/* the face he retired with — beard, lines and grey included */}
+          <Face genes={player.face} age={player.age} size={82} />
           <OvrBadge ovr={player.peakOverall} size="lg" animated />
           <div className="min-w-0">
             <div className="text-[10px] tracking-[0.35em] text-wc uppercase">{t.careerSummary}</div>

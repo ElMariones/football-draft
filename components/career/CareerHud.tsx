@@ -1,5 +1,6 @@
 'use client';
 
+import Face from './Face';
 import type { CareerPlayer, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
@@ -42,7 +43,8 @@ export default function CareerHud({
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card p-4 sm:p-5">
       <div className="flex items-center gap-4">
-        <OvrBadge ovr={player.overall} size="lg" animated />
+        <Face genes={player.face} age={player.age} size={54} />
+      <OvrBadge ovr={player.overall} size="lg" animated />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-xs text-white/60 mb-1">
             <Flag code={player.ntNationCode} className="text-base" />

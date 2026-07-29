@@ -5,6 +5,7 @@ import { getLeague } from '@/data/career/leagues';
 import { rivalsOf } from '@/data/career/rivals';
 import { Rng, clamp, logistic, smoothstep } from './rng';
 import { startingAttrs, overallFrom, addAttrs, gainAttrs, ageDecay, ATTR_KEYS, weightsFor } from './attributes';
+import { randomFace } from './face';
 import {
   CAREER, developmentByAge, declineByAge, leagueGamesByTier, CONTINENTAL_GAMES,
   ageMinutesBias, isKeeperOrDef, leaguePremium, ageValueMul, valueBase,
@@ -117,6 +118,7 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     momentCooldown: 0,
     clutchWon: 0,
     owned: [],
+    face: randomFace(o.nationCode, rng),
     ntHistory: [],
     basePotential: potential,
     rolePromise: null,

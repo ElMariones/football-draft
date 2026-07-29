@@ -13,7 +13,7 @@ import { useCareerStore } from '@/store/careerStore';
 import type { Lang } from '@/lib/career/i18n';
 
 export type MiniKind = 'luck' | 'memory' | 'skill';
-export type MiniStake = 'injury' | 'wonder-goal' | 'derby';
+export type MiniStake = 'injury' | 'wonder-goal' | 'derby' | 'tournament';
 
 export interface MiniGameSpec {
   kind: MiniKind;
@@ -24,6 +24,9 @@ export interface MiniGameSpec {
   /** where the sweet spot sits, 0-100, and how wide it is */
   target: number;
   width: number;
+  /** for the tournament stake: what is on the line, and against whom */
+  label?: string;
+  round?: string;
 }
 
 const COPY: Record<MiniStake, { en: [string, string]; es: [string, string] }> = {
@@ -38,6 +41,10 @@ const COPY: Record<MiniStake, { en: [string, string]; es: [string, string] }> = 
   derby: {
     en: ['The derby', 'Ninety minutes that the city will talk about for a year.'],
     es: ['El clásico', 'Noventa minutos de los que la ciudad va a hablar un año.'],
+  },
+  tournament: {
+    en: ['With your country', 'The whole nation has stopped to watch this.'],
+    es: ['Con tu selección', 'El país entero se detuvo para ver esto.'],
   },
 };
 
@@ -142,8 +149,15 @@ export default function MiniGame({ lang }: { lang: Lang }) {
           <div className="text-[10px] tracking-[0.35em] text-cl uppercase">
             {es ? 'Minijuego' : 'Minigame'}
           </div>
-          <h2 className="font-display text-3xl leading-none mt-1">{c[0]}</h2>
+          <h2 className="font-display text-3xl leading-none mt-1">
+            {miniGame.label ?? c[0]}
+          </h2>
           <p className="text-white/60 text-sm mt-2">{c[1]}</p>
+          {miniGame.round && (
+            <div className="inline-block mt-2 text-[10px] uppercase tracking-widest px-2 py-1 rounded-full border border-gold/40 bg-gold/10 text-gold">
+              {miniGame.round}
+            </div>
+          )}
 
           {phase !== 'done' && (
             <p className="text-xs text-wc mt-3">{KIND_COPY[miniGame.kind][es ? 'es' : 'en']}</p>

@@ -8,6 +8,7 @@ import { careerT, Lang } from '@/lib/career/i18n';
 import { PITCH_POSITIONS, positionAbbr } from '@/lib/career/format';
 import type { Position } from '@/data/types';
 import { Jersey } from './bits';
+import Face from './Face';
 
 // Approximate national jersey colours for the preview.
 const JERSEY: Record<string, [string, string]> = {
@@ -52,7 +53,7 @@ function SectionLabel({ n, children }: { n: number; children: React.ReactNode })
 
 export default function CareerWizard({ lang }: { lang: Lang }) {
   const t = careerT(lang);
-  const { wizard, setNation, setIdentity, setPosition, confirmIdentity, reset } = useCareerStore();
+  const { wizard, setNation, setIdentity, setPosition, confirmIdentity, reset, rerollFace } = useCareerStore();
   const [query, setQuery] = useState('');
   // The shirt number is held as free text while you type, so the field can be
   // emptied and retyped. It is only committed to the store when it is a real
@@ -103,9 +104,38 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
           >
             <Jersey
               primary={jp} secondary={js} surname={wizard.surname}
-              number={numValid ? +numText : wizard.number} size={190}
+              number={numValid ? +numText : wizard.number} size={170}
             />
           </motion.div>
+
+          {/* the face, rolled to suit the flag and re-rollable */}
+          {wizard.face && (
+            <div className="flex items-center gap-3 mt-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5">
+              <motion.div
+                key={JSON.stringify(wizard.face)}
+                initial={{ scale: 0.85, opacity: 0, rotate: -6 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+              >
+                <Face genes={wizard.face} age={16} size={64} />
+              </motion.div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] tracking-widest text-white/40 uppercase">
+                  {es ? 'Tu cara' : 'Your face'}
+                </div>
+                <p className="text-[10px] text-white/40 leading-tight mt-0.5">
+                  {es ? 'A los 16 no tienes barba: te crecerá con los años.'
+                      : 'No beard at 16 — it fills in as you age.'}
+                </p>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.92, rotate: -20 }}
+                onClick={rerollFace}
+                className="btn-ghost text-xs shrink-0"
+                title={es ? 'Otra cara' : 'Reroll face'}
+              >🎲</motion.button>
+            </div>
+          )}
 
           <div className="grid grid-cols-[1fr_84px] gap-2 mt-3">
             <label className="block">
