@@ -14,7 +14,10 @@ import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
 } from '@/lib/career/engine';
 import { rollClubTitles, isBigTitle } from '@/lib/career/titles';
-import { rollNationalTeam, intlNews, resultLabel } from '@/lib/career/international';
+import {
+  rollNationalTeam, intlNews, resultLabel, roundOdds, resultAfter,
+  KO_ROUNDS, type PendingRun, type NtResult,
+} from '@/lib/career/international';
 import { rollAwards } from '@/lib/career/awards';
 import {
   generateYouthOffers, generateLoanOffers, generateTransferOffers,
@@ -116,6 +119,8 @@ interface CareerState {
   celebrating: Title | null;
   /** an interactive minigame blocking the offseason */
   miniGame: MiniGameSpec | null;
+  /** a knockout run in progress — each round decided by the player, not the dice */
+  ntRun: NtRunState | null;
 
   // actions
   chooseArchetype(id: string): void;
@@ -158,6 +163,150 @@ const emptyWizard: Wizard = {
   step: 1, nationCode: '', face: null, surname: '', number: 10, foot: 'right', position: null,
 };
 
+
+interface NtRunState extends PendingRun {
+  /** which knockout round is being played, 0 = last 16 */
+  idx: number;
+  /** index into stages[] of the season record to patch when the run ends */
+  stageIdx: number;
+  caps: number;
+  goals: number;
+  age: number;
+}
+
+const ROUND_LABEL: Record<string, [string, string]> = {
+  r16: ['Round of 16', 'Octavos de final'],
+  qf: ['Quarter-final', 'Cuartos de final'],
+  sf: ['Semi-final', 'Semifinal'],
+  final: ['The final', 'La final'],
+};
+
+/**
+ * Build the minigame for one knockout round. The odds come from the nation and
+ * from you; the minigame's difficulty is then set so that *playing it* is worth
+ * about those odds. Nothing is decided in advance — win it and you are through.
+ */
+function tournamentMini(run: PendingRun, idx: number, rng: Rng, lang: Lang): MiniGameSpec {
+  const p = roundOdds(run.quality, idx);
+  const roll = rng.next();
+  const kind: MiniGameSpec['kind'] =
+    roll < 0.3 ? 'skill' : roll < 0.55 ? 'penalty' : roll < 0.8 ? 'memory' : 'luck';
+
+  // shirts/picks chosen so picks/shirts lands near the target odds
+  const shirts = p >= 0.6 ? 3 : p >= 0.35 ? 4 : 5;
+  const picks = clamp(1, shirts - 1, Math.round(p * shirts));
+
+  return {
+    kind,
+    stake: 'tournament',
+    knockout: true,
+    luckIndex: rng.int(shirts),
+    shirts,
+    picks,
+    // the keeper covers more of the goal the harder the tie is
+    saves: (() => {
+      const n = clamp(1, 5, Math.round(6 * (1 - p)));
+      const pool = [0, 1, 2, 3, 4, 5];
+      const out: number[] = [];
+      for (let i = 0; i < n; i++) out.push(...pool.splice(rng.int(pool.length), 1));
+      return out;
+    })(),
+    // a longer run to remember when the tie is harder
+    sequence: Array.from({ length: clamp(3, 8, Math.round(8 - p * 5)) }, () => rng.int(4)),
+    target: 18 + rng.int(64),
+    width: clamp(7, 46, 6 + p * 44),
+    label: titleLabel(run.key, lang),
+    round: ROUND_LABEL[KO_ROUNDS[idx]][lang === 'es' ? 1 : 0],
+  };
+}
+
+
+/** The rng is created per career; this just keeps the call sites readable. */
+function rng0(s: { rng: Rng | null }): Rng {
+  return s.rng!;
+}
+
+/**
+ * Close out a knockout run. The season record and the international history
+ * were already written when the season was committed — with the run still
+ * unresolved — so both are patched here with what actually happened, and the
+ * trophy is only awarded now, once it has been won on the pitch.
+ */
+function finishNtRun(
+  set: (partial: Partial<CareerState>) => void,
+  get: () => CareerState,
+  run: NtRunState,
+  result: NtResult,
+  player: CareerPlayer,
+  won: boolean,
+) {
+  const s = get();
+  const es = s.lang === 'es';
+  const champion = result === 'champion';
+
+  if (champion) {
+    player.flags[run.kind === 'world' ? 'wonWorldCup' : 'wonContinental'] = true;
+  }
+
+  // patch the international history entry for this year
+  const hist = [...(player.ntHistory ?? [])];
+  const last = hist[hist.length - 1];
+  if (last?.tournament) {
+    hist[hist.length - 1] = {
+      ...last,
+      caps: last.caps + run.caps,
+      goals: last.goals + run.goals,
+      tournament: {
+        ...last.tournament,
+        result,
+        caps: last.tournament.caps + run.caps,
+        goals: last.tournament.goals + run.goals,
+      },
+    };
+  }
+  player.ntHistory = hist;
+
+  const title: Title | null = champion
+    ? {
+        key: run.key, kind: 'national', scope: 'national',
+        age: run.age, nationCode: player.ntNationCode,
+      }
+    : null;
+
+  // patch the season record so the timeline shows the trophy on the right year
+  const stages = [...s.stages];
+  const rec = stages[run.stageIdx];
+  const roundName = (run.idx >= 0 ? resultLabel(result, s.lang) : '');
+  const line = champion
+    ? (es ? `🏆 ¡Campeones! Ganaste ${titleLabel(run.key, s.lang)} con tu selección.`
+          : `🏆 Champions! You won the ${titleLabel(run.key, s.lang)} with your country.`)
+    : (es ? `🌍 Eliminados en ${roundName.toLowerCase()}. Se acabó el torneo.`
+          : `🌍 Knocked out at the ${roundName.toLowerCase()}. The tournament is over.`);
+
+  if (rec) {
+    stages[run.stageIdx] = {
+      ...rec,
+      titles: title ? [...rec.titles, title] : rec.titles,
+      news: [...(rec.news ?? []), line],
+    };
+  }
+
+  if (won) { player.morale = clamp(5, 100, player.morale + 16); player.reputation = clamp(0, 100, player.reputation + 12); }
+  else { player.morale = clamp(5, 100, player.morale - 9); }
+
+  set({
+    player,
+    stages,
+    lastSeason: stages[run.stageIdx] ?? s.lastSeason,
+    trophies: title ? [...s.trophies, title] : s.trophies,
+    celebrating: title ?? s.celebrating,
+    miniGame: null,
+    ntRun: null,
+    seasonNews: [...s.seasonNews, line],
+  });
+  get().checkAchievements();
+}
+
 function currentClubStrength(p: CareerPlayer): number {
   const c = p.clubId ? getClub(p.clubId) : null;
   return c ? c.strength : 999;
@@ -186,6 +335,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   achievementQueue: [],
   celebrating: null,
   miniGame: null,
+  ntRun: null,
 
   dismissCelebration() { set({ celebrating: null }); },
 
@@ -209,17 +359,40 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         line = es ? '🚀 Golazo. Da la vuelta al mundo en una hora.' : '🚀 A wonder goal. Around the world within the hour.'; }
       else { p.form = clamp(15, 99, p.form - 4);
         line = es ? '🚀 La mandaste a la tribuna. Se ríen una semana.' : '🚀 You put it in the stands. A week of jokes.'; }
-    } else if (g.stake === 'tournament') {
-      if (won) {
-        p.ntGoals += 1; p.reputation = clamp(0, 100, p.reputation + 10);
-        p.morale = clamp(5, 100, p.morale + 12);
-        line = es ? '🌍 Decidiste el partido con tu selección. El país no lo olvida.'
-                  : '🌍 You decided the tie for your country. The nation will not forget it.';
-      } else {
-        p.reputation = clamp(0, 100, p.reputation - 4); p.morale = clamp(5, 100, p.morale - 10);
-        line = es ? '🌍 Fallaste en el momento clave con tu selección.'
-                  : '🌍 You came up short at the decisive moment for your country.';
+    } else if (g.stake === 'tournament' && s.ntRun) {
+      // This is the whole point of the rework: the tie is decided here, not in
+      // advance. Win and the run continues into the next round; lose and the
+      // tournament is over at exactly this stage.
+      const run = s.ntRun;
+      const scored = won && rng0(s).chance(0.45);
+      const caps = run.caps + 1;
+      const goals = run.goals + (scored ? 1 : 0);
+      p.ntCaps += 1;
+      if (scored) p.ntGoals += 1;
+
+      const roundName = g.round ?? '';
+      const throughToFinal = won && run.idx < KO_ROUNDS.length - 1;
+
+      if (throughToFinal) {
+        p.morale = clamp(5, 100, p.morale + 8);
+        p.reputation = clamp(0, 100, p.reputation + 4);
+        line = es
+          ? `🌍 Ganaste ${roundName.toLowerCase()} con tu selección. Seguís vivos.`
+          : `🌍 You won the ${roundName.toLowerCase()} for your country. Still alive.`;
+        set({
+          player: p,
+          miniGame: tournamentMini(run, run.idx + 1, s.rng!, s.lang),
+          ntRun: { ...run, idx: run.idx + 1, caps, goals },
+          seasonNews: [...s.seasonNews, line],
+        });
+        get().checkAchievements();
+        return;
       }
+
+      // the run is over, one way or the other
+      const result = resultAfter(run.idx, won);
+      finishNtRun(set, get, { ...run, caps, goals }, result, p, won);
+      return;
     } else {
       if (won) { addIdol(p, p.clubId, 9); p.morale = clamp(5, 100, p.morale + 10); p.form = clamp(15, 99, p.form + 8);
         line = es ? '⚔️ Ganaste el clásico. La ciudad es tuya.' : '⚔️ You won the derby. The city is yours.'; }
@@ -651,30 +824,14 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     // A minigame fires off the back of what actually happened this season: a
     // layoff to recover from, a chance worth burying, or a derby to win.
     let mini: MiniGameSpec | null = null;
+    let pendingRun: PendingRun | null = null;
 
-    // A knockout tie with your country outranks anything at club level. The
-    // difficulty comes from both sides of the equation: a weak nation makes the
-    // window tighter, being their best player widens it back out.
-    const tt = nt.season.tournament;
-    if (tt && tt.qualified && nt.season.role && nt.season.role !== 'fringe'
-        && ['r16', 'qf', 'sf', 'runner-up', 'champion'].includes(tt.result)) {
-      const nationStr = getNation(player.ntNationCode)?.strength ?? 70;
-      // 9 (brutal) to 30 (comfortable)
-      const width = clamp(9, 30, 6 + (nationStr - 55) * 0.35 + (player.overall - 70) * 0.45);
-      const kindRoll = rng.next();
-      mini = {
-        kind: kindRoll < 0.55 ? 'skill' : kindRoll < 0.75 ? 'luck' : 'memory',
-        stake: 'tournament',
-        luckIndex: rng.int(3),
-        // a blind one-in-three is not a football decision — carrying the side
-        // earns you a second look before the ball is revealed
-        picks: width >= 19 ? 2 : 1,
-        sequence: Array.from({ length: nationStr >= 82 ? 3 : 4 }, () => rng.int(4)),
-        target: 18 + rng.int(64),
-        width,
-        label: titleLabel(tt.key, s.lang),
-        round: resultLabel(tt.result, s.lang),
-      };
+    // A knockout run with your country outranks anything at club level, and it
+    // is not decided in advance: the run is set up here and each round is won or
+    // lost at the minigame in resolveMiniGame.
+    if (nt.pendingRun) {
+      pendingRun = nt.pendingRun;
+      mini = tournamentMini(pendingRun, 0, rng, s.lang);
     }
     const stakes: MiniStake[] = [];
     if (mini) stakes.length = 0;
@@ -764,6 +921,12 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       // the biggest honour of the season stops the game for a moment
       celebrating: pickCelebration(allTitles),
       miniGame: mini,
+      ntRun: pendingRun
+        ? {
+            ...pendingRun, idx: 0, stageIdx: stages.length - 1,
+            caps: 0, goals: 0, age: seasonAge,
+          }
+        : null,
     });
     get().checkAchievements();
 
@@ -815,7 +978,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   reset() {
     set({
       phase: 'landing', seed: 0, rng: null, deck: [], firedEventById: {},
-      player: null, year: CAREER.startYear, stages: [], trophies: [], lastSeason: null,
+      player: null, year: CAREER.startYear, stages: [], trophies: [], lastSeason: null, ntRun: null,
       wizard: { ...emptyWizard }, offseason: null, forced: null,
       archetypeOptions: [], moment: null, momentResult: null, seasonNews: [],
       achievementQueue: [],

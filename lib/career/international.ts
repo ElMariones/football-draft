@@ -143,6 +143,45 @@ function qualifyChance(strength: number, kind: 'world' | 'continental', confed: 
 
 const LADDER: NtResult[] = ['group', 'r16', 'qf', 'sf', 'runner-up', 'champion'];
 
+// ---- the knockout run you actually play ------------------------------------
+
+export const KO_ROUNDS = ['r16', 'qf', 'sf', 'final'] as const;
+export type KoRound = typeof KO_ROUNDS[number];
+
+// Each round is harder than the last, and each has a floor and a ceiling: no
+// tie is ever a formality and none is ever hopeless. The ceilings tighten as the
+// rounds go on, which is what stops a superpower simply walking the tournament.
+const KO_BAR = [72, 80, 88, 96];
+const KO_FLOOR = [0.10, 0.07, 0.05, 0.04];
+const KO_CEIL = [0.86, 0.78, 0.70, 0.60];
+
+/** How good this team is with you in it — the input to every round. */
+export function runQuality(strength: number, role: NtRole, effOverall: number): number {
+  // Your own level has to be worth enough to separate two players in the same
+  // shirt: at 0.15 a 90 and a 72 in the same squad produced identical odds.
+  const lift = role === 'star' ? 5 : role === 'starter' ? 2 : 0;
+  return strength + lift + (effOverall - 78) * 0.35;
+}
+
+/** Your realistic chance of winning a given knockout round, 0-1. */
+export function roundOdds(quality: number, idx: number): number {
+  return clamp(KO_FLOOR[idx], KO_CEIL[idx], logistic((quality - KO_BAR[idx]) / 8));
+}
+
+/** Where you end up if you lose round `idx` (or win the final). */
+export function resultAfter(idx: number, won: boolean): NtResult {
+  if (won && idx >= KO_ROUNDS.length - 1) return 'champion';
+  return (['r16', 'qf', 'sf', 'runner-up'] as NtResult[])[idx];
+}
+
+/** A knockout run handed to the UI to be decided round by round. */
+export interface PendingRun {
+  kind: 'world' | 'continental';
+  key: string;
+  quality: number;
+  role: NtRole;
+}
+
 /** How far they went, given the nation's level and your own contribution. */
 function runResult(strength: number, playerLift: number, rng: Rng): NtResult {
   // Each round is its own coin-flip weighted by quality — a weak qualifier
@@ -167,6 +206,12 @@ export interface IntlOutcome {
   wonKey: string | null;
   /** reached the final (used by award logic) */
   finalist: boolean;
+  /**
+   * Set when the player is on the pitch for a knockout run. The result is
+   * deliberately *not* decided here — the store plays it out one round at a
+   * time and each round is won or lost at the minigame.
+   */
+  pendingRun?: PendingRun;
 }
 
 /** Resolve one season of international football. */
@@ -217,24 +262,41 @@ export function rollNationalTeam(
     return { season, wonKey: null, finalist: false };
   }
 
-  // a star carries his country a little further than the rankings suggest
-  const lift = role === 'star' ? 5 : role === 'starter' ? 2 : 0;
-  const result = runResult(nation.strength, lift + (out.effOverall - 78) * 0.12, rng);
-  const roundsPlayed = 3 + LADDER.indexOf(result);
-  const tCaps = role === 'fringe' ? Math.max(1, Math.round(roundsPlayed * 0.4)) : roundsPlayed;
-  const tGoals = goalsFor(p, role, tCaps, rng);
-  p.ntCaps += tCaps;
-  p.ntGoals += tGoals;
-  season.caps += tCaps;
-  season.goals += tGoals;
-  season.tournament = { kind, key, qualified: true, result, caps: tCaps, goals: tGoals };
+  const quality = runQuality(nation.strength, role, out.effOverall);
 
-  const won = result === 'champion';
-  if (won) p.flags[kind === 'world' ? 'wonWorldCup' : 'wonContinental'] = true;
-  return {
-    season, wonKey: won ? key : null,
-    finalist: result === 'champion' || result === 'runner-up',
+  // A fringe player watches his country from the bench, so the dice still decide
+  // it — there is nothing for him to play.
+  if (role === 'fringe') {
+    const result = runResult(nation.strength, quality - nation.strength, rng);
+    const roundsPlayed = 3 + LADDER.indexOf(result);
+    const tCaps = Math.max(1, Math.round(roundsPlayed * 0.4));
+    const tGoals = goalsFor(p, role, tCaps, rng);
+    p.ntCaps += tCaps; p.ntGoals += tGoals;
+    season.caps += tCaps; season.goals += tGoals;
+    season.tournament = { kind, key, qualified: true, result, caps: tCaps, goals: tGoals };
+    const won = result === 'champion';
+    if (won) p.flags[kind === 'world' ? 'wonWorldCup' : 'wonContinental'] = true;
+    return {
+      season, wonKey: won ? key : null,
+      finalist: result === 'champion' || result === 'runner-up',
+    };
+  }
+
+  // Three group games are not a single moment you can decide, so they stay a
+  // roll. Everything after this is yours to win or lose.
+  const groupCaps = 3;
+  const groupGoals = goalsFor(p, role, groupCaps, rng);
+  p.ntCaps += groupCaps; p.ntGoals += groupGoals;
+  season.caps += groupCaps; season.goals += groupGoals;
+  season.tournament = {
+    kind, key, qualified: true, result: 'group', caps: groupCaps, goals: groupGoals,
   };
+
+  if (!rng.chance(clamp(0.2, 0.95, logistic((quality - 68) / 7)))) {
+    return { season, wonKey: null, finalist: false };
+  }
+
+  return { season, wonKey: null, finalist: false, pendingRun: { kind, key, quality, role } };
 }
 
 // ---- presentation ----------------------------------------------------------

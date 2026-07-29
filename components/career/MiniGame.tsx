@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
 import type { Lang } from '@/lib/career/i18n';
 
-export type MiniKind = 'luck' | 'memory' | 'skill';
+export type MiniKind = 'luck' | 'memory' | 'skill' | 'penalty';
 export type MiniStake = 'injury' | 'wonder-goal' | 'derby' | 'tournament';
 
 export interface MiniGameSpec {
@@ -26,6 +26,12 @@ export interface MiniGameSpec {
   width: number;
   /** how many shirts you may lift in the luck game before it is over */
   picks?: number;
+  /** how many shirts there are to choose from (3-5) — difficulty for 'luck' */
+  shirts?: number;
+  /** which of the six goal zones the keeper covers — difficulty for 'penalty' */
+  saves?: number[];
+  /** true while a knockout tie is on the line: losing ends the tournament */
+  knockout?: boolean;
   /** for the tournament stake: what is on the line, and against whom */
   label?: string;
   round?: string;
@@ -54,6 +60,7 @@ const KIND_COPY: Record<MiniKind, { en: string; es: string }> = {
   luck: { en: 'Which shirt is the ball under?', es: '¿Bajo qué camiseta está la pelota?' },
   memory: { en: 'Repeat the run', es: 'Repite la jugada' },
   skill: { en: 'Stop the power in the green', es: 'Detén la potencia en el verde' },
+  penalty: { en: 'Pick your corner', es: 'Elige tu palo' },
 };
 
 export default function MiniGame({ lang }: { lang: Lang }) {
@@ -65,6 +72,7 @@ export default function MiniGame({ lang }: { lang: Lang }) {
   const [entered, setEntered] = useState<number[]>([]);
   const [bar, setBar] = useState(0);
   const [lifted, setLifted] = useState<number[]>([]);
+  const [shot, setShot] = useState(-1);
   const [result, setResult] = useState<boolean | null>(null);
   const raf = useRef<number>();
   const dir = useRef(1);
@@ -72,7 +80,7 @@ export default function MiniGame({ lang }: { lang: Lang }) {
   // reset whenever a new minigame arrives
   useEffect(() => {
     setPhase(miniGame?.kind === 'memory' ? 'watch' : 'play');
-    setEntered([]); setResult(null); setBar(0); setFlash(-1); setLifted([]);
+    setEntered([]); setResult(null); setBar(0); setFlash(-1); setLifted([]); setShot(-1);
   }, [miniGame]);
 
   // memory: play the sequence back to the player first
@@ -135,6 +143,12 @@ export default function MiniGame({ lang }: { lang: Lang }) {
     setEntered(next);
   };
 
+  const shoot = (i: number) => {
+    if (phase !== 'play') return;
+    setShot(i);
+    finish(!(miniGame.saves ?? []).includes(i));
+  };
+
   const stopBar = () => {
     if (phase !== 'play') return;
     if (raf.current) window.cancelAnimationFrame(raf.current);
@@ -172,8 +186,8 @@ export default function MiniGame({ lang }: { lang: Lang }) {
           {/* ---- luck: three shirts ---- */}
           {miniGame.kind === 'luck' && (
             <>
-            <div className="grid grid-cols-3 gap-3 mt-5">
-              {[0, 1, 2].map(i => {
+            <div className={`grid gap-3 mt-5 ${(miniGame.shirts ?? 3) >= 5 ? 'grid-cols-5' : (miniGame.shirts ?? 3) === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+              {Array.from({ length: miniGame.shirts ?? 3 }, (_, i) => i).map(i => {
                 const reveal = phase === 'done' && i === miniGame.luckIndex;
                 const empty = lifted.includes(i);
                 const live = phase === 'play' && !empty;
@@ -204,6 +218,43 @@ export default function MiniGame({ lang }: { lang: Lang }) {
               </div>
             )}
             </>
+          )}
+
+          {/* ---- penalty: six corners, some of them covered ---- */}
+          {miniGame.kind === 'penalty' && (
+            <div className="mt-5">
+              <div className="relative rounded-lg border-4 border-white/70 bg-white/[0.04] p-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[0, 1, 2, 3, 4, 5].map(i => {
+                    const saved = (miniGame.saves ?? []).includes(i);
+                    const revealed = phase === 'done';
+                    return (
+                      <motion.button
+                        key={i}
+                        whileHover={phase === 'play' ? { scale: 1.05 } : undefined}
+                        whileTap={phase === 'play' ? { scale: 0.95 } : undefined}
+                        onClick={() => shoot(i)}
+                        disabled={phase !== 'play'}
+                        className={`h-12 rounded-md border grid place-items-center text-2xl transition-colors ${
+                          revealed && i === shot
+                            ? saved ? 'border-ll bg-ll/25' : 'border-wc bg-wc/25'
+                            : revealed && saved
+                              ? 'border-white/20 bg-red-500/10'
+                              : 'border-white/20 bg-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        {revealed && saved ? '🧤' : revealed && i === shot ? '⚽' : ''}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="text-[11px] text-white/45 mt-2">
+                {es
+                  ? `El arquero cubre ${(miniGame.saves ?? []).length} de 6.`
+                  : `The keeper covers ${(miniGame.saves ?? []).length} of 6.`}
+              </div>
+            </div>
           )}
 
           {/* ---- memory: four pads ---- */}
