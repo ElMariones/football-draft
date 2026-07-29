@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
 import {
@@ -19,10 +19,23 @@ const TIER_LABEL: Record<AchTier, { en: string; es: string }> = {
 export function AchievementToasts({ lang }: { lang: Lang }) {
   const { achievementQueue, dismissAchievement } = useCareerStore();
   const es = lang === 'es';
+  const shown = achievementQueue.slice(0, 3);
+
+  // Nothing used to retire a toast except a click on it, so they stacked up for
+  // a whole career and permanently covered the bottom-right — 46 clicks to clear
+  // at the end of a run, and on a 375px screen four of them hid half the page.
+  // Each one now retires itself; clicking still dismisses early.
+  const oldest = shown[0]?.id;
+  useEffect(() => {
+    if (!oldest) return;
+    const t = window.setTimeout(() => dismissAchievement(oldest), 4200);
+    return () => window.clearTimeout(t);
+  }, [oldest, dismissAchievement]);
+
   return (
-    <div className="fixed bottom-4 right-4 z-[70] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-3 right-3 left-3 sm:left-auto z-[70] flex flex-col items-end gap-2 pointer-events-none">
       <AnimatePresence>
-        {achievementQueue.slice(0, 4).map(a => {
+        {shown.map(a => {
           const st = TIER_STYLE[a.tier];
           return (
             <motion.button
@@ -32,7 +45,7 @@ export function AchievementToasts({ lang }: { lang: Lang }) {
               exit={{ opacity: 0, x: 60, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 220, damping: 20 }}
               onClick={() => dismissAchievement(a.id)}
-              className={`pointer-events-auto text-left w-72 rounded-2xl border-2 ${st.ring} ${st.glow} bg-[#0b0f14]/95 backdrop-blur px-4 py-3`}
+              className={`pointer-events-auto text-left w-full sm:w-72 rounded-2xl border-2 ${st.ring} ${st.glow} bg-[#0b0f14]/95 backdrop-blur px-4 py-2.5`}
             >
               <div className={`text-[9px] uppercase tracking-[0.3em] ${st.text}`}>
                 {es ? '¡Logro desbloqueado!' : 'Achievement unlocked!'}

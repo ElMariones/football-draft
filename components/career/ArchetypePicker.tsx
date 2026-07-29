@@ -55,7 +55,7 @@ export default function ArchetypePicker({ lang }: { lang: Lang }) {
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
         {archetypeOptions.map((a, i) => (
           <motion.button
             key={a.id}
@@ -65,7 +65,7 @@ export default function ArchetypePicker({ lang }: { lang: Lang }) {
             whileHover={{ scale: 1.035, y: -6 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => chooseArchetype(a.id)}
-            className="group relative overflow-hidden rounded-2xl border border-white/12 bg-white/5 p-5 text-left hover:border-wc/60 hover:bg-white/10 transition-colors"
+            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/12 bg-white/5 p-5 text-left hover:border-wc/60 hover:bg-white/10 transition-colors"
           >
             <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${RISK_TONE} opacity-0 group-hover:opacity-100 transition-opacity`} />
             <div className="relative">

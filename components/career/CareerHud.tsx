@@ -50,7 +50,12 @@ export default function CareerHud({
           <div className="flex items-center gap-2 text-xs text-white/60 mb-1">
             <Flag code={player.ntNationCode} className="text-base" />
             <span className="px-1.5 py-0.5 rounded bg-white/10 font-display tracking-wide">#{player.number} {positionAbbr(player.position, lang)}</span>
-            {player.secondNationCode && <Flag code={player.secondNationCode} className="opacity-50" />}
+            {/* an unlabelled second flag beside the club read as a league badge */}
+            {player.secondNationCode && (
+              <span title={lang === 'es' ? 'Segunda nacionalidad' : 'Second nationality'}>
+                <Flag code={player.secondNationCode} className="opacity-50" />
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 min-w-0">
             {club ? <Crest clubId={club.id} size={28} /> : <span className="text-lg">🎓</span>}

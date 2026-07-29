@@ -8,6 +8,7 @@ import { useCareerStore } from '@/store/careerStore';
 import { careerT } from '@/lib/career/i18n';
 import CareerWizard from '@/components/career/CareerWizard';
 import CareerHud from '@/components/career/CareerHud';
+import MobileIdentityBar from '@/components/career/MobileIdentityBar';
 import CareerOffseason from '@/components/career/CareerOffseason';
 import CareerTimeline from '@/components/career/CareerTimeline';
 import CareerSummary from '@/components/career/CareerSummary';
@@ -46,10 +47,12 @@ export default function CareerPage() {
 
   return (
     <main className="min-h-screen text-white px-3 sm:px-6 py-4 max-w-6xl mx-auto">
-      <header className="flex items-center justify-between mb-6">
-        <Link href="/" className="flex items-center gap-2 group">
-          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-wc to-wc-dark text-black grid place-items-center font-display">⚽</span>
-          <span className="font-display text-lg tracking-wide text-white/80 group-hover:text-white">{t.brand}</span>
+      <header className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+        <Link href="/" className="flex items-center gap-2 group min-w-0">
+          <span className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-wc to-wc-dark text-black grid place-items-center font-display">⚽</span>
+          {/* the wordmark wrapped onto two lines at 375px and shoved the buttons
+              into each other, so it only appears once there is room for it */}
+          <span className="hidden sm:inline font-display text-lg tracking-wide text-white/80 group-hover:text-white whitespace-nowrap">{t.brand}</span>
         </Link>
         <div className="flex items-center gap-2">
           <button
@@ -82,7 +85,15 @@ export default function CareerPage() {
         // middle, the timeline on the right. The side rails stick and scroll
         // internally so the season you are playing stays on screen.
         <div className="grid grid-cols-1 lg:grid-cols-[290px_minmax(0,1fr)_300px] gap-5 items-start">
-          <div className="space-y-4 lg:sticky lg:top-4 order-2 lg:order-1">
+          {/* On a phone the rails stack below the decisions, which left the player
+              card ~1800px down the page: you were asked to pick a club before
+              anything on screen told you who you were. This strip carries the
+              identity to the top, on small screens only. */}
+          <MobileIdentityBar player={player} lang={lang} />
+
+          {/* the rail can outgrow the viewport once the NT panel and shop are in
+              it, so it scrolls internally like the timeline rail already does */}
+          <div className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto order-2 lg:order-1">
             <CareerHud player={player} trophies={trophies} lang={lang} />
             <LegacyPanel lang={lang} />
             <NationalTeamPanel lang={lang} />

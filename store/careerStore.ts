@@ -415,7 +415,10 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     const unlocked = { ...s.unlocked };
     for (const a of fresh) unlocked[a.id] = now;
     saveUnlocked(unlocked);
-    set({ unlocked, achievementQueue: [...s.achievementQueue, ...fresh] });
+    // Cap the queue. A good season pops several at once and a whole career pops
+    // around two dozen; uncapped they stack faster than they can time out and
+    // bury the screen — clearing the backlog at the end of a career took 46 clicks.
+    set({ unlocked, achievementQueue: [...s.achievementQueue, ...fresh].slice(-6) });
   },
   dismissAchievement(id) {
     set(st => ({ achievementQueue: st.achievementQueue.filter(a => a.id !== id) }));

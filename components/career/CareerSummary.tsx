@@ -184,10 +184,13 @@ export default function CareerSummary({
         </div>
 
         {/* the profile he retired with */}
-        <div className="relative grid grid-cols-5 gap-3 mt-5 pt-4 border-t border-white/10">
+        {/* Five columns at 375px gave each label ~60px and clipped three of the
+            five to "TÉCN…", "VELO…", "LIDER…" on the most important screen in
+            the mode. Two columns on a phone, five once there is room. */}
+        <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-3 mt-5 pt-4 border-t border-white/10">
           {ATTR_KEYS.map(k => (
             <div key={k}>
-              <div className="flex justify-between text-[9px] uppercase tracking-widest text-white/40">
+              <div className="flex justify-between gap-2 text-[9px] uppercase tracking-widest text-white/40">
                 <span className="truncate">{ATTR_LABEL[k][es ? 'es' : 'en']}</span>
                 <span className="text-white/70">{Math.round(player.attrs[k])}</span>
               </div>
@@ -246,10 +249,14 @@ export default function CareerSummary({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-white/45 mt-0.5 flex-wrap">
+                    {/* On a phone this wrapped into three ragged lines with the
+                        separators stranded at the end of each. Keep the league on
+                        its own line and the dates together on the next. */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-white/45 mt-0.5 min-w-0">
                       {league && <LeagueBadge leagueId={league.id} size={13} />}
-                      <span>{league ? leagueName(league.id, lang) : ''}</span>
-                      <span className="text-white/25">·</span>
+                      <span className="truncate">{league ? leagueName(league.id, lang) : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-white/45 whitespace-nowrap">
                       <span className="text-white/70">{sp.from}–{sp.to}</span>
                       <span className="text-white/25">·</span>
                       <span>
