@@ -7,6 +7,7 @@ import type { ClubOffer, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { getLeague, leagueName } from '@/data/career/leagues';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
+import { titleName } from '@/lib/career/competitions';
 import { offerFlavor, seasonFlavor } from '@/lib/career/flavor';
 import { Crest } from './bits';
 import { LeagueBadge } from './crests';
@@ -367,7 +368,7 @@ function LastSeasonRecap({ lang }: { lang: Lang }) {
   const { lastSeason } = useCareerStore();
   if (!lastSeason) return null;
   const club = getClub(lastSeason.clubId);
-  const titleTxt = lastSeason.titles.map((tt: Title) => titleLabel(tt.key, lang)).join(' · ');
+  const titleTxt = lastSeason.titles.map((tt: Title) => titleName(tt, lang)).join(' · ');
   return (
     <motion.div
       key={lastSeason.year}

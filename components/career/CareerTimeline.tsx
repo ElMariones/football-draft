@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import type { CareerPlayer, SeasonRecord } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
+import { titleName } from '@/lib/career/competitions';
 import { ovrTier } from '@/lib/career/format';
 import { Crest, TrophyBadge } from './bits';
 
@@ -37,7 +38,7 @@ function Row({ s, lang, t, isLatest }: { s: SeasonRecord; lang: Lang; t: ReturnT
                   className="-ml-2 first:ml-0 transition-[margin] duration-200 group-hover/tr:ml-0.5 hover:z-20 relative"
                   style={{ zIndex: s.titles.length - i }}
                 >
-                  <TrophyBadge title={tt} label={titleLabel(tt.key, lang)} size={16} />
+                  <TrophyBadge title={tt} label={titleName(tt, lang)} size={16} />
                 </span>
               ))}
             </div>

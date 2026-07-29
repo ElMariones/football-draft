@@ -4,6 +4,7 @@ import Face from './Face';
 import type { CareerPlayer, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
+import { titleName } from '@/lib/career/competitions';
 import { formatValue, positionAbbr } from '@/lib/career/format';
 import { isKeeperOrDef } from '@/lib/career/config';
 import { motion } from 'framer-motion';
@@ -82,7 +83,7 @@ export default function CareerHud({
         ) : (
           <div className="flex flex-wrap gap-1.5 items-center">
             {trophies.slice().reverse().slice(0, 22).map((tt, i) => (
-              <TrophyBadge key={i} title={tt} label={titleLabel(tt.key, lang)} size={22} />
+              <TrophyBadge key={i} title={tt} label={titleName(tt, lang)} size={22} />
             ))}
             {trophies.length > 22 && <span className="text-xs text-white/40 self-center">+{trophies.length - 22}</span>}
           </div>

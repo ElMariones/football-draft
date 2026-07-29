@@ -7,6 +7,7 @@ import { getClub } from '@/data/career/clubs';
 import { getLeague, leagueName } from '@/data/career/leagues';
 import { nationName, nationFlag } from '@/data/career/nations';
 import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
+import { titleName } from '@/lib/career/competitions';
 import { formatValue, positionAbbr } from '@/lib/career/format';
 import { idolLevel } from '@/lib/career/idolatry';
 import { ATTR_KEYS, ATTR_LABEL } from '@/lib/career/attributes';
@@ -61,9 +62,9 @@ function domesticGroups(titles: Title[], lang: Lang) {
     if (t.key !== 'league' && t.key !== 'domestic-cup') continue;
     const club = t.clubId ? getClub(t.clubId) : null;
     const league = club ? getLeague(club.leagueId) : null;
-    const label = t.key === 'league'
-      ? (league ? leagueName(league.id, lang) : titleLabel(t.key, lang))
-      : `${titleLabel('domestic-cup', lang)}${league ? ` · ${nationName(league.nationCode, lang)}` : ''}`;
+    // Both halves resolve to the competition's real name — the FA Cup and the
+    // Copa del Rey are not the same trophy won twice.
+    const label = titleName(t, lang);
     const id = `${t.key}:${league?.id ?? '?'}`;
     const e = m.get(id);
     if (e) e.n++;
@@ -272,7 +273,7 @@ export default function CareerSummary({
                     <div className="flex items-center shrink-0 pl-1">
                       {sp.titles.slice(0, 5).map((tt, j) => (
                         <span key={j} className="-ml-1.5 first:ml-0">
-                          <TrophyBadge title={tt} label={titleLabel(tt.key, lang)} size={18} />
+                          <TrophyBadge title={tt} label={titleName(tt, lang)} size={18} />
                         </span>
                       ))}
                     </div>
@@ -309,7 +310,7 @@ export default function CareerSummary({
                               <span className="inline-flex">
                                 {s.titles.map((tt, j) => (
                                   <span key={j} className="-ml-1 first:ml-0">
-                                    <TrophyBadge title={tt} label={titleLabel(tt.key, lang)} size={14} />
+                                    <TrophyBadge title={tt} label={titleName(tt, lang)} size={14} />
                                   </span>
                                 ))}
                               </span>

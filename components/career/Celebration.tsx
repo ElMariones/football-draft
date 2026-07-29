@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Title } from '@/data/career/types';
 import { TrophyIcon } from './TrophyArt';
 import { titleLabel, type Lang } from '@/lib/career/i18n';
+import { titleName } from '@/lib/career/competitions';
 
 /** Honours big enough to stop the game for. */
 export const CELEBRATED = new Set([
@@ -103,7 +104,7 @@ export default function Celebration({
                 {es ? '¡Lo ganaste!' : 'You won it!'}
               </div>
               <div className="font-display text-5xl sm:text-6xl leading-none mt-1 drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
-                {titleLabel(title.key, lang)}
+                {titleName(title, lang)}
               </div>
               <div className="text-white/50 text-xs mt-3">
                 {es ? 'Toca para seguir' : 'Tap to continue'}
