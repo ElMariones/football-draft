@@ -38,9 +38,20 @@ export const HAIR = [
 export const EYES = ['#4A3524', '#6B4A2A', '#8A6B3A', '#3D6B5A', '#4A7FA5', '#6FA3C7', '#5A5A5A'];
 
 export const HAIR_STYLES = [
-  'short', 'buzz', 'curly', 'afro', 'long', 'quiff', 'receding', 'bald', 'topknot', 'mid',
+  'buzz', 'crop', 'short', 'caesar', 'sidepart', 'quiff', 'pompadour', 'spiky',
+  'fade', 'curly', 'afro', 'long', 'mid', 'mullet', 'dreads', 'braids',
+  'topknot', 'manbun', 'receding', 'bald',
 ] as const;
-export const BEARDS = ['none', 'stubble', 'goatee', 'full', 'moustache', 'chinstrap'] as const;
+
+/** Styles a hairline can recede into. A fade or an afro does not recede. */
+export const RECEDES = new Set<string>([
+  'buzz', 'crop', 'short', 'caesar', 'sidepart', 'quiff', 'pompadour', 'receding', 'mullet',
+]);
+
+export const BEARDS = [
+  'none', 'stubble', 'moustache', 'soul-patch', 'goatee', 'van-dyke',
+  'chinstrap', 'boxed', 'full', 'long', 'mutton',
+] as const;
 
 // ---- phenotype regions -----------------------------------------------------
 
@@ -89,17 +100,29 @@ export function randomFace(nationCode: string, rng: Rng): FaceGenes {
   // very dark skin essentially never pairs with blonde hair
   let hairColor = pickWeighted(region.hair, rng);
   if (skin >= 6 && hairColor >= 5) hairColor = rng.int(2);
+
+  const hairStyle = rng.int(HAIR_STYLES.length);
+  // afros, dreads and braids are dark hair in practice — a blonde one reads as
+  // a rendering bug rather than as a rare player
+  if (['afro', 'dreads', 'braids'].includes(HAIR_STYLES[hairStyle]) && hairColor >= 4) {
+    hairColor = rng.int(3);
+  }
+
+  // Half of players are clean-shaven; the other half split evenly across every
+  // style of facial hair, so no single beard dominates the population.
+  const beard = rng.chance(0.5) ? 0 : 1 + rng.int(BEARDS.length - 1);
+
   return {
     skin,
     hairColor,
-    hairStyle: rng.int(HAIR_STYLES.length),
+    hairStyle,
     eyeColor: pickWeighted(region.eyes, rng),
     faceShape: rng.int(4),
     brow: rng.int(3),
     nose: rng.int(3),
     mouth: rng.int(3),
     ears: rng.int(3),
-    beard: rng.int(BEARDS.length),
+    beard,
     freckles: skin <= 2 && rng.chance(0.18),
     greyEarly: rng.next(),
   };

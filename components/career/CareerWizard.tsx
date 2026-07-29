@@ -117,16 +117,15 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
                 animate={{ scale: 1, opacity: 1, rotate: 0 }}
                 transition={{ type: 'spring', stiffness: 260, damping: 18 }}
               >
-                <Face genes={wizard.face} age={16} size={64} />
+                {/* Shown at the age the face is fully grown in, so the beard you
+                    rolled is actually visible while you are choosing it. In game
+                    it still renders at your real age — clean-shaven at 16. */}
+                <Face genes={wizard.face} age={26} size={64} />
               </motion.div>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] tracking-widest text-white/40 uppercase">
                   {es ? 'Tu cara' : 'Your face'}
                 </div>
-                <p className="text-[10px] text-white/40 leading-tight mt-0.5">
-                  {es ? 'A los 16 no tienes barba: te crecerá con los años.'
-                      : 'No beard at 16 — it fills in as you age.'}
-                </p>
               </div>
               <motion.button
                 whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.92, rotate: -20 }}
