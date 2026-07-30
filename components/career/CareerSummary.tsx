@@ -15,6 +15,7 @@ import { patrimony } from '@/lib/career/shop';
 import {
   saveRecord, rankOf, type CareerRecord, type Records,
 } from '@/lib/career/records';
+import { buildSubmission } from '@/lib/career/submission';
 import { Crest, OvrBadge, CountUp, TrophyBadge } from './bits';
 import { LeagueBadge } from './crests';
 import { TrophyIcon } from './TrophyArt';
@@ -143,8 +144,24 @@ export default function CareerSummary({
     };
     setMine(rec);
     setRecords(saveRecord(rec));
-  }, [player, score, stages.length, trophies.length, seedSource]);
 
+    // Rolled seeds also go to the public board. Seeded runs never leave the
+    // device — the server rejects them too, but there is no reason to ask.
+    if (seedSource !== 'random') { setSubmit('seeded'); return; }
+    setSubmit('sending');
+    fetch('/api/career-runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildSubmission(player, stages, trophies, score)),
+    })
+      .then(async r => {
+        if (r.ok) { setSubmit('done'); return; }
+        setSubmit(r.status === 401 ? 'anon' : 'failed');
+      })
+      .catch(() => setSubmit('failed'));
+  }, [player, stages, trophies, score, seedSource]);
+
+  const [submit, setSubmit] = useState<'idle'|'sending'|'done'|'anon'|'failed'|'seeded'>('idle');
   const [copied, setCopied] = useState(false);
   const copySeed = () => {
     const v = String(player.careerSeed ?? '');
@@ -237,6 +254,28 @@ export default function CareerSummary({
             <span className="text-[11px] text-white/45">
               {es ? `#${rank} de tus mejores` : `#${rank} of your best`}
               {seedSource === 'custom' && (es ? ' (con semilla)' : ' (seeded)')}
+            </span>
+          )}
+
+          {/* what happened to the public submission */}
+          {submit !== 'idle' && submit !== 'seeded' && (
+            <span className="text-[11px] ml-auto flex items-center gap-2">
+              {submit === 'sending' && (
+                <span className="text-white/40">{es ? 'Enviando a la tabla…' : 'Submitting…'}</span>
+              )}
+              {submit === 'done' && (
+                <a href="/leaderboard" className="text-wc hover:underline">
+                  {es ? '✓ En la tabla global' : '✓ On the global board'}
+                </a>
+              )}
+              {submit === 'anon' && (
+                <span className="text-white/40">
+                  {es ? 'Inicia sesión para aparecer en la tabla global' : 'Sign in to appear on the global board'}
+                </span>
+              )}
+              {submit === 'failed' && (
+                <span className="text-white/40">{es ? 'No se pudo enviar' : 'Could not submit'}</span>
+              )}
             </span>
           )}
         </div>

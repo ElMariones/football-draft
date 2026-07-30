@@ -98,3 +98,44 @@ export const seasons = pgTable('seasons', {
 
 export type SeasonRow = typeof seasons.$inferSelect;
 export type NewSeasonRow = typeof seasons.$inferInsert;
+
+/**
+ * Finished career-mode runs, for the public career leaderboard.
+ *
+ * Only runs whose seed was *rolled* are accepted. A typed seed can be replayed
+ * until the world cooperates — reroll it, keep the wonderkid, learn where the
+ * events fall — so seeded runs stay on the local board and never reach here.
+ * The seed is stored anyway so any row can be re-simulated and checked later.
+ */
+export const careerRuns = pgTable('careerRun', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
+
+  // who the player was
+  surname: text('surname').notNull(),
+  nationCode: text('nationCode').notNull(),
+  position: text('position').notNull(),
+
+  // what the run was worth — denormalised so the board never parses jsonb
+  score: integer('score').notNull(),
+  peakOverall: integer('peakOverall').notNull(),
+  seasonsPlayed: integer('seasonsPlayed').notNull(),
+  trophies: integer('trophies').notNull(),
+  goals: integer('goals').notNull(),
+  assists: integer('assists').notNull(),
+  apps: integer('apps').notNull(),
+  ballonDors: integer('ballonDors').notNull().default(0),
+
+  // the seed it came from, and proof it was not chosen
+  seed: integer('seed').notNull(),
+  seedSource: text('seedSource').notNull(),
+
+  // the story: club spells, honours, national-team record
+  history: jsonb('history').notNull(),
+});
+
+export type CareerRunRow = typeof careerRuns.$inferSelect;
+export type NewCareerRunRow = typeof careerRuns.$inferInsert;
