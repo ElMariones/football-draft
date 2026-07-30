@@ -2,7 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
-import { archetypeName, archetypeDesc } from '@/lib/career/archetypes';
+import {
+  archetypeName, archetypeDesc, rarityLabel, RARITY_STYLE, RARITY_BUDGET,
+} from '@/lib/career/archetypes';
 import { ATTR_LABEL, type AttrKey } from '@/lib/career/attributes';
 import type { Lang } from '@/lib/career/i18n';
 
@@ -65,13 +67,23 @@ export default function ArchetypePicker({ lang }: { lang: Lang }) {
             whileHover={{ scale: 1.035, y: -6 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => chooseArchetype(a.id)}
-            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/12 bg-white/5 p-5 text-left hover:border-wc/60 hover:bg-white/10 transition-colors"
+            className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border-2 ${RARITY_STYLE[a.rarity].ring} ${RARITY_STYLE[a.rarity].glow} bg-white/5 p-5 text-left hover:bg-white/10 transition-colors`}
           >
             <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${RISK_TONE} opacity-0 group-hover:opacity-100 transition-opacity`} />
-            <div className="relative">
+            <div className="relative flex h-full flex-col">
+              {/* rarity is the first thing you should read: it tells you how much
+                  the card is worth before you have parsed a single stat */}
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className={`text-[9px] uppercase tracking-[0.3em] ${RARITY_STYLE[a.rarity].text}`}>
+                  {rarityLabel(a.rarity, lang)}
+                </span>
+                <span className="text-[10px] text-white/30 tabular-nums">
+                  +{RARITY_BUDGET[a.rarity]}
+                </span>
+              </div>
               <h3 className="font-display text-2xl mb-1.5 leading-none">{archetypeName(a, lang)}</h3>
               <p className="text-sm text-white/55 mb-4 min-h-[2.5rem]">{archetypeDesc(a, lang)}</p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 mt-auto">
                 {Object.entries(a.delta).map(([k, v]) => (
                   <span
                     key={k}
