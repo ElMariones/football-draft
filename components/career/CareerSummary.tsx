@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { CareerPlayer, SeasonRecord, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
@@ -12,6 +12,9 @@ import { formatValue, positionAbbr } from '@/lib/career/format';
 import { idolLevel } from '@/lib/career/idolatry';
 import { ATTR_KEYS, ATTR_LABEL } from '@/lib/career/attributes';
 import { patrimony } from '@/lib/career/shop';
+import {
+  saveRecord, rankOf, type CareerRecord, type Records,
+} from '@/lib/career/records';
 import { Crest, OvrBadge, CountUp, TrophyBadge } from './bits';
 import { LeagueBadge } from './crests';
 import { TrophyIcon } from './TrophyArt';
@@ -122,6 +125,35 @@ export default function CareerSummary({
   const natTitles = trophies.filter(x => x.kind === 'national');
   const indTitles = trophies.filter(x => x.kind === 'individual');
   const score = careerScore(player, trophies);
+
+  // File the run onto its board — random and seeded are kept apart, because a
+  // typed seed can be replayed until the world cooperates and a rolled one cannot.
+  const seedSource = player.seedSource ?? 'random';
+  const filed = useRef(false);
+  const [records, setRecords] = useState<Records | null>(null);
+  const [mine, setMine] = useState<CareerRecord | null>(null);
+  useEffect(() => {
+    if (filed.current) return;
+    filed.current = true;
+    const rec: CareerRecord = {
+      surname: player.surname, position: player.position, nationCode: player.ntNationCode,
+      score, peakOverall: player.peakOverall, seasons: stages.length,
+      trophies: trophies.length, seed: player.careerSeed ?? 0, seedSource,
+      at: new Date().toISOString(),
+    };
+    setMine(rec);
+    setRecords(saveRecord(rec));
+  }, [player, score, stages.length, trophies.length, seedSource]);
+
+  const [copied, setCopied] = useState(false);
+  const copySeed = () => {
+    const v = String(player.careerSeed ?? '');
+    navigator.clipboard?.writeText(v).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    }).catch(() => { /* clipboard blocked — the number is on screen anyway */ });
+  };
+  const rank = records && mine ? rankOf(records, mine) : 0;
   const domestic = domesticGroups(clubTitles, lang);
   const global = globalGroups(clubTitles);
   const legacyClubs = Object.entries(player.idolatry ?? {}).sort((a, b) => b[1] - a[1]);
@@ -181,6 +213,32 @@ export default function CareerSummary({
               <div className="text-[9px] uppercase tracking-widest text-white/40">{t.careerScore}</div>
             </div>
           </div>
+        </div>
+
+        {/* Which world this was, and which board it counts on. */}
+        <div className="relative mt-4 flex flex-wrap items-center gap-2">
+          <span className={`text-[9px] uppercase tracking-[0.25em] px-2 py-1 rounded-full border ${
+            seedSource === 'custom'
+              ? 'border-amber-400/50 bg-amber-400/10 text-amber-200'
+              : 'border-wc/50 bg-wc/10 text-wc'
+          }`}>
+            {seedSource === 'custom'
+              ? (es ? 'Con semilla · no puntúa' : 'Seeded · unranked')
+              : (es ? 'Aleatoria · puntúa' : 'Random · ranked')}
+          </span>
+          <button
+            onClick={copySeed}
+            title={es ? 'Copiar semilla' : 'Copy seed'}
+            className="text-[11px] font-mono px-2 py-1 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 transition-colors"
+          >
+            {es ? 'semilla' : 'seed'} {player.careerSeed ?? '—'} {copied ? '✓' : '⧉'}
+          </button>
+          {rank > 0 && (
+            <span className="text-[11px] text-white/45">
+              {es ? `#${rank} de tus mejores` : `#${rank} of your best`}
+              {seedSource === 'custom' && (es ? ' (con semilla)' : ' (seeded)')}
+            </span>
+          )}
         </div>
 
         {/* the profile he retired with */}
@@ -467,6 +525,49 @@ export default function CareerSummary({
           )}
         </Section>
       </div>
+
+      {/* ---------- personal boards, kept apart by seed source ---------- */}
+      {records && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {([
+            ['random', es ? 'Mejores · aleatorias' : 'Best · random runs', 'text-wc', 'border-wc/25'],
+            ['custom', es ? 'Mejores · con semilla' : 'Best · seeded runs', 'text-amber-200', 'border-amber-400/25'],
+          ] as const).map(([board, label, tone, ring]) => (
+            <Section key={board} label={label}>
+              {records[board].length === 0 ? (
+                <div className="text-white/30 text-xs uppercase tracking-widest py-4 text-center">
+                  {es ? 'Sin registros' : 'No records yet'}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {records[board].map((r, i) => {
+                    const isMine = !!mine && r.at === mine.at && r.score === mine.score;
+                    return (
+                      <div key={r.at + i}
+                        className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[12px] border ${
+                          isMine ? `bg-white/[0.06] ${ring}` : 'border-transparent bg-white/[0.02]'
+                        }`}>
+                        <span className="w-5 text-white/35 tabular-nums shrink-0">{i + 1}</span>
+                        <span className="shrink-0">{nationFlag(r.nationCode)}</span>
+                        <span className="font-display truncate">{r.surname}</span>
+                        <span className="text-white/35 text-[10px] shrink-0">
+                          {positionAbbr(r.position as CareerPlayer['position'], lang)}
+                        </span>
+                        <span className="text-white/30 text-[10px] shrink-0 hidden sm:inline">
+                          {r.peakOverall} · {r.seasons}{es ? 'T' : 's'} · {r.trophies}🏆
+                        </span>
+                        <span className={`ml-auto font-display shrink-0 ${isMine ? tone : 'text-white/70'}`}>
+                          {r.score}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Section>
+          ))}
+        </div>
+      )}
 
       <motion.div {...rise(0)} className="flex justify-center pt-2">
         <motion.button

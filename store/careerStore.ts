@@ -8,7 +8,7 @@ import type {
 import { NATIONS, getNation } from '@/data/career/nations';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
-import { makeRng, Rng, randomSeed, clamp } from '@/lib/career/rng';
+import { makeRng, Rng, randomSeed, seedFromText, clamp } from '@/lib/career/rng';
 import { CAREER, declineByAge } from '@/lib/career/config';
 import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
@@ -79,6 +79,8 @@ interface Forced {
 
 interface Wizard {
   step: 1 | 2 | 3;
+  /** raw text from the seed box — blank means "roll one for me" */
+  seedInput: string;
   nationCode: string;
   /** previewed in the creation screen and carried into the career */
   face: FaceGenes | null;
@@ -135,6 +137,7 @@ interface CareerState {
   setLang(l: Lang): void;
   startCareer(): void;
   exitToLanding(): void;
+  setSeedInput(v: string): void;
   setNation(code: string): void;
   rerollFace(): void;
   setIdentity(p: { surname: string; number: number; foot: Foot }): void;
@@ -160,7 +163,7 @@ interface CareerState {
 }
 
 const emptyWizard: Wizard = {
-  step: 1, nationCode: '', face: null, surname: '', number: 10, foot: 'right', position: null,
+  step: 1, seedInput: '', nationCode: '', face: null, surname: '', number: 10, foot: 'right', position: null,
 };
 
 
@@ -436,6 +439,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     get().reset();
   },
 
+  setSeedInput(v) { set(s => ({ wizard: { ...s.wizard, seedInput: v.slice(0, 24) } })); },
   setNation(code) {
     // the face follows the flag: pick a country and you get a plausible one
     const rng = makeRng(randomSeed());
@@ -459,7 +463,12 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   confirmIdentity() {
     const { wizard, lang } = get();
     if (!wizard.nationCode || !wizard.position) return;
-    const seed = randomSeed();
+    // A typed seed builds the same world every time, so a run can be shared or
+    // retried. Blank rolls a fresh one. Anything is accepted as a seed — words
+    // included — by hashing it, so "messi" is a valid world.
+    const typed = wizard.seedInput.trim();
+    const seedSource: 'random' | 'custom' = typed ? 'custom' : 'random';
+    const seed = typed ? seedFromText(typed) : randomSeed();
     const rng = makeRng(seed);
     const player = createPlayer({
       nationCode: wizard.nationCode,
@@ -468,6 +477,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       foot: wizard.foot,
       position: wizard.position,
       seed,
+      seedSource,
       rng,
     });
     if (wizard.face) player.face = wizard.face;

@@ -80,3 +80,23 @@ export function randomSeed(): number {
   }
   return Math.floor(Math.random() * 0xffffffff) >>> 0;
 }
+
+/**
+ * Turn any text into a seed, so a player can type a word rather than a number
+ * and still land in a reproducible world. FNV-1a: short, stable across
+ * platforms, and never returns 0 (mulberry32 treats 0 as 1 anyway).
+ */
+export function seedFromText(text: string): number {
+  const t = text.trim();
+  // a plain number is used as itself, so shared numeric seeds read back exactly
+  if (/^\d{1,10}$/.test(t)) {
+    const n = Number(t) >>> 0;
+    if (n !== 0) return n;
+  }
+  let h = 0x811c9dc5;
+  for (let i = 0; i < t.length; i++) {
+    h ^= t.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) || 1;
+}

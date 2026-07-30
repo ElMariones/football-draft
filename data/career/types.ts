@@ -121,6 +121,13 @@ export interface CareerPlayer {
   archetypeId: string | null;
   /** 1-in-100 generational talent */
   wonderkid: boolean;
+  /** the seed this whole career was generated from, so it can be shared */
+  careerSeed: number;
+  /**
+   * Whether that seed was rolled for you or typed in. A typed seed lets you
+   * retry the same world until you like it, so the two can never share a board.
+   */
+  seedSource: 'random' | 'custom';
 
   /** idolatry per club id (0-100) — the scoring spine */
   idolatry: Record<string, number>;

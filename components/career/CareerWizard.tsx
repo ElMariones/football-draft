@@ -53,7 +53,9 @@ function SectionLabel({ n, children }: { n: number; children: React.ReactNode })
 
 export default function CareerWizard({ lang }: { lang: Lang }) {
   const t = careerT(lang);
-  const { wizard, setNation, setIdentity, setPosition, confirmIdentity, reset, rerollFace } = useCareerStore();
+  const {
+    wizard, setNation, setIdentity, setPosition, confirmIdentity, reset, rerollFace, setSeedInput,
+  } = useCareerStore();
   const [query, setQuery] = useState('');
   // The shirt number is held as free text while you type, so the field can be
   // emptied and retyped. It is only committed to the store when it is a real
@@ -135,6 +137,32 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
               >🎲</motion.button>
             </div>
           )}
+
+          {/* The seed is the whole world: same seed and same choices, same career.
+              Blank rolls one, which is the only kind that counts as ranked. */}
+          <label className="block mt-3">
+            <span className="text-[10px] tracking-widest text-white/40 uppercase">
+              {es ? 'Semilla' : 'Seed'}
+            </span>
+            <input
+              value={wizard.seedInput}
+              onChange={e => setSeedInput(e.target.value)}
+              placeholder={es ? 'Vacío = aleatoria' : 'Blank = random'}
+              spellCheck={false}
+              className="w-full mt-1 rounded-xl bg-white/5 border border-white/15 px-3 py-2.5 font-mono text-sm focus:outline-none focus:border-wc/60 placeholder-white/25"
+            />
+            <span className={`block text-[10px] mt-1 leading-snug ${
+              wizard.seedInput.trim() ? 'text-amber-300/80' : 'text-white/35'
+            }`}>
+              {wizard.seedInput.trim()
+                ? (es
+                    ? 'Partida con semilla: repetible y compartible, pero va a la tabla aparte.'
+                    : 'Seeded run: repeatable and shareable, but it goes on the separate board.')
+                : (es
+                    ? 'Se sortea una semilla. Solo estas partidas puntúan en la tabla principal.'
+                    : 'A seed will be rolled. Only these runs count on the main board.')}
+            </span>
+          </label>
 
           <div className="grid grid-cols-[1fr_84px] gap-2 mt-3">
             <label className="block">
