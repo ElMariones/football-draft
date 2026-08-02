@@ -22,11 +22,20 @@ export async function GET(req: Request) {
 
   // DISTINCT ON picks each user's best row; the inner ORDER BY decides which
   // row wins, the outer one ranks the winners.
-  const col = {
+  // Two fragments, not one: inside the subquery the table is aliased `r`, but
+  // the outer ORDER BY sees only the subquery, aliased `best`. Reusing the inner
+  // fragment outside produced `ORDER BY r.score` against `best` and failed.
+  const inner = {
     score: sql`r.score`,
     trophies: sql`r.trophies`,
     goals: sql`r.goals`,
     overall: sql`r."peakOverall"`,
+  }[sort];
+  const outer = {
+    score: sql`best.score`,
+    trophies: sql`best.trophies`,
+    goals: sql`best.goals`,
+    overall: sql`best."peakOverall"`,
   }[sort];
 
   try {
@@ -41,18 +50,23 @@ export async function GET(req: Request) {
           u.image AS user_image
         FROM "careerRun" r
         JOIN "user" u ON r."userId" = u.id
-        ORDER BY r."userId", ${col} DESC, r."createdAt" ASC
+        ORDER BY r."userId", ${inner} DESC, r."createdAt" ASC
       ) best
-      ORDER BY ${col} DESC, best."createdAt" ASC
+      ORDER BY ${outer} DESC, best."createdAt" ASC
       LIMIT 50
     `);
     return NextResponse.json({ sort, entries: rows.rows ?? rows });
   } catch (err) {
-    // An unmigrated database should render an empty board, not a 500 page.
+    // An unmigrated database should render an empty board, not a 500 page — but
+    // this must only catch a *missing table*. Matching on the table name alone
+    // swallowed a genuine query error and reported it as "not migrated", which
+    // is a much more confusing thing to debug than a 500.
     const msg = err instanceof Error ? err.message : String(err);
-    if (/careerRun|relation .* does not exist/i.test(msg)) {
+    if (/relation .*careerRun.* does not exist/i.test(msg)) {
       return NextResponse.json({ sort, entries: [], notMigrated: true });
     }
-    throw err;
+    // eslint-disable-next-line no-console
+    console.error('[career-leaderboard] query failed:', msg);
+    return NextResponse.json({ sort, entries: [], error: msg }, { status: 500 });
   }
 }
