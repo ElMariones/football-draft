@@ -5,6 +5,7 @@ import { Rng, clamp } from './rng';
 import { applyOverallDelta, overallFrom, addAttrs } from './attributes';
 import { CAREER } from './config';
 import { injuryResistOf } from './shop';
+import { CLUBS } from '@/data/career/clubs';
 import type { Lang } from './i18n';
 
 const L = (lang: Lang, en: string, es: string) => (lang === 'es' ? es : en);
@@ -445,7 +446,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
         'Un club deposita tu cláusula de rescisión sin preguntarle a nadie.'),
       when: p => p.overall >= 74 && !!p.clubId,
       options: [
-        { label: L(lang, 'Force the move', 'Forzar la salida'), outcomes: [{ weight: 1, badge: L(lang, 'You are gone', 'Te vas'), effects: [{ type: 'flag', name: 'forcedTransfer' }, { type: 'loyalty', delta: -15 }, { type: 'idol', delta: -5 }] }] },
+        { label: L(lang, 'Force the move', 'Forzar la salida'), outcomes: [{ weight: 1, badge: L(lang, 'You are gone', 'Te vas'), effects: [{ type: 'transfer', leagues: ['premier-league', 'laliga', 'serie-a', 'bundesliga', 'ligue-1', 'primeira-liga', 'eredivisie'], role: 'rotation' }, { type: 'loyalty', delta: -15 }, { type: 'idol', delta: -5 }] }] },
         { label: L(lang, 'Refuse to sign', 'Negarte a firmar'), outcomes: [{ weight: 1, badge: L(lang, 'The badge over the money', 'El escudo antes que el dinero'), effects: [{ type: 'idol', delta: 8 }, { type: 'loyalty', delta: 12 }] }] },
       ],
     },
@@ -473,7 +474,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
         'Un club del extranjero te ofrece un sueldo que arregla a tus nietos.'),
       when: p => p.age >= 28 && p.reputation > 55,
       options: [
-        { label: L(lang, 'Take the money', 'Agarrar el dinero'), outcomes: [{ weight: 1, badge: L(lang, 'Set for life', 'Arreglado de por vida'), effects: [{ type: 'money', delta: 12_000_000 }, { type: 'idol', delta: -6 }, { type: 'reputation', delta: -4 }] }] },
+        { label: L(lang, 'Take the money', 'Agarrar el dinero'), outcomes: [{ weight: 1, badge: L(lang, 'Set for life', 'Arreglado de por vida'), effects: [{ type: 'money', delta: 12_000_000 }, { type: 'idol', delta: -6 }, { type: 'reputation', delta: -4 }, { type: 'transfer', leagues: ['saudi-league'] }] }] },
         { label: L(lang, 'Stay and compete', 'Quedarte a competir'), outcomes: [{ weight: 1, badge: L(lang, 'Still hungry', 'Con hambre'), effects: [{ type: 'idol', delta: 6 }, { type: 'form', delta: 6 }] }] },
       ],
     },
@@ -637,7 +638,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
         'Un número privado. Un hombre que es dueño de media liga te explica, tranquilo, que ya decidió que vas a ir. La cifra que dice después no suena real.'),
       when: p => p.age >= 27 && p.reputation > 60,
       options: [
-        { label: L(lang, 'Fly out and sign', 'Volar y firmar'), outcomes: [{ weight: 1, badge: L(lang, 'Generational money', 'Dinero para generaciones'), effects: [{ type: 'money', delta: 30_000_000 }, { type: 'idol', delta: -10 }, { type: 'reputation', delta: -6 }, { type: 'flag', name: 'forcedTransfer' }] }] },
+        { label: L(lang, 'Fly out and sign', 'Volar y firmar'), outcomes: [{ weight: 1, badge: L(lang, 'Generational money', 'Dinero para generaciones'), effects: [{ type: 'money', delta: 30_000_000 }, { type: 'idol', delta: -10 }, { type: 'reputation', delta: -6 }, { type: 'transfer', leagues: ['saudi-league'] }] }] },
         { label: L(lang, 'Politely decline', 'Rechazar con educación'), outcomes: [{ weight: 1, badge: L(lang, 'Still about football', 'Sigue siendo por el fútbol'), effects: [{ type: 'idol', delta: 8 }, { type: 'form', delta: 6 }] }] },
       ],
     },
@@ -648,7 +649,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
         'Una franquicia ofrece casa en la playa, una parte del club cuando te retires, y una liga donde nadie te presiona a los 34.'),
       when: p => p.age >= 29,
       options: [
-        { label: L(lang, 'Take the deal', 'Aceptar'), outcomes: [{ weight: 1, badge: L(lang, 'A new life', 'Otra vida'), effects: [{ type: 'money', delta: 9_000_000 }, { type: 'morale', delta: 12 }, { type: 'idol', delta: -4 }] }] },
+        { label: L(lang, 'Take the deal', 'Aceptar'), outcomes: [{ weight: 1, badge: L(lang, 'A new life', 'Otra vida'), effects: [{ type: 'money', delta: 9_000_000 }, { type: 'morale', delta: 12 }, { type: 'idol', delta: -4 }, { type: 'transfer', leagues: ['mls'] }] }] },
         { label: L(lang, 'Not finished here', 'Todavía no terminaste acá'), outcomes: [{ weight: 1, badge: L(lang, 'One more year at the top', 'Un año más arriba'), effects: [{ type: 'form', delta: 8 }, { type: 'idol', delta: 4 }] }] },
       ],
     },
@@ -691,7 +692,16 @@ export function selectEvent(
   return rng.weighted(eligible, e => e.weight);
 }
 
-export interface EffectResult { titles: Title[]; retire: boolean }
+export interface EffectResult {
+  titles: Title[];
+  retire: boolean;
+  /**
+   * A club the event has moved the player to. The store completes the move,
+   * because a transfer is not only a player mutation — it has to become the
+   * chosen club for the season about to be played.
+   */
+  moveTo?: { clubId: string; role: 'starter' | 'rotation' };
+}
 
 /**
  * Apply an attribute gain that came from an *event* rather than from training.
@@ -751,6 +761,20 @@ export function applyEffects(p: CareerPlayer, effects: Effect[], rng: Rng): Effe
       case 'minutesBias': p.roleBias += e.delta; break;
       case 'switchNation': if (p.secondNationCode) p.ntNationCode = p.secondNationCode; break;
       case 'unlockNation': p.secondNationCode = e.code; break;
+      case 'transfer': {
+        // Pick from the strongest clubs in the destination leagues, excluding
+        // the one you are already at. At this money it is a real club that
+        // wants you, so the top of the league rather than a random side.
+        const pool = CLUBS
+          .filter(c => e.leagues.includes(c.leagueId) && c.id !== p.clubId)
+          .sort((a, b) => b.strength - a.strength)
+          .slice(0, 6);
+        if (pool.length) {
+          const club = pool[rng.int(pool.length)];
+          res.moveTo = { clubId: club.id, role: e.role ?? 'starter' };
+        }
+        break;
+      }
       case 'flag': p.flags[e.name] = true; break;
       case 'contract': p.contractYears = Math.max(p.contractYears, e.years); break;
       case 'title': res.titles.push({ key: e.key, kind: e.kind, scope: e.scope, age: p.age, clubId: p.clubId ?? undefined }); break;

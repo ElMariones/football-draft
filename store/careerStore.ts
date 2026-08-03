@@ -699,13 +699,47 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (gamesOut) eventDeltas.push({ label: es ? 'Partidos fuera' : 'Games out', delta: gamesOut });
     const trophies = res.titles.length ? [...s.trophies, ...res.titles] : s.trophies;
     const firedEventById = { ...s.firedEventById, [os.event.id]: s.year };
+
+    // A transfer event has to actually transfer you. These used to hand over the
+    // money and take the idolatry while leaving you at the same club, so "fly
+    // out and sign" signed you for nobody. The destination is injected into the
+    // offer grid and locked exactly like a forced move, so the board shows where
+    // you are going and the other offers cannot quietly undo it.
+    let nextOffseason: Offseason = {
+      ...os, eventResolved: true, eventBadges: [outcome.badge],
+      eventOptionChosen: optionIndex, eventDeltas,
+    };
+    if (res.moveTo) {
+      const dest = getClub(res.moveTo.clubId);
+      if (dest) {
+        // No idolatry bookkeeping here on purpose: playSeason already applies
+        // the exit cost, the traitor brand and the news line when the chosen
+        // club differs from the current one. Doing it here too charged twice.
+        const offer: ClubOffer = {
+          clubId: dest.id, verb: 'sign', role: res.moveTo.role,
+        };
+        nextOffseason = {
+          ...nextOffseason,
+          offers: os.offers.some(o => o.clubId === dest.id && o.verb === 'sign')
+            ? os.offers
+            : [...os.offers, offer],
+          canStay: false,
+          chosenClubId: dest.id,
+          chosenVerb: 'sign',
+          chosenRole: res.moveTo.role,
+          forcedLocked: true,
+        };
+        eventDeltas.push({
+          label: es ? `→ ${dest.name}` : `→ ${dest.name}`,
+          delta: 0,
+        });
+      }
+    }
+
     // event may end a career (retirement injury etc.)
     set({
       player, trophies, firedEventById,
-      offseason: {
-        ...os, eventResolved: true, eventBadges: [outcome.badge],
-        eventOptionChosen: optionIndex, eventDeltas,
-      },
+      offseason: nextOffseason,
     });
     if (res.retire) {
       set({ phase: 'summary', player });

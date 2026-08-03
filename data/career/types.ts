@@ -233,6 +233,12 @@ export type Effect =
   | { type: 'switchNation' }        // switch to secondNationCode
   | { type: 'unlockNation'; code: string }
   | { type: 'flag'; name: string }
+  /**
+   * Actually move the player. Transfer events used to hand out money and take
+   * idolatry while leaving you at the same club, so "fly out and sign" signed
+   * you for nobody. `leagues` names the destination leagues to pick a club from.
+   */
+  | { type: 'transfer'; leagues: string[]; role?: 'starter' | 'rotation' }
   | { type: 'contract'; years: number }
   | { type: 'title'; key: string; kind: TitleKind; scope: TitleScope }
   | { type: 'attr'; attrs: Partial<Attrs> }
