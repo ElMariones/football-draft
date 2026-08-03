@@ -5,8 +5,11 @@
 // nothing about how it was earned.
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGameStore } from '@/store/gameStore';
 import { nationFlag, nationName } from '@/data/career/nations';
 import { titleLabel } from '@/lib/career/i18n';
+import { resultLabel } from '@/lib/career/international';
+import type { NtResult } from '@/lib/career/international';
 import type { CareerHistory } from '@/lib/career/submission';
 
 type Sort = 'score' | 'trophies' | 'goals' | 'overall';
@@ -31,16 +34,57 @@ interface Entry {
   user_image: string | null;
 }
 
-const SORTS: { key: Sort; label: string }[] = [
-  { key: 'score', label: 'Career score' },
-  { key: 'overall', label: 'Peak overall' },
-  { key: 'trophies', label: 'Trophies' },
-  { key: 'goals', label: 'Goals' },
+const SORTS: { key: Sort; en: string; es: string }[] = [
+  { key: 'score', en: 'Career score', es: 'Puntaje de carrera' },
+  { key: 'overall', en: 'Peak overall', es: 'Pico de media' },
+  { key: 'trophies', en: 'Trophies', es: 'Títulos' },
+  { key: 'goals', en: 'Goals', es: 'Goles' },
 ];
+
+const T = {
+  blurb: {
+    en: 'No account needed — the name you give your player is the entry. Rolled seeds only: a typed seed can be replayed until the world cooperates, so seeded careers stay on your local board and are never submitted here.',
+    es: 'No hace falta cuenta: el nombre que le pones a tu jugador es la entrada. Solo semillas sorteadas: una semilla escrita se puede repetir hasta que el mundo colabore, así que esas carreras se quedan en tu tabla local y nunca se envían aquí.',
+  },
+  loadError: { en: 'Could not load the board.', es: 'No se pudo cargar la tabla.' },
+  notMigrated: {
+    en: 'The career table has not been created yet. Run',
+    es: 'La tabla de carreras todavía no existe. Ejecuta',
+  },
+  empty: {
+    en: 'Nobody has finished a ranked career yet. Be first.',
+    es: 'Todavía nadie terminó una carrera puntuable. Sé el primero.',
+  },
+  seasons: { en: 'seasons', es: 'temporadas' },
+  peak: { en: 'peak', es: 'pico' },
+  apps: { en: 'Apps', es: 'PJ' },
+  goals: { en: 'Goals', es: 'Goles' },
+  assists: { en: 'Assists', es: 'Asistencias' },
+  trophies: { en: 'Trophies', es: 'Títulos' },
+  ballon: { en: "Ballon d'Or", es: 'Balón de Oro' },
+  score: { en: 'Score', es: 'Puntaje' },
+  path: { en: 'Career path', es: 'Trayectoria' },
+  loan: { en: 'loan', es: 'préstamo' },
+  honours: { en: 'Honours', es: 'Palmarés' },
+  nt: { en: 'National team', es: 'Selección' },
+  caps: { en: 'caps', es: 'partidos' },
+  ntGoals: { en: 'goals', es: 'goles' },
+  best: { en: 'Best season', es: 'Mejor temporada' },
+  bestAt: { en: 'at', es: 'en' },
+  inApps: { en: 'goals in', es: 'goles en' },
+  appsWord: { en: 'apps', es: 'partidos' },
+  rating: { en: 'rating', es: 'nota' },
+  seed: { en: 'seed', es: 'semilla' },
+} as const;
 
 const MEDAL = ['🥇', '🥈', '🥉'];
 
 export default function CareerBoard() {
+  const language = useGameStore(st => st.language);
+  const lang: 'en' | 'es' = language === 'en' ? 'en' : 'es';
+  const es = lang === 'es';
+  const tr = <K extends keyof typeof T>(k: K) => T[k][lang];
+
   const [sort, setSort] = useState<Sort>('score');
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [notMigrated, setNotMigrated] = useState(false);
@@ -58,9 +102,9 @@ export default function CareerBoard() {
         setEntries(d.entries ?? []);
         setNotMigrated(!!d.notMigrated);
       })
-      .catch(() => live && setError('Could not load the board.'));
+      .catch(() => live && setError(T.loadError[lang]));
     return () => { live = false; };
-  }, [sort]);
+  }, [sort, lang]);
 
   const value = (e: Entry) =>
     sort === 'trophies' ? e.trophies
@@ -81,22 +125,20 @@ export default function CareerBoard() {
                 : 'border-white/15 bg-white/5 text-white/55 hover:bg-white/10'
             }`}
           >
-            {s.label}
+            {s[lang]}
           </button>
         ))}
       </div>
 
       <p className="text-[11px] text-white/40 mb-4">
-        No account needed — the name you give your player is the entry. Rolled seeds
-        only: a typed seed can be replayed until the world cooperates, so seeded
-        careers stay on your local board and are never submitted here.
+        {tr('blurb')}
       </p>
 
       {error && <div className="text-red-300 text-sm py-6 text-center">{error}</div>}
 
       {notMigrated && (
         <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 px-4 py-3 text-sm text-amber-200">
-          The career table has not been created yet. Run <code className="font-mono">npm run db:migrate</code>.
+          {tr('notMigrated')} <code className="font-mono">npm run db:migrate</code>.
         </div>
       )}
 
@@ -110,7 +152,7 @@ export default function CareerBoard() {
 
       {entries?.length === 0 && !notMigrated && (
         <div className="text-white/40 text-sm py-10 text-center">
-          Nobody has finished a ranked career yet. Be first.
+          {tr('empty')}
         </div>
       )}
 
@@ -126,7 +168,7 @@ export default function CareerBoard() {
                 <span className="w-7 text-center shrink-0 font-display text-sm text-white/50">
                   {i < 3 ? MEDAL[i] : i + 1}
                 </span>
-                <span className="text-lg shrink-0" title={nationName(e.nationCode, 'en')}>
+                <span className="text-lg shrink-0" title={nationName(e.nationCode, lang)}>
                   {nationFlag(e.nationCode)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -138,7 +180,7 @@ export default function CareerBoard() {
                     {/* the player's name is the entry; an account is optional
                         and only ever adds a credit next to it */}
                     {e.user_name && <span className="text-white/60">{e.user_name} · </span>}
-                    {e.seasonsPlayed} seasons · peak {e.peakOverall}
+                    {e.seasonsPlayed} {tr('seasons')} · {tr('peak')} {e.peakOverall}
                   </div>
                 </div>
                 <div className="hidden sm:flex items-center gap-3 text-[11px] text-white/45 shrink-0">
@@ -164,8 +206,8 @@ export default function CareerBoard() {
                       {/* career totals, including the ones hidden on mobile above */}
                       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
                         {([
-                          ['Apps', e.apps], ['Goals', e.goals], ['Assists', e.assists],
-                          ['Trophies', e.trophies], ["Ballon d'Or", e.ballonDors], ['Score', e.score],
+                          [tr('apps'), e.apps], [tr('goals'), e.goals], [tr('assists'), e.assists],
+                          [tr('trophies'), e.trophies], [tr('ballon'), e.ballonDors], [tr('score'), e.score],
                         ] as const).map(([l, v]) => (
                           <div key={l}>
                             <div className="font-display text-lg leading-none">{v}</div>
@@ -176,7 +218,7 @@ export default function CareerBoard() {
 
                       {/* the clubs, in order */}
                       <div>
-                        <div className="text-[9px] uppercase tracking-[0.25em] text-white/35 mb-1.5">Career path</div>
+                        <div className="text-[9px] uppercase tracking-[0.25em] text-white/35 mb-1.5">{tr('path')}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {e.history?.spells?.map((sp, j) => (
                             <span key={j}
@@ -187,7 +229,7 @@ export default function CareerBoard() {
                               }`}>
                               {sp.club}
                               <span className="text-white/30"> {sp.from}{sp.to !== sp.from ? `–${sp.to}` : ''}</span>
-                              {sp.onLoan && <span className="text-white/25"> (loan)</span>}
+                              {sp.onLoan && <span className="text-white/25"> ({tr('loan')})</span>}
                             </span>
                           ))}
                         </div>
@@ -196,12 +238,17 @@ export default function CareerBoard() {
                       {/* honours */}
                       {!!e.history?.honours?.length && (
                         <div>
-                          <div className="text-[9px] uppercase tracking-[0.25em] text-white/35 mb-1.5">Honours</div>
+                          <div className="text-[9px] uppercase tracking-[0.25em] text-white/35 mb-1.5">{tr('honours')}</div>
                           <div className="flex flex-wrap gap-1.5">
                             {e.history.honours.map(h => (
                               <span key={h.label ?? h.key}
                                 className="text-[11px] px-2 py-1 rounded-lg border border-gold/25 bg-gold/[0.07] text-gold/90">
-                                {h.label ?? titleLabel(h.key, 'en')}{h.n > 1 && ` ×${h.n}`}
+                                {/* rows written before labelEs existed fall back to the
+                                    key, which is right for everything except a domestic
+                                    cup — that one needs the club to name properly */}
+                                {(es ? (h.labelEs ?? titleLabel(h.key, 'es'))
+                                     : (h.label ?? titleLabel(h.key, 'en')))}
+                                {h.n > 1 && ` ×${h.n}`}
                               </span>
                             ))}
                           </div>
@@ -212,12 +259,12 @@ export default function CareerBoard() {
                       {e.history?.nation && (
                         <div>
                           <div className="text-[9px] uppercase tracking-[0.25em] text-white/35 mb-1.5">
-                            National team
+                            {tr('nt')}
                           </div>
                           <div className="text-[12px] text-white/60">
                             {nationFlag(e.history.nation.code)}{' '}
-                            {nationName(e.history.nation.code, 'en')} ·{' '}
-                            {e.history.nation.caps} caps · {e.history.nation.goals} goals
+                            {nationName(e.history.nation.code, lang)} ·{' '}
+                            {e.history.nation.caps} {e.history.nation.caps === 1 ? (es ? 'partido' : 'cap') : tr('caps')} · {e.history.nation.goals} {e.history.nation.goals === 1 ? (es ? 'gol' : 'goal') : tr('ntGoals')}
                           </div>
                           {!!e.history.nation.tournaments?.length && (
                             <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -228,7 +275,7 @@ export default function CareerBoard() {
                                       ? 'border-gold/40 bg-gold/10 text-gold'
                                       : 'border-white/12 bg-white/[0.03] text-white/50'
                                   }`}>
-                                  {tt.year} {titleLabel(tt.key, 'en')} · {tt.result}
+                                  {tt.year} {titleLabel(tt.key, lang)} · {resultLabel(tt.result as NtResult, lang)}
                                 </span>
                               ))}
                             </div>
@@ -238,13 +285,13 @@ export default function CareerBoard() {
 
                       {e.history?.bestSeason && (
                         <div className="text-[11px] text-white/45">
-                          Best season: {e.history.bestSeason.year} at {e.history.bestSeason.club} —{' '}
-                          {e.history.bestSeason.goals} goals in {e.history.bestSeason.apps} apps,
-                          rating {e.history.bestSeason.rating.toFixed(1)}
+                          {tr('best')}: {e.history.bestSeason.year} {tr('bestAt')} {e.history.bestSeason.club} —{' '}
+                          {e.history.bestSeason.goals} {tr('inApps')} {e.history.bestSeason.apps} {tr('appsWord')},
+                          {' '}{tr('rating')} {e.history.bestSeason.rating.toFixed(1)}
                         </div>
                       )}
 
-                      <div className="text-[10px] text-white/25 font-mono">seed {e.seed}</div>
+                      <div className="text-[10px] text-white/25 font-mono">{tr('seed')} {e.seed}</div>
                     </div>
                   </motion.div>
                 )}

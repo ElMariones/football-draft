@@ -27,7 +27,7 @@ export interface CareerHistory {
    * key, so three FA Cups and a Copa del Rey do not collapse into "Domestic Cup
    * x4" once the row reaches the board with no club to resolve against.
    */
-  honours: { key: string; label: string; n: number }[];
+  honours: { key: string; label: string; labelEs?: string; n: number }[];
   nation: {
     code: string;
     caps: number;
@@ -82,11 +82,15 @@ function spellsOf(stages: SeasonRecord[]): CareerSpell[] {
 export function buildSubmission(
   player: CareerPlayer, stages: SeasonRecord[], trophies: Title[], score: number,
 ): CareerSubmission {
-  const counts = new Map<string, { key: string; label: string; n: number }>();
+  // Both languages are resolved here, because the board cannot resolve them
+  // later: a domestic cup needs the club to know whether it was the FA Cup or
+  // the Copa del Rey, and the club is not stored on the row.
+  const counts = new Map<string, { key: string; label: string; labelEs: string; n: number }>();
   for (const t of trophies) {
     const label = titleName(t, 'en');
     const e = counts.get(label);
-    if (e) e.n++; else counts.set(label, { key: t.key, label, n: 1 });
+    if (e) e.n++;
+    else counts.set(label, { key: t.key, label, labelEs: titleName(t, 'es'), n: 1 });
   }
 
   const best = stages.reduce<SeasonRecord | undefined>(

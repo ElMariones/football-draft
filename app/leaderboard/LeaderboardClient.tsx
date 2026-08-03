@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useT } from '@/lib/i18n';
+import { useGameStore } from '@/store/gameStore';
 
 type Mode = 'pl' | 'cl' | 'll' | 'wc';
 type Sort = 'ovr' | 'results';
@@ -30,13 +31,14 @@ const MODE_META: Record<Mode, { label: string; color: string; emoji: string }> =
   wc: { label: 'World Cup',       color: '#00DFA2', emoji: '🏆' },
 };
 
-const CL_STAGE_LABEL: Record<string, string> = {
-  'champion':       'Champion',
-  'final':          'Runner-up',
-  'third-place':    'Third place',
-  'semi-finals':    'Semi-finals',
-  'quarter-finals': 'Quarter-finals',
-  'group':          'Group stage',
+// The only strings on this board that were not already going through useT().
+const CL_STAGE_LABEL: Record<string, { en: string; es: string }> = {
+  'champion':       { en: 'Champion',       es: 'Campeón' },
+  'final':          { en: 'Runner-up',      es: 'Subcampeón' },
+  'third-place':    { en: 'Third place',    es: 'Tercer puesto' },
+  'semi-finals':    { en: 'Semi-finals',    es: 'Semifinales' },
+  'quarter-finals': { en: 'Quarter-finals', es: 'Cuartos de final' },
+  'group':          { en: 'Group stage',    es: 'Fase de grupos' },
 };
 
 export default function LeaderboardClient() {
@@ -45,6 +47,8 @@ export default function LeaderboardClient() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [loading, setLoading] = useState(false);
   const t = useT();
+  const language = useGameStore(s => s.language);
+  const stageLang: 'en' | 'es' = language === 'en' ? 'en' : 'es';
 
   useEffect(() => {
     setLoading(true);
@@ -147,7 +151,7 @@ export default function LeaderboardClient() {
                   ) : mode === 'cl' || mode === 'wc' ? (
                     <>
                       <div className="font-display text-sm" style={{ color: meta.color }}>
-                        {CL_STAGE_LABEL[row.clStage ?? ''] ?? '—'}
+                        {CL_STAGE_LABEL[row.clStage ?? '']?.[stageLang] ?? '—'}
                       </div>
                       <div className="text-[10px] text-white/45 tabular-nums">
                         {row.wins}W {row.draws}D {row.losses}L

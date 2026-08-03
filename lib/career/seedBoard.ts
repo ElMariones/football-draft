@@ -23,10 +23,10 @@ const CLUBS = [
   'Anderlecht', 'Dinamo Zagreb', 'Legia Warszawa', 'Rosenborg', 'Malmö FF',
 ];
 const LOW_HONOURS = [
-  { key: 'domestic-cup', label: 'Copa Argentina' },
-  { key: 'league', label: 'Liga Profesional' },
-  { key: 'league-top-scorer', label: 'League Top Scorer' },
-  { key: 'league-mvp', label: 'League MVP' },
+  { key: 'domestic-cup', label: 'Copa Argentina', labelEs: 'Copa Argentina' },
+  { key: 'league', label: 'Liga Profesional', labelEs: 'Liga Profesional' },
+  { key: 'league-top-scorer', label: 'League Top Scorer', labelEs: 'Goleador de la Liga' },
+  { key: 'league-mvp', label: 'League MVP', labelEs: 'MVP de la Liga' },
 ];
 
 /**
