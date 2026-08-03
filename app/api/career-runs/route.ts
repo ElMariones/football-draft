@@ -10,9 +10,9 @@ export const runtime = 'nodejs';
 // GET — the signed-in user's own submitted careers, newest first.
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Anonymous players have no server-side "my runs" — theirs live on the local
+  // board. An empty list is the honest answer, not a 401.
+  if (!session?.user?.id) return NextResponse.json({ runs: [] });
   const rows = await db
     .select()
     .from(careerRuns)
@@ -50,12 +50,12 @@ function validate(s: CareerSubmission): string | null {
   return null;
 }
 
-// POST — submit a finished career. Auth required; rolled seeds only.
+// POST — submit a finished career. No account needed: the name you gave the
+// player is the entry. If someone happens to be signed in we link the row so
+// their avatar can show, but it is never required.
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const userId = session?.user?.id ?? null;
 
   let body: CareerSubmission;
   try {
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   const [row] = await db
     .insert(careerRuns)
     .values({
-      userId: session.user.id,
+      userId,
       surname: body.surname.slice(0, 14),
       nationCode: body.nationCode,
       position: body.position,

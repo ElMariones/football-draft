@@ -4,6 +4,7 @@ import type {
 import { Rng, clamp } from './rng';
 import { applyOverallDelta, overallFrom, addAttrs } from './attributes';
 import { CAREER } from './config';
+import { injuryResistOf } from './shop';
 import type { Lang } from './i18n';
 
 const L = (lang: Lang, en: string, es: string) => (lang === 'es' ? es : en);
@@ -743,7 +744,7 @@ export function applyEffects(p: CareerPlayer, effects: Effect[], rng: Rng): Effe
       case 'morale': p.morale = clamp(5, 100, p.morale + e.delta); break;
       case 'form': p.form = clamp(15, 99, p.form + e.delta); break;
       case 'fitness': p.fitness = clamp(30, 99, p.fitness + e.delta); break;
-      case 'injury': p.injuryGamesNext += e.games; if (e.proneness) p.injuryProneness = clamp(6, 100, p.injuryProneness + e.proneness); break;
+      case 'injury': p.injuryGamesNext += Math.max(1, Math.round(e.games * (1 - injuryResistOf(p)))); if (e.proneness) p.injuryProneness = clamp(6, 100, p.injuryProneness + e.proneness); break;
       case 'loyalty': p.loyalty = clamp(0, 100, p.loyalty + e.delta); break;
       case 'reputation': p.reputation = clamp(0, 100, p.reputation + e.delta); break;
       case 'discipline': p.discipline = clamp(0, 100, p.discipline + e.delta); break;

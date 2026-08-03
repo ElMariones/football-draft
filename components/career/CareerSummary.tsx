@@ -156,12 +156,12 @@ export default function CareerSummary({
     })
       .then(async r => {
         if (r.ok) { setSubmit('done'); return; }
-        setSubmit(r.status === 401 ? 'anon' : 'failed');
+        setSubmit('failed');
       })
       .catch(() => setSubmit('failed'));
   }, [player, stages, trophies, score, seedSource]);
 
-  const [submit, setSubmit] = useState<'idle'|'sending'|'done'|'anon'|'failed'|'seeded'>('idle');
+  const [submit, setSubmit] = useState<'idle'|'sending'|'done'|'failed'|'seeded'>('idle');
   const [copied, setCopied] = useState(false);
   const copySeed = () => {
     const v = String(player.careerSeed ?? '');
@@ -267,11 +267,6 @@ export default function CareerSummary({
                 <a href="/leaderboard" className="text-wc hover:underline">
                   {es ? '✓ En la tabla global' : '✓ On the global board'}
                 </a>
-              )}
-              {submit === 'anon' && (
-                <span className="text-white/40">
-                  {es ? 'Inicia sesión para aparecer en la tabla global' : 'Sign in to appear on the global board'}
-                </span>
               )}
               {submit === 'failed' && (
                 <span className="text-white/40">{es ? 'No se pudo enviar' : 'Could not submit'}</span>

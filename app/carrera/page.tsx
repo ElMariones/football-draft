@@ -63,6 +63,14 @@ export default function CareerPage() {
             {language === 'en' ? 'ES' : 'EN'}
           </button>
           <AchievementsBook lang={lang} />
+          {/* the board is no use if you cannot get to it from the game */}
+          <Link
+            href="/leaderboard"
+            className="btn-ghost text-sm whitespace-nowrap"
+            title={lang === 'es' ? 'Tabla global' : 'Global leaderboard'}
+          >
+            🏆<span className="hidden sm:inline ml-1">{lang === 'es' ? 'Tabla' : 'Board'}</span>
+          </Link>
           <Link href="/" className="btn-ghost text-sm">{t.exit}</Link>
         </div>
       </header>

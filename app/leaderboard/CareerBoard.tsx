@@ -87,8 +87,9 @@ export default function CareerBoard() {
       </div>
 
       <p className="text-[11px] text-white/40 mb-4">
-        Rolled seeds only. A typed seed can be replayed until the world cooperates,
-        so seeded careers stay on your local board and are never submitted here.
+        No account needed — the name you give your player is the entry. Rolled seeds
+        only: a typed seed can be replayed until the world cooperates, so seeded
+        careers stay on your local board and are never submitted here.
       </p>
 
       {error && <div className="text-red-300 text-sm py-6 text-center">{error}</div>}
@@ -134,7 +135,10 @@ export default function CareerBoard() {
                     <span className="text-[10px] text-white/35 shrink-0">{e.position}</span>
                   </div>
                   <div className="text-[11px] text-white/45 truncate">
-                    {e.user_name ?? 'Anonymous'} · {e.seasonsPlayed} seasons · peak {e.peakOverall}
+                    {/* the player's name is the entry; an account is optional
+                        and only ever adds a credit next to it */}
+                    {e.user_name && <span className="text-white/60">{e.user_name} · </span>}
+                    {e.seasonsPlayed} seasons · peak {e.peakOverall}
                   </div>
                 </div>
                 <div className="hidden sm:flex items-center gap-3 text-[11px] text-white/45 shrink-0">

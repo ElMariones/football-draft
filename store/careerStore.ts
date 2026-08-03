@@ -38,7 +38,9 @@ import {
   addIdol, applyExit, creditTitle, seasonIdolGain, legacyOf, legacyScore, idolAt,
 } from '@/lib/career/idolatry';
 import { areRivals, mainRival } from '@/data/career/rivals';
-import { seasonWage, getItem, canAfford } from '@/lib/career/shop';
+import {
+  seasonWage, getItem, canAfford, wageMultiplierOf, injuryResistOf,
+} from '@/lib/career/shop';
 import {
   evaluate as evalAchievements, loadUnlocked, saveUnlocked,
   type Achievement, type Unlocked,
@@ -168,6 +170,15 @@ const emptyWizard: Wizard = {
 
 
 interface NtRunState extends PendingRun {
+  /**
+   * Which knockout rounds you are actually on the pitch for, as round indices.
+   * Playing all four was too much: a World Cup meant four modals back to back,
+   * every other year. One or two now, weighted to the later rounds, and every
+   * other round is resolved by the same odds without stopping the game — so
+   * sometimes it is only the semi and the final, and sometimes you go out in the
+   * quarters and never see a minigame at all.
+   */
+  playedRounds: number[];
   /** which knockout round is being played, 0 = last 16 */
   idx: number;
   /** index into stages[] of the season record to patch when the run ends */
@@ -223,6 +234,49 @@ function tournamentMini(run: PendingRun, idx: number, rng: Rng, lang: Lang): Min
   };
 }
 
+
+
+/** One or two rounds to actually play, weighted towards the ones that matter. */
+function pickPlayedRounds(rng: Rng): number[] {
+  const count = rng.chance(0.35) ? 2 : 1;
+  const weight = [1, 2, 3, 4]; // r16, qf, sf, final
+  const picked = new Set<number>();
+  let guard = 0;
+  while (picked.size < count && guard++ < 40) {
+    const total = weight.reduce((a, b) => a + b, 0);
+    let r = rng.next() * total;
+    for (let i = 0; i < weight.length; i++) {
+      r -= weight[i];
+      if (r <= 0) { picked.add(i); break; }
+    }
+  }
+  return [...picked].sort((a, b) => a - b);
+}
+
+/**
+ * Walk the knockout forward from `fromIdx`, simulating every round the player is
+ * not on the pitch for, and stop at the first one they are. Returns either the
+ * round to hand to the player, or the result if the run ended on the way there.
+ */
+function walkNtRun(
+  run: { quality: number; playedRounds: number[] }, fromIdx: number, rng: Rng,
+): { playAt: number; caps: number; goals: number }
+  | { done: NtResult; caps: number; goals: number } {
+  let idx = fromIdx;
+  let caps = 0;
+  let goals = 0;
+  while (idx < KO_ROUNDS.length) {
+    if (run.playedRounds.includes(idx)) return { playAt: idx, caps, goals };
+    // simulated round: you played it, you just did not decide it
+    caps += 1;
+    if (rng.chance(0.3)) goals += 1;
+    if (!rng.chance(roundOdds(run.quality, idx))) {
+      return { done: resultAfter(idx, false), caps, goals };
+    }
+    idx += 1;
+  }
+  return { done: 'champion', caps, goals };
+}
 
 /** The rng is created per career; this just keeps the call sites readable. */
 function rng0(s: { rng: Rng | null }): Rng {
@@ -382,13 +436,30 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         line = es
           ? `🌍 Ganaste ${roundName.toLowerCase()} con tu selección. Seguís vivos.`
           : `🌍 You won the ${roundName.toLowerCase()} for your country. Still alive.`;
-        set({
-          player: p,
-          miniGame: tournamentMini(run, run.idx + 1, s.rng!, s.lang),
-          ntRun: { ...run, idx: run.idx + 1, caps, goals },
-          seasonNews: [...s.seasonNews, line],
-        });
-        get().checkAchievements();
+
+        // Walk on to the next round you are actually on the pitch for, playing
+        // out anything in between rather than stopping the game for it.
+        const walk = walkNtRun(run, run.idx + 1, s.rng!);
+        p.ntCaps += walk.caps;
+        p.ntGoals += walk.goals;
+        const capsNow = caps + walk.caps;
+        const goalsNow = goals + walk.goals;
+
+        if ('playAt' in walk) {
+          set({
+            player: p,
+            miniGame: tournamentMini(run, walk.playAt, s.rng!, s.lang),
+            ntRun: { ...run, idx: walk.playAt, caps: capsNow, goals: goalsNow },
+            seasonNews: [...s.seasonNews, line],
+          });
+          get().checkAchievements();
+          return;
+        }
+        set({ player: p, seasonNews: [...s.seasonNews, line] });
+        finishNtRun(
+          set, get, { ...run, caps: capsNow, goals: goalsNow },
+          walk.done, p, walk.done === 'champion',
+        );
         return;
       }
 
@@ -827,7 +898,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         : `🔥 ${out.derbyGoals} derby goal${out.derbyGoals > 1 ? 's' : ''}. That is never forgotten.`);
     }
 
-    player.money = (player.money ?? 0) + seasonWage(player.value, club.strength, out.apps);
+    // an agent and a boot deal are worth real money, every season, forever
+    player.money = (player.money ?? 0)
+      + Math.round(seasonWage(player.value, club.strength, out.apps) * wageMultiplierOf(player));
 
     // Divisions shuffle once the season is done, so the offers drawn next are
     // against the new table — including your own club going up or down.
@@ -842,9 +915,26 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     // A knockout run with your country outranks anything at club level, and it
     // is not decided in advance: the run is set up here and each round is won or
     // lost at the minigame in resolveMiniGame.
+    let ntRunState: NtRunState | null = null;
+    let autoFinish: { result: NtResult; caps: number; goals: number } | null = null;
     if (nt.pendingRun) {
       pendingRun = nt.pendingRun;
-      mini = tournamentMini(pendingRun, 0, rng, s.lang);
+      const playedRounds = pickPlayedRounds(rng);
+      const walk = walkNtRun({ quality: pendingRun.quality, playedRounds }, 0, rng);
+      const base: NtRunState = {
+        ...pendingRun, playedRounds, idx: 0, stageIdx: 0,
+        caps: walk.caps, goals: walk.goals, age: seasonAge,
+      };
+      if ('playAt' in walk) {
+        base.idx = walk.playAt;
+        mini = tournamentMini(pendingRun, walk.playAt, rng, s.lang);
+        ntRunState = base;
+      } else {
+        // knocked out (or all the way through) before reaching a round you were
+        // on the pitch for — no modal at all, just a result
+        ntRunState = base;
+        autoFinish = { result: walk.done, caps: walk.caps, goals: walk.goals };
+      }
     }
     const stakes: MiniStake[] = [];
     if (mini) stakes.length = 0;
@@ -934,13 +1024,20 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       // the biggest honour of the season stops the game for a moment
       celebrating: pickCelebration(allTitles),
       miniGame: mini,
-      ntRun: pendingRun
-        ? {
-            ...pendingRun, idx: 0, stageIdx: stages.length - 1,
-            caps: 0, goals: 0, age: seasonAge,
-          }
-        : null,
+      ntRun: ntRunState ? { ...ntRunState, stageIdx: stages.length - 1 } : null,
     });
+
+    // A run that ended without ever needing the player is closed out here, now
+    // that the season record it patches actually exists.
+    if (ntRunState && autoFinish) {
+      finishNtRun(
+        set, get,
+        { ...ntRunState, stageIdx: stages.length - 1, caps: autoFinish.caps, goals: autoFinish.goals },
+        autoFinish.result,
+        { ...player },
+        autoFinish.result === 'champion',
+      );
+    }
     get().checkAchievements();
 
     if (player.age >= CAREER.hardRetire) {

@@ -109,9 +109,12 @@ export type NewSeasonRow = typeof seasons.$inferInsert;
  */
 export const careerRuns = pgTable('careerRun', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('userId')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+  /**
+   * Optional. The board does not need an account — the name you gave the player
+   * is the entry. When someone happens to be signed in we still link the row so
+   * it can show their avatar, but nothing requires it.
+   */
+  userId: text('userId').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
 
   // who the player was

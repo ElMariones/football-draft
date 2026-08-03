@@ -6,7 +6,8 @@ import { useCareerStore } from '@/store/careerStore';
 import { getClub } from '@/data/career/clubs';
 import { ATTR_KEYS, ATTR_LABEL } from '@/lib/career/attributes';
 import { idolAt, idolLevel, idolCap, legacyOf, IDOL } from '@/lib/career/idolatry';
-import { SHOP, itemName, canAfford } from '@/lib/career/shop';
+import type { ShopKind } from '@/lib/career/shop';
+import ShopModal from './ShopModal';
 import { mainRival } from '@/data/career/rivals';
 import type { Lang } from '@/lib/career/i18n';
 
@@ -19,8 +20,9 @@ function money(n: number): string {
 }
 
 export default function LegacyPanel({ lang }: { lang: Lang }) {
-  const { player, buyItem } = useCareerStore();
+  const { player } = useCareerStore();
   const [shopOpen, setShopOpen] = useState(false);
+  const [shopTab, setShopTab] = useState<ShopKind>('staff');
   if (!player) return null;
   const es = lang === 'es';
 
@@ -183,55 +185,14 @@ export default function LegacyPanel({ lang }: { lang: Lang }) {
         </div>
         <motion.button
           whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }}
-          onClick={() => setShopOpen(v => !v)}
+          onClick={() => setShopOpen(true)}
           className="btn-ghost text-sm"
         >
           🛒 {es ? 'Tienda' : 'Shop'}
         </motion.button>
       </div>
 
-      <AnimatePresence>
-        {shopOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <p className="text-[11px] text-white/45 mb-2">
-              {es
-                ? 'El dinero no cuenta para la gloria: lo cambias por carrera.'
-                : 'Money does not count toward glory — you trade it for career.'}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {SHOP.map(item => {
-                const owned = (player.owned ?? []).includes(item.id);
-                const afford = canAfford(player, item);
-                return (
-                  <button
-                    key={item.id}
-                    disabled={!afford}
-                    onClick={() => buyItem(item.id)}
-                    className={`rounded-xl border p-2 text-left transition-colors ${
-                      owned ? 'border-wc/50 bg-wc/10'
-                        : afford ? 'border-white/12 bg-white/5 hover:bg-white/10'
-                          : 'border-white/5 bg-white/[0.02] opacity-40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>{item.emoji}</span>
-                      <span className="text-[11px] leading-tight">{itemName(item, lang)}</span>
-                    </div>
-                    <div className={`text-[10px] mt-0.5 ${owned ? 'text-wc' : 'text-white/45'}`}>
-                      {owned ? (es ? 'Comprado' : 'Owned') : money(item.price)}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       {/* ---- best legacy across clubs ---- */}
       {legacy && legacy.clubId !== player.clubId && (
@@ -245,6 +206,13 @@ export default function LegacyPanel({ lang }: { lang: Lang }) {
           </div>
         </div>
       )}
+      <ShopModal
+        open={shopOpen}
+        onClose={() => setShopOpen(false)}
+        lang={lang}
+        tab={shopTab}
+        setTab={setShopTab}
+      />
     </div>
   );
 }

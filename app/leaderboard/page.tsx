@@ -11,8 +11,8 @@ export default function LeaderboardPage() {
         <Link href="/" className="btn-ghost text-xs inline-block mb-3">← Back</Link>
         <h1 className="font-display text-3xl sm:text-4xl tracking-wide">Leaderboard</h1>
         <p className="text-sm text-white/50 mt-1">
-          Best run per player. Draft XI ranks squads and campaigns; career mode ranks
-          whole careers, and only ones played on a rolled seed.
+          Draft XI ranks squads and campaigns, best run per player. Career mode ranks
+          whole careers — no account needed, rolled seeds only.
         </p>
       </div>
       <LeaderboardTabs />

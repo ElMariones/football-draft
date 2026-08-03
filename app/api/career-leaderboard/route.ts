@@ -20,39 +20,29 @@ export async function GET(req: Request) {
       ? sortParam
       : 'score';
 
-  // DISTINCT ON picks each user's best row; the inner ORDER BY decides which
-  // row wins, the outer one ranks the winners.
-  // Two fragments, not one: inside the subquery the table is aliased `r`, but
-  // the outer ORDER BY sees only the subquery, aliased `best`. Reusing the inner
-  // fragment outside produced `ORDER BY r.score` against `best` and failed.
-  const inner = {
+  // Every run is its own entry. Deduplicating per user was right when an account
+  // was required; now that the player's name is the entry, most rows have no
+  // user at all and DISTINCT ON (userId) would collapse every anonymous career
+  // in the table into a single line.
+  const col = {
     score: sql`r.score`,
     trophies: sql`r.trophies`,
     goals: sql`r.goals`,
     overall: sql`r."peakOverall"`,
   }[sort];
-  const outer = {
-    score: sql`best.score`,
-    trophies: sql`best.trophies`,
-    goals: sql`best.goals`,
-    overall: sql`best."peakOverall"`,
-  }[sort];
 
   try {
     const rows = await db.execute(sql`
-      SELECT * FROM (
-        SELECT DISTINCT ON (r."userId")
-          r.id, r."userId", r.surname, r."nationCode", r.position,
-          r.score, r."peakOverall", r."seasonsPlayed", r.trophies,
-          r.goals, r.assists, r.apps, r."ballonDors", r.seed,
-          r.history, r."createdAt",
-          COALESCE(u.nickname, u.name) AS user_name,
-          u.image AS user_image
-        FROM "careerRun" r
-        JOIN "user" u ON r."userId" = u.id
-        ORDER BY r."userId", ${inner} DESC, r."createdAt" ASC
-      ) best
-      ORDER BY ${outer} DESC, best."createdAt" ASC
+      SELECT
+        r.id, r."userId", r.surname, r."nationCode", r.position,
+        r.score, r."peakOverall", r."seasonsPlayed", r.trophies,
+        r.goals, r.assists, r.apps, r."ballonDors", r.seed,
+        r.history, r."createdAt",
+        COALESCE(u.nickname, u.name) AS user_name,
+        u.image AS user_image
+      FROM "careerRun" r
+      LEFT JOIN "user" u ON r."userId" = u.id
+      ORDER BY ${col} DESC, r."createdAt" ASC
       LIMIT 50
     `);
     return NextResponse.json({ sort, entries: rows.rows ?? rows });
