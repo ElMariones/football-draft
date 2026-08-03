@@ -7,6 +7,7 @@
 import type { CareerPlayer, SeasonRecord, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
+import { getNation } from '@/data/career/nations';
 import { legacyOf, idolLevel } from './idolatry';
 import { ATTR_KEYS } from './attributes';
 import type { Lang } from './i18n';
@@ -349,6 +350,173 @@ export const ACHIEVEMENTS: Achievement[] = [
     en: 'Centurion', es: 'Centenario',
     descEn: 'Win 100 caps for your country.', descEs: 'Llega a 100 partidos con tu selección.',
     check: c => c.p.ntCaps >= 100 },
+
+  // ---- the shop, and what money is for ----
+  { id: 'first-purchase', emoji: '🛒', tier: 'bronze',
+    en: 'First splurge', es: 'El primer gusto',
+    descEn: 'Buy anything at all.', descEs: 'Compra cualquier cosa.',
+    check: c => (c.p.owned ?? []).length >= 1 },
+  { id: 'backroom', emoji: '🧑‍🍳', tier: 'silver',
+    en: 'An entourage', es: 'Un séquito',
+    descEn: 'Own five things at once.', descEs: 'Ten cinco cosas a la vez.',
+    check: c => (c.p.owned ?? []).length >= 5 },
+  { id: 'collector', emoji: '🗝️', tier: 'gold',
+    en: 'The collector', es: 'El coleccionista',
+    descEn: 'Own twelve things at once.', descEs: 'Ten doce cosas a la vez.',
+    check: c => (c.p.owned ?? []).length >= 12 },
+  { id: 'glass-body', emoji: '🩺', tier: 'gold',
+    en: 'Made of steel', es: 'Hecho de acero',
+    descEn: 'Buy the surgeon on retainer.', descEs: 'Contrata al cirujano de cabecera.',
+    check: c => (c.p.owned ?? []).includes('surgeon') },
+  { id: 'own-island', emoji: '🏝️', tier: 'legend',
+    en: 'Your own island', es: 'Tu propia isla',
+    descEn: 'Buy an island. There is nothing left to buy.',
+    descEs: 'Compra una isla. Ya no queda nada por comprar.',
+    check: c => (c.p.owned ?? []).includes('island') },
+  { id: 'gave-back', emoji: '💙', tier: 'gold',
+    en: 'Gave it back', es: 'Devolvió lo recibido',
+    descEn: 'Build an academy and a foundation.',
+    descEs: 'Construye una escuelita y una fundación.',
+    check: c => (c.p.owned ?? []).includes('academy') && (c.p.owned ?? []).includes('foundation') },
+  { id: 'millionaire', emoji: '💰', tier: 'silver',
+    en: 'Ten million in the bank', es: 'Diez millones en el banco',
+    descEn: 'Hold €10M at once.', descEs: 'Ten €10M a la vez.',
+    check: c => (c.p.money ?? 0) >= 10_000_000 },
+  { id: 'hundred-million', emoji: '🏦', tier: 'legend',
+    en: 'Nine figures', es: 'Nueve cifras',
+    descEn: 'Hold €100M at once.', descEs: 'Ten €100M a la vez.',
+    check: c => (c.p.money ?? 0) >= 100_000_000 },
+
+  // ---- the national team ----
+  { id: 'nt-debut', emoji: '🎽', tier: 'bronze',
+    en: 'The call', es: 'La convocatoria',
+    descEn: 'Play once for your country.', descEs: 'Juega una vez con tu selección.',
+    check: c => (c.p.ntCaps ?? 0) >= 1 },
+  { id: 'nt-fifty', emoji: '🇺🇳', tier: 'silver',
+    en: 'Fifty caps', es: 'Cincuenta partidos',
+    descEn: 'Fifty appearances for your country.',
+    descEs: 'Cincuenta partidos con tu selección.',
+    check: c => (c.p.ntCaps ?? 0) >= 50 },
+  { id: 'nt-goals-50', emoji: '🎯', tier: 'gold',
+    en: 'Fifty for your country', es: 'Cincuenta para tu país',
+    descEn: 'Score fifty international goals.',
+    descEs: 'Marca cincuenta goles internacionales.',
+    check: c => (c.p.ntGoals ?? 0) >= 50 },
+  { id: 'nt-knockout', emoji: '🗝️', tier: 'silver',
+    en: 'Into the knockouts', es: 'A la fase final',
+    descEn: 'Reach a quarter-final with your country.',
+    descEs: 'Llega a cuartos con tu selección.',
+    check: c => (c.p.ntHistory ?? []).some(h =>
+      ['qf', 'sf', 'runner-up', 'champion'].includes(h.tournament?.result ?? '')) },
+  { id: 'nt-final', emoji: '🥈', tier: 'gold',
+    en: 'So close', es: 'Tan cerca',
+    descEn: 'Lose a major final with your country.',
+    descEs: 'Pierde una final grande con tu selección.',
+    check: c => (c.p.ntHistory ?? []).some(h => h.tournament?.result === 'runner-up') },
+  { id: 'nt-underdog', emoji: '🐜', tier: 'legend',
+    en: 'Against the odds', es: 'Contra todo pronóstico',
+    descEn: 'Win a tournament with a nation rated below 75.',
+    descEs: 'Gana un torneo con una selección de menos de 75.',
+    check: c => (c.p.ntHistory ?? []).some(h => h.tournament?.result === 'champion')
+      && (getNation(c.p.ntNationCode)?.strength ?? 99) < 75 },
+
+  // ---- the shape of a career ----
+  { id: 'one-club-man', emoji: '🏛️', tier: 'legend',
+    en: 'One-club man', es: 'Hombre de un solo club',
+    descEn: 'Play a whole career of ten seasons or more at a single club.',
+    descEs: 'Juega una carrera entera de diez o más temporadas en un solo club.',
+    check: c => c.stages.length >= 10 && clubsPlayed(c).size === 1 },
+  { id: 'late-bloomer', emoji: '🌻', tier: 'silver',
+    en: 'Late bloomer', es: 'Floración tardía',
+    descEn: 'Reach your peak overall at 30 or older.',
+    descEs: 'Alcanza tu pico de media a los 30 o más.',
+    check: c => c.stages.some(st => st.age >= 30 && st.overallAtSeason >= c.p.peakOverall) },
+  { id: 'teen-star', emoji: '🐣', tier: 'gold',
+    en: 'Teenage star', es: 'Estrella adolescente',
+    descEn: 'Reach 80 overall before turning 20.',
+    descEs: 'Llega a 80 de media antes de los 20.',
+    check: c => c.stages.some(st => st.age < 20 && st.overallAtSeason >= 80) },
+  { id: 'evergreen', emoji: '🌲', tier: 'gold',
+    en: 'Evergreen', es: 'Eterno',
+    descEn: 'Still playing at 38.', descEs: 'Seguir jugando a los 38.',
+    check: c => c.stages.some(st => st.age >= 38) },
+  { id: 'globetrotter-5', emoji: '🌐', tier: 'legend',
+    en: 'Five confederations', es: 'Cinco confederaciones',
+    descEn: 'Play in five different confederations.',
+    descEs: 'Juega en cinco confederaciones distintas.',
+    check: c => confedsPlayed(c).size >= 5 },
+  { id: 'season-40', emoji: '🔥', tier: 'legend',
+    en: 'Forty in a season', es: 'Cuarenta en una temporada',
+    descEn: 'Score forty goals in a single season.',
+    descEs: 'Marca cuarenta goles en una temporada.',
+    check: c => bestSeason(c, s => s.goals) >= 40 },
+  { id: 'season-25-assists', emoji: '🅰️', tier: 'gold',
+    en: 'Twenty-five assists', es: 'Veinticinco asistencias',
+    descEn: 'Twenty-five assists in a single season.',
+    descEs: 'Veinticinco asistencias en una temporada.',
+    check: c => bestSeason(c, s => s.assists) >= 25 },
+  { id: 'thousand-games', emoji: '🧱', tier: 'legend',
+    en: 'A thousand games', es: 'Mil partidos',
+    descEn: 'Play one thousand club games.', descEs: 'Juega mil partidos de club.',
+    check: c => (c.p.apps ?? 0) >= 1000 },
+  { id: 'promoted', emoji: '⬆️', tier: 'silver',
+    en: 'Up we go', es: 'Ascenso',
+    descEn: 'Win a second-tier league title.',
+    descEs: 'Gana un título de segunda división.',
+    check: c => c.stages.some(st => st.titles.some(t => t.key === 'league')
+      && (getLeague(getClub(st.clubId)?.leagueId ?? '')?.tier ?? 1) >= 3) },
+  { id: 'derby-king', emoji: '⚔️', tier: 'gold',
+    en: 'King of the derby', es: 'Rey del clásico',
+    descEn: 'Score twenty-five derby goals.', descEs: 'Marca veinticinco goles en clásicos.',
+    check: c => (c.p.derbyGoals ?? 0) >= 25 },
+  { id: 'treble', emoji: '👑', tier: 'legend',
+    en: 'The treble', es: 'El triplete',
+    descEn: 'Win the league, a domestic cup and a continental cup in one season.',
+    descEs: 'Gana la liga, una copa nacional y una copa continental en la misma temporada.',
+    check: c => c.stages.some(st => {
+      const k = st.titles.map(t => t.key);
+      return k.includes('league') && k.includes('domestic-cup')
+        && (k.includes('champions') || k.includes('libertadores'));
+    }) },
+  { id: 'perfect-storm', emoji: '🌪️', tier: 'legend',
+    en: 'The perfect year', es: 'El año perfecto',
+    descEn: 'Win the Ballon d\'Or and the World Cup in the same year.',
+    descEs: 'Gana el Balón de Oro y el Mundial el mismo año.',
+    check: c => {
+      const years = new Map<number, Set<string>>();
+      for (const st of c.stages) {
+        const set = years.get(st.year) ?? new Set<string>();
+        for (const t of st.titles) set.add(t.key);
+        years.set(st.year, set);
+      }
+      return [...years.values()].some(k => k.has('ballon-dor') && k.has('world-cup'));
+    } },
+  { id: 'nomad', emoji: '🧳', tier: 'gold',
+    en: 'Twelve badges', es: 'Doce escudos',
+    descEn: 'Play for twelve different clubs.', descEs: 'Juega en doce clubes distintos.',
+    check: c => clubsPlayed(c).size >= 12 },
+  { id: 'idol-two', emoji: '💞', tier: 'legend',
+    en: 'Idol twice over', es: 'Ídolo dos veces',
+    descEn: 'Reach 80 idolatry at two different clubs.',
+    descEs: 'Llega a 80 de idolatría en dos clubes distintos.',
+    check: c => Object.values(c.p.idolatry ?? {}).filter(v => v >= 80).length >= 2 },
+  { id: 'comeback', emoji: '🔁', tier: 'silver',
+    en: 'The homecoming', es: 'La vuelta a casa',
+    descEn: 'Return to a club you had already left.',
+    descEs: 'Vuelve a un club que ya habías dejado.',
+    check: c => {
+      const seen = new Set<string>();
+      let last = '';
+      for (const st of c.stages) {
+        if (st.clubId !== last) {
+          if (seen.has(st.clubId)) return true;
+          seen.add(st.clubId);
+          last = st.clubId;
+        }
+      }
+      return false;
+    } },
+
 ];
 
 // ---- persistence -----------------------------------------------------------

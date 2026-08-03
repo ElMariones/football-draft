@@ -7,7 +7,8 @@
 // was a number you spent blind. As a modal it gets the whole screen: tabs by
 // category, the effect spelled out on every card, and what you already own kept
 // visible so a long career reads as a collection.
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
 import {
@@ -61,13 +62,21 @@ export default function ShopModal({
     };
   }, [open, onClose]);
 
-  if (!player) return null;
+  // Mounted flag so the portal only runs on the client.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!player || !mounted) return null;
   const items = SHOP.filter(i => i.kind === tab);
   const ownedCount = (player.owned ?? []).length;
   const resist = injuryResistOf(player);
   const wageMul = wageMultiplierOf(player);
 
-  return (
+  // Rendered into <body>. A `position: fixed` element is contained by any
+  // ancestor with a transform — which every framer-motion panel has while it
+  // animates — so living inside the rail meant the dialog could be positioned
+  // relative to a 290px column instead of the viewport.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -209,6 +218,7 @@ export default function ShopModal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -3,10 +3,11 @@
 // Full-screen celebration for the honours that actually deserve one: the Ballon
 // d'Or, the World Cup, the Champions League and the other continental crowns.
 // Everything is CSS/motion — no canvas, no dependency.
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Title } from '@/data/career/types';
 import { TrophyIcon } from './TrophyArt';
+import { trophyImageUrl } from '@/lib/career/trophies';
 import { titleLabel, type Lang } from '@/lib/career/i18n';
 import { titleName } from '@/lib/career/competitions';
 
@@ -28,6 +29,29 @@ export function pickCelebration(titles: Title[]): Title | null {
 }
 
 const COLORS = ['#FFD700', '#00DFA2', '#3DA9FC', '#FF6B6B', '#FFFFFF', '#C8A2FF'];
+
+/**
+ * The trophy itself, photographed, rather than the drawn stand-in.
+ *
+ * A full-screen celebration is the one place the real thing is worth the network
+ * request: at 150px the icon reads as a generic cup, and this is the moment the
+ * player is supposed to recognise. Falls back to the drawn icon for anything the
+ * CDN and Wikipedia do not carry, and for any image that fails to load.
+ */
+function RealTrophy({ title }: { title: Title }) {
+  const url = trophyImageUrl(title);
+  const [failed, setFailed] = useState(false);
+  if (!url || failed) return <TrophyIcon title={title} size={150} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt=""
+      onError={() => setFailed(true)}
+      className="h-[150px] w-[150px] object-contain drop-shadow-[0_0_45px_rgba(245,197,66,0.45)]"
+    />
+  );
+}
 
 export default function Celebration({
   title, lang, onDone,
@@ -94,7 +118,7 @@ export default function Celebration({
               transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 0.6 }}
               className="inline-block"
             >
-              <TrophyIcon title={title} size={150} />
+              <RealTrophy title={title} />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}

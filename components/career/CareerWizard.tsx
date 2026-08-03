@@ -5,7 +5,9 @@ import { motion } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
 import { NATIONS } from '@/data/career/nations';
 import { careerT, Lang } from '@/lib/career/i18n';
-import { PITCH_POSITIONS, positionAbbr } from '@/lib/career/format';
+import {
+  PITCH_POSITIONS, positionAbbr, positionFull, positionBlurb,
+} from '@/lib/career/format';
 import type { Position } from '@/data/types';
 import { Jersey } from './bits';
 import Face from './Face';
@@ -247,30 +249,77 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
         <div className="card p-4 order-2 lg:order-3">
           <SectionLabel n={3}>{t.position}</SectionLabel>
           <div
-            className="relative w-full aspect-[3/4] rounded-xl border border-white/15 overflow-hidden"
-            style={{ background: 'linear-gradient(180deg,#0b3d1f,#0d5e2a)' }}
+            className="relative w-full aspect-[3/4.2] rounded-2xl border-2 border-white/20 overflow-hidden"
+            style={{ background: 'linear-gradient(180deg,#0a3a1d,#0e6b30)' }}
           >
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(180deg,transparent,transparent 22px,#fff2 22px,#fff2 44px)' }} />
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border border-white/25" />
-            <div className="absolute left-0 right-0 top-1/2 h-px bg-white/25" />
+            {/* mown stripes, box markings and the centre circle — a pitch you can
+                read at a glance rather than a green rectangle with labels on it */}
+            <div className="absolute inset-0 opacity-[0.13]" style={{ backgroundImage: 'repeating-linear-gradient(180deg,transparent,transparent 6%,#fff 6%,#fff 12%)' }} />
+            <div className="absolute inset-[3%] rounded-lg border-2 border-white/30" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[26%] aspect-square rounded-full border-2 border-white/30" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white/40" />
+            <div className="absolute left-[3%] right-[3%] top-1/2 h-0.5 bg-white/30" />
+            {/* penalty areas */}
+            <div className="absolute left-1/2 -translate-x-1/2 top-[3%] w-[46%] h-[14%] border-2 border-t-0 border-white/30 rounded-b-md" />
+            <div className="absolute left-1/2 -translate-x-1/2 top-[3%] w-[24%] h-[6%] border-2 border-t-0 border-white/30 rounded-b-sm" />
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-[3%] w-[46%] h-[14%] border-2 border-b-0 border-white/30 rounded-t-md" />
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-[3%] w-[24%] h-[6%] border-2 border-b-0 border-white/30 rounded-t-sm" />
+
             {PITCH_POSITIONS.map(pos => {
               const [x, y] = POS_COORDS[pos];
               const active = wizard.position === pos;
               return (
-                <button
+                <motion.button
                   key={pos}
                   onClick={() => setPosition(pos)}
+                  whileHover={{ scale: active ? 1.12 : 1.1 }}
+                  whileTap={{ scale: 0.94 }}
+                  animate={active ? { scale: 1.1 } : { scale: 1 }}
                   style={{ left: `${x}%`, top: `${y}%` }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 px-2 py-1 rounded-lg font-display text-xs tracking-wide border transition-all ${
+                  title={positionFull(pos, lang)}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 grid place-items-center rounded-full font-display border-2 transition-colors ${
                     active
-                      ? 'bg-wc text-black border-wc scale-110 shadow-lg'
-                      : 'bg-black/55 text-white border-white/25 hover:bg-black/80'
+                      ? 'bg-wc text-black border-white shadow-[0_0_22px_rgba(0,223,162,0.65)] z-10'
+                      : 'bg-black/65 text-white/90 border-white/35 hover:bg-black/85 hover:border-white/70'
                   }`}
                 >
-                  {positionAbbr(pos, lang)}
-                </button>
+                  {/* a real shirt-sized token, not a text chip */}
+                  <span className="grid place-items-center w-9 h-9 sm:w-11 sm:h-11 text-[11px] sm:text-xs tracking-wide">
+                    {positionAbbr(pos, lang)}
+                  </span>
+                  {active && (
+                    <motion.span
+                      layoutId="posPulse"
+                      className="absolute inset-0 rounded-full border-2 border-wc"
+                      animate={{ scale: [1, 1.5], opacity: [0.7, 0] }}
+                      transition={{ duration: 1.4, repeat: Infinity }}
+                    />
+                  )}
+                </motion.button>
               );
             })}
+          </div>
+
+          {/* what you just picked, spelled out */}
+          <div className="mt-3 min-h-[3.25rem]">
+            {wizard.position ? (
+              <motion.div
+                key={wizard.position}
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-wc/35 bg-wc/10 px-3 py-2"
+              >
+                <div className="font-display text-base leading-none text-wc">
+                  {positionFull(wizard.position, lang)}
+                </div>
+                <p className="text-[11px] text-white/55 leading-snug mt-1">
+                  {positionBlurb(wizard.position, lang)}
+                </p>
+              </motion.div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-white/15 px-3 py-2 text-[11px] text-white/35">
+                {es ? 'Toca una posición en la cancha.' : 'Tap a position on the pitch.'}
+              </div>
+            )}
           </div>
         </div>
       </div>

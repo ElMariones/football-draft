@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { useCareerStore } from '@/store/careerStore';
 import { careerT } from '@/lib/career/i18n';
+import CareerLanding from '@/components/career/CareerLanding';
 import CareerWizard from '@/components/career/CareerWizard';
 import CareerHud from '@/components/career/CareerHud';
 import MobileIdentityBar from '@/components/career/MobileIdentityBar';
@@ -65,7 +66,7 @@ export default function CareerPage() {
           <AchievementsBook lang={lang} />
           {/* the board is no use if you cannot get to it from the game */}
           <Link
-            href="/leaderboard"
+            href="/leaderboard?tab=career"
             className="btn-ghost text-sm whitespace-nowrap"
             title={lang === 'es' ? 'Tabla global' : 'Global leaderboard'}
           >
@@ -75,14 +76,7 @@ export default function CareerPage() {
         </div>
       </header>
 
-      {phase === 'landing' && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto text-center pt-8">
-          <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity }} className="text-7xl mb-4">🏆</motion.div>
-          <h1 className="font-display text-5xl sm:text-6xl leading-none mb-4">{t.heroTitle}</h1>
-          <p className="text-white/60 mb-8">{t.heroDesc}</p>
-          <button onClick={startCareer} className="btn-primary text-xl px-10">{t.start}</button>
-        </motion.div>
-      )}
+      {phase === 'landing' && <CareerLanding lang={lang} onStart={startCareer} />}
 
       {phase === 'wizard' && <CareerWizard lang={lang} />}
 
@@ -99,9 +93,11 @@ export default function CareerPage() {
               identity to the top, on small screens only. */}
           <MobileIdentityBar player={player} lang={lang} />
 
-          {/* the rail can outgrow the viewport once the NT panel and shop are in
-              it, so it scrolls internally like the timeline rail already does */}
-          <div className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto order-2 lg:order-1">
+          {/* One page, one scrollbar. Giving this rail its own max-height and
+              overflow made it a nested scroller: the shop button lived inside a
+              small box with its own bar, so opening the shop scrolled that box
+              rather than covering the screen. */}
+          <div className="space-y-4 lg:sticky lg:top-4 order-2 lg:order-1">
             <CareerHud player={player} trophies={trophies} lang={lang} />
             <LegacyPanel lang={lang} />
             <NationalTeamPanel lang={lang} />

@@ -8,8 +8,12 @@ import CareerBoard from './CareerBoard';
 
 type Tab = 'draft' | 'career';
 
-export default function LeaderboardTabs() {
-  const [tab, setTab] = useState<Tab>('draft');
+export default function LeaderboardTabs({ only }: { only?: Tab }) {
+  const [tab, setTab] = useState<Tab>(only ?? 'draft');
+
+  // Reached from inside career mode, the draft board is noise — the player is
+  // in the middle of a career and wants to see where that career would place.
+  if (only) return only === 'career' ? <CareerBoard /> : <LeaderboardClient />;
 
   return (
     <div>
