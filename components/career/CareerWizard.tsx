@@ -35,11 +35,28 @@ function jerseyColors(code: string): [string, string] {
   return JERSEY[code] ?? ['#3DA9FC', '#0C2D52'];
 }
 
+/**
+ * Where each position sits on the pitch, as percentages.
+ *
+ * Laid out as six even bands rather than by eye: the twelve pitch positions form
+ * a readable shape, the wide players line up with each other, and nothing lands
+ * on a marking. The keeper in particular used to sit at 91%, which pushed it
+ * through the goal line at the bottom of the box.
+ */
 const POS_COORDS: Record<Position, [number, number]> = {
-  ST: [50, 11], LW: [21, 21], RW: [79, 21], CAM: [50, 30],
-  LM: [19, 44], CM: [50, 46], RM: [81, 44], CDM: [50, 60],
-  LB: [18, 75], CB: [50, 76], RB: [82, 75], GK: [50, 91],
-  RWB: [82, 68], LWB: [18, 68], CF: [50, 18],
+  // attack
+  ST: [50, 13],
+  LW: [17, 21], RW: [83, 21],
+  CF: [50, 23],
+  // midfield
+  CAM: [50, 33],
+  LM: [16, 47], CM: [50, 47], RM: [84, 47],
+  CDM: [50, 60],
+  // defence
+  LWB: [16, 63], RWB: [84, 63],
+  LB: [17, 75], CB: [50, 75], RB: [83, 75],
+  // keeper, inside the six-yard box rather than on the line
+  GK: [50, 88],
 };
 
 function SectionLabel({ n, children }: { n: number; children: React.ReactNode }) {
@@ -269,33 +286,50 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
               const [x, y] = POS_COORDS[pos];
               const active = wizard.position === pos;
               return (
-                <motion.button
+                /* Positioning lives on this wrapper, not on the button.
+                   framer-motion writes the `transform` property, and at scale 1
+                   it writes `transform: none` — which silently wiped the
+                   -translate-x-1/2/-translate-y-1/2 that centres a token on its
+                   coordinate. Every token was hanging down and right of where it
+                   belonged, and the selected one shifted again as it scaled. */
+                <div
                   key={pos}
-                  onClick={() => setPosition(pos)}
-                  whileHover={{ scale: active ? 1.12 : 1.1 }}
-                  whileTap={{ scale: 0.94 }}
-                  animate={active ? { scale: 1.1 } : { scale: 1 }}
                   style={{ left: `${x}%`, top: `${y}%` }}
-                  title={positionFull(pos, lang)}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 grid place-items-center rounded-full font-display border-2 transition-colors ${
-                    active
-                      ? 'bg-wc text-black border-white shadow-[0_0_22px_rgba(0,223,162,0.65)] z-10'
-                      : 'bg-black/65 text-white/90 border-white/35 hover:bg-black/85 hover:border-white/70'
-                  }`}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 ${active ? 'z-10' : ''}`}
                 >
-                  {/* a real shirt-sized token, not a text chip */}
-                  <span className="grid place-items-center w-9 h-9 sm:w-11 sm:h-11 text-[11px] sm:text-xs tracking-wide">
-                    {positionAbbr(pos, lang)}
-                  </span>
+                  <motion.button
+                    onClick={() => setPosition(pos)}
+                    whileHover={{ scale: 1.12 }}
+                    whileTap={{ scale: 0.94 }}
+                    animate={{ scale: active ? 1.1 : 1 }}
+                    transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+                    title={positionFull(pos, lang)}
+                    className={`relative grid place-items-center rounded-full font-display border-2 transition-colors ${
+                      active
+                        ? 'bg-wc text-black border-white shadow-[0_0_22px_rgba(0,223,162,0.65)]'
+                        : 'bg-black/65 text-white/90 border-white/35 hover:bg-black/85 hover:border-white/70'
+                    }`}
+                  >
+                    <span className="grid place-items-center w-9 h-9 sm:w-11 sm:h-11 text-[11px] sm:text-xs tracking-wide">
+                      {positionAbbr(pos, lang)}
+                    </span>
+                  </motion.button>
+
+                  {/* The halo sits outside the button so the button's own scale
+                      animation and the halo's never share a transform. It used to
+                      carry a layoutId as well, which made framer animate its
+                      layout from the old token to the new one while an infinite
+                      scale keyframe ran — the two fought and it never settled. */}
                   {active && (
                     <motion.span
-                      layoutId="posPulse"
-                      className="absolute inset-0 rounded-full border-2 border-wc"
-                      animate={{ scale: [1, 1.5], opacity: [0.7, 0] }}
-                      transition={{ duration: 1.4, repeat: Infinity }}
+                      aria-hidden
+                      className="absolute inset-0 rounded-full border-2 border-wc pointer-events-none"
+                      initial={{ scale: 1, opacity: 0.65 }}
+                      animate={{ scale: 1.45, opacity: 0 }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
                     />
                   )}
-                </motion.button>
+                </div>
               );
             })}
           </div>
