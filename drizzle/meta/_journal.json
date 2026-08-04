@@ -43,6 +43,13 @@
       "when": 1785900000000,
       "tag": "0005_career_run_seed_bigint",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786000000000,
+      "tag": "0006_career_run_daily",
+      "breakpoints": true
     }
   ]
 }

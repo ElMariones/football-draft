@@ -85,6 +85,7 @@ export default function CareerBoard() {
   const es = lang === 'es';
   const tr = <K extends keyof typeof T>(k: K) => T[k][lang];
 
+  const [board, setBoard] = useState<'all' | 'daily'>('all');
   const [sort, setSort] = useState<Sort>('score');
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [notMigrated, setNotMigrated] = useState(false);
@@ -95,7 +96,7 @@ export default function CareerBoard() {
     let live = true;
     setEntries(null);
     setError(null);
-    fetch(`/api/career-leaderboard?sort=${sort}`, { cache: 'no-store' })
+    fetch(`/api/career-leaderboard?sort=${sort}&board=${board}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         if (!live) return;
@@ -104,7 +105,7 @@ export default function CareerBoard() {
       })
       .catch(() => live && setError(T.loadError[lang]));
     return () => { live = false; };
-  }, [sort, lang]);
+  }, [sort, board, lang]);
 
   const value = (e: Entry) =>
     sort === 'trophies' ? e.trophies
@@ -114,6 +115,38 @@ export default function CareerBoard() {
 
   return (
     <div>
+      {/* Two different competitions, not one board with a filter: everyone on
+          the daily played the identical world, so only there is the gap between
+          two rows purely the decisions taken. */}
+      <div className="flex gap-2 mb-3">
+        {([
+          { key: 'all' as const, en: '🌍 All-time', es: '🌍 Histórica' },
+          { key: 'daily' as const, en: '📅 Seed of the day', es: '📅 Semilla del día' },
+        ]).map(b => (
+          <button
+            key={b.key}
+            onClick={() => setBoard(b.key)}
+            className={`text-xs px-3.5 py-2 rounded-xl border font-semibold transition-colors ${
+              board === b.key
+                ? (b.key === 'daily'
+                    ? 'border-cl bg-cl/15 text-cl'
+                    : 'border-wc bg-wc/15 text-wc')
+                : 'border-white/15 bg-white/5 text-white/55 hover:bg-white/10'
+            }`}
+          >
+            {b[lang]}
+          </button>
+        ))}
+      </div>
+
+      {board === 'daily' && (
+        <p className="text-[11px] text-cl/70 mb-3 leading-snug">
+          {lang === 'es'
+            ? 'Un solo mundo para todos hoy: mismas ofertas, mismos eventos, misma suerte. Lo único que cambia son tus decisiones. Se reinicia a medianoche UTC.'
+            : "One world for everyone today: same offers, same events, same luck. The only difference is what you decided. Resets at midnight UTC."}
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2 mb-4">
         {SORTS.map(s => (
           <button
@@ -130,9 +163,11 @@ export default function CareerBoard() {
         ))}
       </div>
 
-      <p className="text-[11px] text-white/40 mb-4">
-        {tr('blurb')}
-      </p>
+      {board === 'all' && (
+        <p className="text-[11px] text-white/40 mb-4">
+          {tr('blurb')}
+        </p>
+      )}
 
       {error && <div className="text-red-300 text-sm py-6 text-center">{error}</div>}
 

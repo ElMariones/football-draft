@@ -141,6 +141,11 @@ export const careerRuns = pgTable('careerRun', {
   // 'number'` keeps it a JS number, which is exact well past 2^32.
   seed: bigint('seed', { mode: 'number' }).notNull(),
   seedSource: text('seedSource').notNull(),
+  /**
+   * The UTC day a seed-of-the-day run belongs to, `YYYY-MM-DD`. Null for every
+   * other run — the daily board is scoped by it and nothing else reads it.
+   */
+  dayKey: text('dayKey'),
 
   // the story: club spells, honours, national-team record
   history: jsonb('history').notNull(),

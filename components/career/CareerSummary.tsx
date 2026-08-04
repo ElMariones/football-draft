@@ -170,9 +170,11 @@ export default function CareerSummary({
     setMine(rec);
     setRecords(saveRecord(rec));
 
-    // Rolled seeds also go to the public board. Seeded runs never leave the
-    // device — the server rejects them too, but there is no reason to ask.
-    if (seedSource !== 'random') { setSubmit('seeded'); return; }
+    // Rolled and daily seeds go to the public board — different boards, both
+    // public. Only a *typed* seed stays on the device, because it can be
+    // replayed until the world cooperates. The server rejects it too, but there
+    // is no reason to ask.
+    if (seedSource === 'custom') { setSubmit('seeded'); return; }
     sendRun();
   }, [player, stages, trophies, score, seedSource, sendRun]);
   const [copied, setCopied] = useState(false);
@@ -277,8 +279,13 @@ export default function CareerSummary({
                 <span className="text-white/40">{es ? 'Enviando a la tabla…' : 'Submitting…'}</span>
               )}
               {submit === 'done' && (
-                <a href="/leaderboard" className="text-wc hover:underline">
-                  {es ? '✓ En la tabla global' : '✓ On the global board'}
+                <a
+                  href={seedSource === 'daily' ? '/leaderboard?tab=career&board=daily' : '/leaderboard?tab=career'}
+                  className={seedSource === 'daily' ? 'text-cl hover:underline' : 'text-wc hover:underline'}
+                >
+                  {seedSource === 'daily'
+                    ? (es ? '✓ En la tabla del día' : "✓ On today's board")
+                    : (es ? '✓ En la tabla global' : '✓ On the global board')}
                 </a>
               )}
               {/* A dead "could not submit" loses the run for good and tells

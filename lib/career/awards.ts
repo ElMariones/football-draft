@@ -38,9 +38,14 @@ export function rollAwards(
   const ovrScore = (out.effOverall - 70) / 29;
   const score = clamp(0, 1.4, 0.42 * ratingScore + titleScore + 0.18 * ovrScore + p.reputation / 400);
 
+  // Every individual award carries the division it was won in, so a league MVP
+  // is a *Premier League* MVP forever — including after the club is relegated.
   const add = (key: string, scope: TitleScope, prob: number) => {
     if (rng.chance(prob)) {
-      titles.push({ key, kind: 'individual', scope, age: p.age, clubId: club.id });
+      titles.push({
+        key, kind: 'individual', scope, age: p.age,
+        clubId: club.id, leagueId: club.leagueId,
+      });
     }
   };
 
@@ -139,7 +144,10 @@ export function rollAwards(
   const field = rng.gauss(4.0, 0.65);
   const ballonCase = out.apps >= 20 && p.reputation >= 72 && ballon >= field;
   if (ballonCase) {
-    titles.push({ key: 'ballon-dor', kind: 'individual', scope: 'world', age: p.age, clubId: club.id });
+    titles.push({
+      key: 'ballon-dor', kind: 'individual', scope: 'world', age: p.age,
+      clubId: club.id, leagueId: club.leagueId,
+    });
     add('the-best', 'world', 0.72);
   } else if (out.apps >= 20 && p.reputation >= 72 && ballon >= field - 0.35) {
     // pipped to the Ballon d'Or but still the pick of a different jury

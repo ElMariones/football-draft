@@ -17,6 +17,7 @@ import ArchetypePicker from '@/components/career/ArchetypePicker';
 import PreseasonCards from '@/components/career/PreseasonCards';
 import MomentModal from '@/components/career/MomentModal';
 import LegacyPanel from '@/components/career/LegacyPanel';
+import RecordChase from '@/components/career/RecordChase';
 import { NationalTeamPanel } from '@/components/career/NationalTeam';
 import { AchievementToasts, AchievementsBook } from '@/components/career/Achievements';
 import Celebration from '@/components/career/Celebration';
@@ -100,6 +101,7 @@ export default function CareerPage() {
           <div className="space-y-4 lg:sticky lg:top-4 order-2 lg:order-1">
             <CareerHud player={player} trophies={trophies} lang={lang} />
             <LegacyPanel lang={lang} />
+            <RecordChase lang={lang} />
             <NationalTeamPanel lang={lang} />
           </div>
 

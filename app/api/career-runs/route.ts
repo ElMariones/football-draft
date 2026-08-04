@@ -60,7 +60,10 @@ export async function POST(req: Request) {
         apps: body.apps,
         ballonDors: body.ballonDors,
         seed: body.seed,
-        seedSource: 'random',
+        // Trusted only after validateSubmission has recomputed the day's seed
+        // and confirmed a daily claim; anything else can only be 'random'.
+        seedSource: body.seedSource === 'daily' ? 'daily' : 'random',
+        dayKey: body.seedSource === 'daily' ? body.dayKey ?? null : null,
         history: body.history,
       })
       .returning({ id: careerRuns.id });

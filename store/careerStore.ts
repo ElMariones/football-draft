@@ -9,6 +9,7 @@ import { NATIONS, getNation } from '@/data/career/nations';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { makeRng, Rng, randomSeed, seedFromText, clamp } from '@/lib/career/rng';
+import { dailySeed, dayKey } from '@/lib/career/daily';
 import { CAREER, declineByAge } from '@/lib/career/config';
 import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
@@ -47,6 +48,7 @@ import {
 } from '@/lib/career/achievements';
 import { pickCelebration } from '@/components/career/Celebration';
 import { rollLeagueMoves, moveNews, resetLeagues } from '@/lib/career/promotion';
+import { recordsBroken, brokenLine } from '@/lib/career/recordbook';
 import type { MiniGameSpec, MiniStake } from '@/components/career/MiniGame';
 
 export type CareerPhase =
@@ -90,6 +92,11 @@ interface Wizard {
   step: 1 | 2 | 3;
   /** raw text from the seed box — blank means "roll one for me" */
   seedInput: string;
+  /**
+   * Playing the seed of the day. Overrides the seed box entirely: the whole
+   * point is that everyone is in the same world, so it cannot be typed over.
+   */
+  daily: boolean;
   nationCode: string;
   /** previewed in the creation screen and carried into the career */
   face: FaceGenes | null;
@@ -147,6 +154,7 @@ interface CareerState {
   startCareer(): void;
   exitToLanding(): void;
   setSeedInput(v: string): void;
+  setDaily(on: boolean): void;
   setNation(code: string): void;
   rerollFace(): void;
   setIdentity(p: { surname: string; number: number; foot: Foot }): void;
@@ -172,7 +180,7 @@ interface CareerState {
 }
 
 const emptyWizard: Wizard = {
-  step: 1, seedInput: '', nationCode: '', face: null, surname: '', number: 10, foot: 'right', position: null,
+  step: 1, seedInput: '', daily: false, nationCode: '', face: null, surname: '', number: 10, foot: 'right', position: null,
 };
 
 
@@ -522,7 +530,11 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     get().reset();
   },
 
-  setSeedInput(v) { set(s => ({ wizard: { ...s.wizard, seedInput: v.slice(0, 24) } })); },
+  setSeedInput(v) { set(s => ({ wizard: { ...s.wizard, seedInput: v.slice(0, 24), daily: false } })); },
+  setDaily(on) {
+    // Turning it on clears the seed box; the day's world is not negotiable.
+    set(s => ({ wizard: { ...s.wizard, daily: on, seedInput: on ? '' : s.wizard.seedInput } }));
+  },
   setNation(code) {
     // the face follows the flag: pick a country and you get a plausible one
     const rng = makeRng(randomSeed());
@@ -550,8 +562,10 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     // retried. Blank rolls a fresh one. Anything is accepted as a seed — words
     // included — by hashing it, so "messi" is a valid world.
     const typed = wizard.seedInput.trim();
-    const seedSource: 'random' | 'custom' = typed ? 'custom' : 'random';
-    const seed = typed ? seedFromText(typed) : randomSeed();
+    const seedSource: 'random' | 'custom' | 'daily' =
+      wizard.daily ? 'daily' : typed ? 'custom' : 'random';
+    // The day's world beats anything typed, and a rolled seed is the default.
+    const seed = wizard.daily ? dailySeed() : typed ? seedFromText(typed) : randomSeed();
     const rng = makeRng(seed);
     const player = createPlayer({
       nationCode: wizard.nationCode,
@@ -561,6 +575,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       position: wizard.position,
       seed,
       seedSource,
+      dayKey: wizard.daily ? dayKey() : undefined,
       rng,
     });
     if (wizard.face) player.face = wizard.face;
@@ -899,6 +914,11 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     player.rolePromiseYears = os.chosenVerb === 'stay' ? 1 : 2;
     if (!player.clubsPlayed.includes(club.id)) player.clubsPlayed.push(club.id);
 
+    // International tallies before this season — `rollNationalTeam` adds to them
+    // in place, and a record has to be measured against where you started.
+    const ntGoalsBefore = player.ntGoals;
+    const ntCapsBefore = player.ntCaps;
+
     // simulate
     const out: SeasonOutput = simulateSeason(player, club, rng);
     const clubT = rollClubTitles(player, club, out, rng);
@@ -1047,6 +1067,28 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (os.chosenVerb === 'loan' && parentClub) {
       player.clubId = parentClub;
       player.loanFromClubId = null;
+    }
+
+    // ---- record books ----
+    // Compared against the tally *before* this season, so each record fires the
+    // once. The new record has to be measured against the stage list including
+    // this season, which is why it is built here rather than after `stages`.
+    const prevStages = s.stages;
+    const provisional: SeasonRecord = {
+      year: seasonYear, age: seasonAge, clubId: club.id,
+      overallAtSeason: Math.round(out.effOverall),
+      apps: out.apps, goals: out.goals, assists: out.assists, cleanSheets: out.cleanSheets,
+      rating: 0, onLoan: os.chosenVerb === 'loan', titles: [],
+    };
+    const broken = recordsBroken(
+      player,
+      { stages: prevStages, ntGoals: ntGoalsBefore, ntCaps: ntCapsBefore },
+      { stages: [...prevStages, provisional], ntGoals: player.ntGoals, ntCaps: player.ntCaps },
+      club.id, seasonYear,
+    );
+    for (const b of broken) {
+      allTitles.push(b.title);
+      news.push(brokenLine(b, s.lang));
     }
 
     const record: SeasonRecord = {

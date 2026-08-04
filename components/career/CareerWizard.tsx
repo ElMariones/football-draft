@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
 import { NATIONS } from '@/data/career/nations';
@@ -11,6 +11,7 @@ import {
 import type { Position } from '@/data/types';
 import { Jersey } from './bits';
 import Face from './Face';
+import { dailySeed, msUntilReset, resetCountdown } from '@/lib/career/daily';
 
 // Approximate national jersey colours for the preview.
 const JERSEY: Record<string, [string, string]> = {
@@ -73,7 +74,7 @@ function SectionLabel({ n, children }: { n: number; children: React.ReactNode })
 export default function CareerWizard({ lang }: { lang: Lang }) {
   const t = careerT(lang);
   const {
-    wizard, setNation, setIdentity, setPosition, confirmIdentity, reset, rerollFace, setSeedInput,
+    wizard, setNation, setIdentity, setPosition, confirmIdentity, reset, rerollFace, setSeedInput, setDaily,
   } = useCareerStore();
   const [query, setQuery] = useState('');
   // The shirt number is held as free text while you type, so the field can be
@@ -82,6 +83,15 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
   const [numText, setNumText] = useState(String(wizard.number));
   const es = lang === 'es';
   const numValid = /^\d{1,2}$/.test(numText) && +numText >= 1 && +numText <= 99;
+
+  // Ticks every minute so a page left open does not keep advertising a reset
+  // that has already happened.
+  const [countdown, setCountdown] = useState(() => resetCountdown(msUntilReset(), lang));
+  useEffect(() => {
+    const id = window.setInterval(
+      () => setCountdown(resetCountdown(msUntilReset(), lang)), 60_000);
+    return () => window.clearInterval(id);
+  }, [lang]);
 
   const nations = useMemo(() => {
     const sorted = [...NATIONS].sort((a, b) => a[lang].localeCompare(b[lang]));
@@ -164,24 +174,63 @@ export default function CareerWizard({ lang }: { lang: Lang }) {
               {es ? 'Semilla' : 'Seed'}
             </span>
             <input
-              value={wizard.seedInput}
+              value={wizard.daily ? dailySeed().toString() : wizard.seedInput}
               onChange={e => setSeedInput(e.target.value)}
+              readOnly={wizard.daily}
               placeholder={es ? 'Vacío = aleatoria' : 'Blank = random'}
               spellCheck={false}
-              className="w-full mt-1 rounded-xl bg-white/5 border border-white/15 px-3 py-2.5 font-mono text-sm focus:outline-none focus:border-wc/60 placeholder-white/25"
+              className={`w-full mt-1 rounded-xl border px-3 py-2.5 font-mono text-sm focus:outline-none placeholder-white/25 ${
+                wizard.daily
+                  ? 'bg-cl/10 border-cl/40 text-cl cursor-not-allowed'
+                  : 'bg-white/5 border-white/15 focus:border-wc/60'
+              }`}
             />
             <span className={`block text-[10px] mt-1 leading-snug ${
-              wizard.seedInput.trim() ? 'text-amber-300/80' : 'text-white/35'
+              wizard.daily ? 'text-cl/80'
+                : wizard.seedInput.trim() ? 'text-amber-300/80' : 'text-white/35'
             }`}>
-              {wizard.seedInput.trim()
+              {wizard.daily
                 ? (es
-                    ? 'Partida con semilla: repetible y compartible, pero va a la tabla aparte.'
-                    : 'Seeded run: repeatable and shareable, but it goes on the separate board.')
-                : (es
-                    ? 'Se sortea una semilla. Solo estas partidas puntúan en la tabla principal.'
-                    : 'A seed will be rolled. Only these runs count on the main board.')}
+                    ? 'El mundo de hoy, el mismo para todos. Va a la tabla diaria.'
+                    : "Today's world, the same for everyone. It goes on the daily board.")
+                : wizard.seedInput.trim()
+                  ? (es
+                      ? 'Partida con semilla: repetible y compartible, pero va a la tabla aparte.'
+                      : 'Seeded run: repeatable and shareable, but it goes on the separate board.')
+                  : (es
+                      ? 'Se sortea una semilla. Solo estas partidas puntúan en la tabla principal.'
+                      : 'A seed will be rolled. Only these runs count on the main board.')}
             </span>
           </label>
+
+          {/* One world a day, everyone in it. The only board where two rows had
+              exactly the same chances, so the gap between them is the decisions. */}
+          <motion.button
+            whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
+            onClick={() => setDaily(!wizard.daily)}
+            className={`w-full mt-2 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+              wizard.daily
+                ? 'border-cl bg-cl/15 shadow-[0_0_20px_rgba(61,169,252,0.2)]'
+                : 'border-white/12 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base leading-none">📅</span>
+              <span className={`text-sm font-semibold ${wizard.daily ? 'text-cl' : 'text-white/80'}`}>
+                {es ? 'Semilla del día' : 'Seed of the day'}
+              </span>
+              {wizard.daily && (
+                <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-cl text-black font-bold">
+                  {es ? 'ACTIVA' : 'ON'}
+                </span>
+              )}
+            </div>
+            <div className="text-[10px] text-white/45 mt-1 leading-snug">
+              {es
+                ? `Todos juegan el mismo mundo hoy. Se reinicia en ${countdown}.`
+                : `Everyone plays the same world today. Resets in ${countdown}.`}
+            </div>
+          </motion.button>
 
           <div className="grid grid-cols-[1fr_84px] gap-2 mt-3">
             <label className="block">

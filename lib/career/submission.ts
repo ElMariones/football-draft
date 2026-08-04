@@ -7,6 +7,7 @@ import type { CareerPlayer, SeasonRecord, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { titleName } from './competitions';
+import { dayKey, isDayKey, isDailySeed } from './daily';
 
 export interface CareerSpell {
   club: string;
@@ -52,7 +53,9 @@ export interface CareerSubmission {
   apps: number;
   ballonDors: number;
   seed: number;
-  seedSource: 'random' | 'custom';
+  seedSource: 'random' | 'custom' | 'daily';
+  /** which day's world this was, `YYYY-MM-DD`. Daily runs only. */
+  dayKey?: string;
   history: CareerHistory;
 }
 
@@ -66,10 +69,25 @@ export interface CareerSubmission {
  * Returns a reason, or null when the submission is acceptable.
  */
 export function validateSubmission(s: CareerSubmission): string | null {
-  if (s.seedSource !== 'random') {
+  if (s.seedSource === 'custom') {
     // The whole point of the board. A typed seed can be retried until the world
     // cooperates, so it is not comparable with a seed you were handed.
     return 'Only runs with a rolled seed are eligible for the leaderboard.';
+  }
+  if (s.seedSource === 'daily') {
+    // Never trust the client's word for which day it played. The day's seed is a
+    // pure function of the date, so recompute it and check — otherwise anyone
+    // could grind a hundred attempts and post the best one as "today".
+    if (!isDayKey(s.dayKey)) return 'Bad day.';
+    if (!isDailySeed(s.seed, s.dayKey)) return 'That seed is not that day\'s world.';
+    // A board that resets at midnight only accepts runs from the window it is
+    // still showing. Yesterday's is allowed so a run finished across the reset
+    // is not thrown away.
+    const today = dayKey();
+    const yesterday = dayKey(new Date(Date.now() - 86_400_000));
+    if (s.dayKey !== today && s.dayKey !== yesterday) return 'That day is closed.';
+  } else if (s.seedSource !== 'random') {
+    return 'Unknown seed source.';
   }
   if (!s.surname || s.surname.length > 14) return 'Bad surname.';
   if (!s.nationCode || s.nationCode.length > 3) return 'Bad nation.';
@@ -153,6 +171,9 @@ export function buildSubmission(
     ballonDors: trophies.filter(t => t.key === 'ballon-dor').length,
     seed: player.careerSeed ?? 0,
     seedSource: player.seedSource ?? 'random',
+    // Stamped at creation, not read from the clock, so a career started before
+    // midnight and finished after it still files against the day it was played.
+    dayKey: player.seedSource === 'daily' ? player.dayKey : undefined,
     history: {
       spells: spellsOf(stages),
       honours: [...counts.values()].sort((a, b) => b.n - a.n),

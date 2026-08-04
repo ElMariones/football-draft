@@ -58,6 +58,17 @@ export interface Title {
   age: number;
   clubId?: string;
   nationCode?: string;
+  /**
+   * The division this was won in, stamped at the time.
+   *
+   * Not derivable from the club afterwards: clubs are promoted and relegated
+   * between seasons, so resolving the league from `clubId` at render time
+   * renamed a title the season after its winner went down — a Premier League
+   * trophy quietly became a Championship one.
+   */
+  leagueId?: string;
+  /** the year it was won, for record books and "twenty years later" copy */
+  year?: number;
 }
 
 // ---- Player state ----------------------------------------------------------
@@ -127,7 +138,13 @@ export interface CareerPlayer {
    * Whether that seed was rolled for you or typed in. A typed seed lets you
    * retry the same world until you like it, so the two can never share a board.
    */
-  seedSource: 'random' | 'custom';
+  seedSource: 'random' | 'custom' | 'daily';
+  /**
+   * Which day's world this is, `YYYY-MM-DD`. Set at creation for daily runs and
+   * never re-read from the clock: a career started before midnight and finished
+   * after it still belongs to the day it was actually played.
+   */
+  dayKey?: string;
 
   /** idolatry per club id (0-100) — the scoring spine */
   idolatry: Record<string, number>;

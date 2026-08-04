@@ -113,7 +113,11 @@ export function rollClubTitles(p: CareerPlayer, club: CareerClub, out: SeasonOut
   const max = leagueMaxStrength(club.leagueId);
   const titles: Title[] = [];
   const comps: CompRun[] = [];
-  const t = (key: string): Title => ({ key, kind: 'club', scope: 'club', age: p.age, clubId: club.id });
+  // `leagueId` is stamped now because the offseason shuffle moves clubs between
+  // divisions — see the comment on Title.
+  const t = (key: string): Title => ({
+    key, kind: 'club', scope: 'club', age: p.age, clubId: club.id, leagueId: club.leagueId,
+  });
 
   const contribution = clamp(-0.1, 0.15, (out.rating - 6.5) * 0.05);
   const leagueChance = clamp(0, 0.85, logistic((club.strength - (max - 3)) * 0.55) + contribution);

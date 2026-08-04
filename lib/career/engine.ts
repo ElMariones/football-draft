@@ -44,7 +44,8 @@ export interface CreateOpts {
   foot: Foot;
   position: Position;
   seed: number;
-  seedSource?: 'random' | 'custom';
+  seedSource?: 'random' | 'custom' | 'daily';
+  dayKey?: string;
   rng: Rng;
 }
 
@@ -117,6 +118,7 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     wonderkid,
     careerSeed: o.seed,
     seedSource: o.seedSource ?? 'random',
+    dayKey: o.dayKey,
     idolatry: {},
     traitorAt: {},
     titlesByClub: {},
