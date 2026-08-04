@@ -51,3 +51,27 @@ English and Spanish. The toggle is in the header. The AI verdict is generated in
 ## Tech
 
 Built with **Next.js 14** (App Router) + **TypeScript**, **Tailwind CSS**, **Framer Motion** for animations, **Zustand** for game state. Season simulation is custom — Poisson-distributed goals weighted by team attack/defense ratings, with position-and-rating-weighted goalscorer selection. The optional Google sign-in uses **Auth.js v5** with a **Neon Postgres** database via **Drizzle ORM**. AI season analysis is powered by **OpenAI** — bring your own key.
+
+## Database migrations
+
+Schema changes live in `drizzle/`, one numbered `.sql` per change, listed in
+`drizzle/meta/_journal.json`. A migration that is not in the journal is silently
+skipped, so both have to be updated together.
+
+```bash
+npm run db:generate    # write a migration from a schema change
+npm run db:migrate     # apply anything not yet applied
+```
+
+Drizzle tracks what it has already run in `drizzle.__drizzle_migrations`, and
+decides what to skip by comparing the newest recorded timestamp against each
+journal entry's `when` — so a database that was migrated by hand, with no such
+record, makes `db:migrate` replay from `0000` and fail on tables that already
+exist. If you hit that, adopt the existing schema first:
+
+```bash
+DATABASE_URL='postgres://…' node scripts/adopt-migrations.mjs
+```
+
+It prints what it would record and changes nothing; add `--apply` to write it.
+The script applies no DDL — it only tells drizzle what is already there.
