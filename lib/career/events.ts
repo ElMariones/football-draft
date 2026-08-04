@@ -10,6 +10,18 @@ import type { Lang } from './i18n';
 
 const L = (lang: Lang, en: string, es: string) => (lang === 'es' ? es : en);
 
+// The deck is built once per language, with no player in scope, so an event
+// cannot reword itself for whoever draws it. Position fit is therefore a
+// question for `when`: events written for someone who shoots are gated to
+// players who shoot, and the positions they exclude get their own.
+const isGk = (p: CareerPlayer) => p.position === 'GK';
+const isOutfield = (p: CareerPlayer) => p.position !== 'GK';
+const isDefender = (p: CareerPlayer) =>
+  p.position === 'CB' || p.position === 'LB' || p.position === 'RB'
+  || p.position === 'LWB' || p.position === 'RWB';
+/** Positions a manager would actually hand the ball to from twelve yards. */
+const takesPenalties = (p: CareerPlayer) => !isGk(p) && !isDefender(p);
+
 /**
  * Look an event up by id, in the language being read right now.
  *
@@ -212,7 +224,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       id: 'position-change', category: 'role', weight: 1.0, cooldown: 3,
       title: L(lang, 'Position change', 'Cambio de posición'),
       desc: L(lang, 'The coach needs you to cover a different role.', 'El entrenador te necesita para cubrir otro puesto.'),
-      when: p => p.age >= 20,
+      when: p => p.age >= 20 && isOutfield(p),
       options: [
         { label: L(lang, 'Accept', 'Aceptar'), outcomes: [{ weight: 1, badge: L(lang, 'Starter, adapting', 'Titular, adaptándote'), effects: [{ type: 'ovrTemp', delta: -2, years: 1 }, { type: 'minutesBias', delta: 6 }] }] },
         { label: L(lang, 'Refuse', 'Rechazar'), outcomes: [{ weight: 1, badge: L(lang, 'Fewer minutes', 'Menos minutos'), effects: [{ type: 'minutesBias', delta: -5 }] }] },
@@ -249,10 +261,83 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       id: 'viral-goal', category: 'offfield', weight: 0.8, cooldown: 2,
       title: L(lang, 'A goal goes viral', 'Un gol se hace viral'),
       desc: L(lang, 'A wonder-goal blows up online.', 'Un golazo explota en las redes.'),
-      when: p => p.overall >= 65,
+      when: p => p.overall >= 65 && isOutfield(p),
       options: [
         { label: L(lang, 'Milk the moment', 'Aprovechar el momento'), outcomes: [{ weight: 1, badge: L(lang, 'Fame up', 'Más fama'), effects: [{ type: 'reputation', delta: 5 }, { type: 'value', mult: 1.05 }] }] },
         { label: L(lang, 'Stay humble', 'Ser humilde'), outcomes: [{ weight: 1, badge: L(lang, 'Respect up', 'Más respeto'), effects: [{ type: 'morale', delta: 4 }, { type: 'reputation', delta: 2 }] }] },
+      ],
+    },
+    // ---------- goalkeepers ----------
+    // A keeper used to draw from a deck where the good nights belonged to
+    // somebody else: his goal went viral, he argued over penalties he would
+    // never take, and the manager asked him to play deeper. These are his.
+    {
+      id: 'viral-save', category: 'offfield', weight: 0.8, cooldown: 2,
+      title: L(lang, 'A save goes viral', 'Una atajada se hace viral'),
+      desc: L(lang, 'You get across your goal to a header nobody thought was reachable, and the clip does the rounds.',
+        'Vuelas de un palo al otro a un cabezazo que nadie creía alcanzable, y el video da la vuelta al mundo.'),
+      when: p => p.overall >= 65 && isGk(p),
+      options: [
+        { label: L(lang, 'Milk the moment', 'Aprovechar el momento'), outcomes: [{ weight: 1, badge: L(lang, 'Fame up', 'Más fama'), effects: [{ type: 'reputation', delta: 5 }, { type: 'value', mult: 1.05 }] }] },
+        { label: L(lang, 'Credit the back four', 'Repartir el mérito con la defensa'), outcomes: [{ weight: 1, badge: L(lang, 'Dressing room with you', 'Vestuario contigo'), effects: [{ type: 'morale', delta: 5 }, { type: 'attr', attrs: { lea: 2 } }] }] },
+      ],
+    },
+    {
+      id: 'sweeper-keeper', category: 'role', weight: 0.9, cooldown: 3,
+      title: L(lang, 'Playing out from the back', 'Jugar desde atrás'),
+      desc: L(lang, 'The new manager wants you taking the ball under pressure inside your own six-yard box. One misplaced pass and it is a goal and a headline.',
+        'El técnico nuevo te quiere recibiendo bajo presión dentro de tu área chica. Un pase malo es gol y es portada.'),
+      when: p => isGk(p) && p.age >= 19,
+      options: [
+        {
+          label: L(lang, 'Learn it properly', 'Aprenderlo en serio'),
+          outcomes: [
+            { weight: 0.65, badge: L(lang, 'A keeper who can play', 'Un portero que juega'), effects: [{ type: 'attr', attrs: { tec: 4, vis: 3 } }, { type: 'minutesBias', delta: 5 }] },
+            { weight: 0.35, badge: L(lang, 'A costly error', 'Un error caro'), effects: [{ type: 'form', delta: -9 }, { type: 'reputation', delta: -4 }] },
+          ],
+        },
+        { label: L(lang, 'Just kick it long', 'Pegarle largo y listo'), outcomes: [{ weight: 1, badge: L(lang, 'Safe, and told so', 'Seguro, y te lo dicen'), effects: [{ type: 'form', delta: 3 }, { type: 'minutesBias', delta: -3 }] }] },
+      ],
+    },
+    {
+      id: 'shootout-hero', category: 'teammate', weight: 0.8, cooldown: 4,
+      title: L(lang, 'The shootout', 'La tanda de penales'),
+      desc: L(lang, 'A cup tie goes to penalties. The analyst hands you a card with notes on every taker — or you can back what your eyes tell you on the night.',
+        'Una eliminatoria se va a penales. El analista te pasa una ficha con los datos de cada pateador — o puedes confiar en lo que veas en el momento.'),
+      when: p => isGk(p) && p.overall >= 62,
+      options: [
+        {
+          label: L(lang, 'Trust the notes', 'Confiar en la ficha'),
+          outcomes: [
+            { weight: 0.6, badge: L(lang, 'Two saved', 'Dos atajados'), effects: [{ type: 'reputation', delta: 8 }, { type: 'idol', delta: 6 }, { type: 'morale', delta: 8 }] },
+            { weight: 0.4, badge: L(lang, 'They all went the other way', 'Todos fueron al otro lado'), effects: [{ type: 'morale', delta: -7 }, { type: 'form', delta: -5 }] },
+          ],
+        },
+        {
+          label: L(lang, 'Read them on the night', 'Leerlos en el momento'),
+          outcomes: [
+            { weight: 0.45, badge: L(lang, 'You guessed every one', 'Se las adivinaste todas'), effects: [{ type: 'reputation', delta: 11 }, { type: 'idol', delta: 9 }, { type: 'attr', attrs: { lea: 3 } }] },
+            { weight: 0.55, badge: L(lang, 'Beaten every time', 'Te ganaron todas'), effects: [{ type: 'morale', delta: -8 }] },
+          ],
+        },
+      ],
+    },
+    // ---------- defenders ----------
+    {
+      id: 'set-piece-target', category: 'role', weight: 0.9, cooldown: 3,
+      title: L(lang, 'The target at corners', 'El objetivo en los córners'),
+      desc: L(lang, 'The staff want you arriving at the near post on every attacking set piece. Goals from there are free — but you are a long way from your own box when it breaks down.',
+        'El cuerpo técnico te quiere llegando al primer palo en cada córner. Los goles ahí son gratis — pero quedas lejísimos de tu área si sale mal.'),
+      when: p => isDefender(p) && p.attrs.phy >= 60,
+      options: [
+        {
+          label: L(lang, 'Go up for everything', 'Subir a todas'),
+          outcomes: [
+            { weight: 0.6, badge: L(lang, 'Goals from a defender', 'Goles desde la defensa'), effects: [{ type: 'attr', attrs: { tec: 3, phy: 2 } }, { type: 'idol', delta: 4 }] },
+            { weight: 0.4, badge: L(lang, 'Caught out on the counter', 'Te agarran de contra'), effects: [{ type: 'form', delta: -6 }, { type: 'reputation', delta: -3 }] },
+          ],
+        },
+        { label: L(lang, 'Stay back and mind the shop', 'Quedarte a cuidar la casa'), outcomes: [{ weight: 1, badge: L(lang, 'Nothing conceded on the break', 'Sin contras en contra'), effects: [{ type: 'attr', attrs: { vis: 2 } }, { type: 'form', delta: 3 }] }] },
       ],
     },
     {
@@ -323,7 +408,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       title: L(lang, 'Who takes the penalties?', '¿Quién patea los penales?'),
       desc: L(lang, 'You and a teammate both want the ball from twelve yards.',
         'Tú y un compañero queréis la pelota desde los doce pasos.'),
-      when: p => p.overall >= 66,
+      when: p => p.overall >= 66 && takesPenalties(p),
       options: [
         {
           label: L(lang, 'Grab the ball', 'Agarrar la pelota'),
@@ -386,7 +471,7 @@ export function buildEventDeck(lang: Lang): CareerEvent[] {
       title: L(lang, 'A new tactical role', 'Un rol táctico nuevo'),
       desc: L(lang, 'The coach wants you deeper, with more of the game in front of you.',
         'El entrenador te quiere más atrás, con todo el partido de frente.'),
-      when: p => p.age >= 24,
+      when: p => p.age >= 24 && isOutfield(p),
       options: [
         { label: L(lang, 'Reinvent yourself', 'Reinventarte'), outcomes: [{ weight: 1, badge: L(lang, 'New brain', 'Cerebro nuevo'), effects: [{ type: 'attr', attrs: { vis: 5 } }, { type: 'ovrTemp', delta: -2, years: 1 }] }] },
         { label: L(lang, 'Stay where you are', 'Quedarte donde estás'), outcomes: [{ weight: 1, badge: L(lang, 'What you know', 'Lo que sabes'), effects: [{ type: 'form', delta: 4 }] }] },

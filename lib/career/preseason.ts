@@ -38,7 +38,12 @@ const CARDS: PreseasonCard[] = [
   { id: 'finishing-drills', en: 'Finishing drills', es: 'Definición hasta que oscurece',
     descEn: 'You stay after training with a bag of balls.',
     descEs: 'Te quedas después de la práctica con una bolsa de pelotas.',
-    rarity: 'common', attrs: { tec: 3 } },
+    rarity: 'common', attrs: { tec: 3 }, when: p => p.position !== 'GK' },
+  // The same card, for the one player on the pitch it made no sense for.
+  { id: 'handling-drills', en: 'Handling until dark', es: 'Manos hasta que oscurece',
+    descEn: 'You stay after training and let them shoot at you until you cannot feel your fingers.',
+    descEs: 'Te quedas después de la práctica y dejas que te disparen hasta no sentir los dedos.',
+    rarity: 'common', attrs: { tec: 3 }, when: p => p.position === 'GK' },
   { id: 'video-room', en: 'Video room', es: 'Sala de video',
     descEn: 'You start seeing the pass two moves early.',
     descEs: 'Empiezas a ver el pase dos jugadas antes.',

@@ -13,7 +13,7 @@ import { useCareerStore } from '@/store/careerStore';
 import type { Lang } from '@/lib/career/i18n';
 
 export type MiniKind = 'luck' | 'memory' | 'skill' | 'penalty';
-export type MiniStake = 'injury' | 'wonder-goal' | 'derby' | 'tournament';
+export type MiniStake = 'injury' | 'wonder-goal' | 'big-save' | 'derby' | 'tournament';
 
 export interface MiniGameSpec {
   kind: MiniKind;
@@ -45,6 +45,11 @@ const COPY: Record<MiniStake, { en: [string, string]; es: [string, string] }> = 
   'wonder-goal': {
     en: ['The chance of the season', 'The ball sits up on the edge of the box.'],
     es: ['La jugada del año', 'La pelota te queda botando al borde del área.'],
+  },
+  // The keeper's version of the same night: his one chance to decide a game.
+  'big-save': {
+    en: ['The save of the season', 'He is through, one on one, and the noise drops out of the ground.'],
+    es: ['La atajada del año', 'Se va solo contra ti y el estadio se queda sin ruido.'],
   },
   derby: {
     en: ['The derby', 'Ninety minutes that the city will talk about for a year.'],
@@ -179,8 +184,16 @@ export default function MiniGame({ lang }: { lang: Lang }) {
             </div>
           )}
 
+          {/* The prompt is about the kind of test, but a keeper is not striking
+              anything — same bar, different job. */}
           {phase !== 'done' && (
-            <p className="text-xs text-wc mt-3">{KIND_COPY[miniGame.kind][es ? 'es' : 'en']}</p>
+            <p className="text-xs text-wc mt-3">
+              {miniGame.stake === 'big-save' && miniGame.kind === 'skill'
+                ? (es ? 'Calcula el momento de la estirada' : 'Time the dive')
+                : miniGame.stake === 'big-save' && miniGame.kind === 'memory'
+                  ? (es ? 'Lee la jugada antes de que llegue' : 'Read the move before it arrives')
+                  : KIND_COPY[miniGame.kind][es ? 'es' : 'en']}
+            </p>
           )}
 
           {/* ---- luck: three shirts ---- */}

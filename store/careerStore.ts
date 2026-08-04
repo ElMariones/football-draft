@@ -423,6 +423,11 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         line = es ? '🚀 Golazo. Da la vuelta al mundo en una hora.' : '🚀 A wonder goal. Around the world within the hour.'; }
       else { p.form = clamp(15, 99, p.form - 4);
         line = es ? '🚀 La mandaste a la tribuna. Se ríen una semana.' : '🚀 You put it in the stands. A week of jokes.'; }
+    } else if (g.stake === 'big-save') {
+      if (won) { p.reputation = clamp(0, 100, p.reputation + 8); p.form = clamp(15, 99, p.form + 10); addIdol(p, p.clubId, 5);
+        line = es ? '🧤 Atajada imposible. El punto lo salvaste tú.' : '🧤 An impossible save. You won that point on your own.'; }
+      else { p.form = clamp(15, 99, p.form - 4);
+        line = es ? '🧤 Se te fue entre las manos. Vas a verla toda la semana.' : '🧤 It went straight through your hands. You will see it all week.'; }
     } else if (g.stake === 'tournament' && s.ntRun) {
       // This is the whole point of the rework: the tie is decided here, not in
       // advance. Win and the run continues into the next round; lose and the
@@ -991,6 +996,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (player.injuryGamesNext > 0) stakes.push('injury');
     if (out.derbyGames > 0) stakes.push('derby');
     if (out.goals >= 8) stakes.push('wonder-goal');
+    // A keeper cannot reach the goals gate — his 0 goals are now a hard 0 —
+    // so his one-chance-to-decide-a-game night is measured in clean sheets.
+    if (player.position === 'GK' && out.cleanSheets >= 8) stakes.push('big-save');
     // Club minigames used to fire on 40% of seasons, which meant the derby came
     // round nearly every year. They are a special occasion, so: a cooldown after
     // each one, and a lower rate on top of that.
@@ -1005,7 +1013,10 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         ? 'memory'
         : stake === 'derby'
           ? (kindRoll < 0.7 ? 'skill' : 'memory')
-          : 'skill';
+          // a keeper either times the dive or reads the run onto it
+          : stake === 'big-save'
+            ? (kindRoll < 0.55 ? 'skill' : 'memory')
+            : 'skill';
       // How good you are is what opens the window. A derby is still the tightest
       // night of the season, but being the best player on the pitch shows up.
       const quality = (player.overall - 70) * 0.42 + (player.attrs.tec - 70) * 0.18;
