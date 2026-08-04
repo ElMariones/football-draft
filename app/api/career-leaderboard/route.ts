@@ -45,7 +45,16 @@ export async function GET(req: Request) {
       ORDER BY ${col} DESC, r."createdAt" ASC
       LIMIT 50
     `);
-    return NextResponse.json({ sort, entries: rows.rows ?? rows });
+    // `seed` is bigint, and the driver hands int8 back as a *string* to protect
+    // precision it does not know it has. This is raw SQL, so drizzle's column
+    // mappers do not run — normalise here or the board ships a string behind a
+    // field the client has typed as a number. A 32-bit seed is exact in a JS
+    // number with 21 bits to spare.
+    const entries = ((rows.rows ?? rows) as Record<string, unknown>[]).map(r => ({
+      ...r,
+      seed: r.seed == null ? null : Number(r.seed),
+    }));
+    return NextResponse.json({ sort, entries });
   } catch (err) {
     // An unmigrated database should render an empty board, not a 500 page — but
     // this must only catch a *missing table*. Matching on the table name alone

@@ -36,6 +36,13 @@
       "when": 1785600000000,
       "tag": "0004_career_runs_anon",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785900000000,
+      "tag": "0005_career_run_seed_bigint",
+      "breakpoints": true
     }
   ]
 }

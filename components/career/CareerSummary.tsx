@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { CareerPlayer, SeasonRecord, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
@@ -133,6 +133,31 @@ export default function CareerSummary({
   const filed = useRef(false);
   const [records, setRecords] = useState<Records | null>(null);
   const [mine, setMine] = useState<CareerRecord | null>(null);
+  const [submit, setSubmit] = useState<'idle'|'sending'|'done'|'failed'|'seeded'>('idle');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Kept out of the effect so the retry button can call it again. The local
+  // board is saved once; only the public submission is repeatable.
+  const sendRun = useCallback(() => {
+    setSubmit('sending');
+    setSubmitError(null);
+    fetch('/api/career-runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildSubmission(player, stages, trophies, score)),
+    })
+      .then(async r => {
+        if (r.ok) { setSubmit('done'); return; }
+        const detail = await r.json().catch(() => null);
+        setSubmitError(detail?.error ?? `HTTP ${r.status}`);
+        setSubmit('failed');
+      })
+      .catch(e => {
+        setSubmitError(e instanceof Error ? e.message : 'Network error');
+        setSubmit('failed');
+      });
+  }, [player, stages, trophies, score]);
+
   useEffect(() => {
     if (filed.current) return;
     filed.current = true;
@@ -148,20 +173,8 @@ export default function CareerSummary({
     // Rolled seeds also go to the public board. Seeded runs never leave the
     // device — the server rejects them too, but there is no reason to ask.
     if (seedSource !== 'random') { setSubmit('seeded'); return; }
-    setSubmit('sending');
-    fetch('/api/career-runs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildSubmission(player, stages, trophies, score)),
-    })
-      .then(async r => {
-        if (r.ok) { setSubmit('done'); return; }
-        setSubmit('failed');
-      })
-      .catch(() => setSubmit('failed'));
-  }, [player, stages, trophies, score, seedSource]);
-
-  const [submit, setSubmit] = useState<'idle'|'sending'|'done'|'failed'|'seeded'>('idle');
+    sendRun();
+  }, [player, stages, trophies, score, seedSource, sendRun]);
   const [copied, setCopied] = useState(false);
   const copySeed = () => {
     const v = String(player.careerSeed ?? '');
@@ -268,8 +281,21 @@ export default function CareerSummary({
                   {es ? '✓ En la tabla global' : '✓ On the global board'}
                 </a>
               )}
+              {/* A dead "could not submit" loses the run for good and tells
+                  nobody why. Name the reason and offer the retry. */}
               {submit === 'failed' && (
-                <span className="text-white/40">{es ? 'No se pudo enviar' : 'Could not submit'}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-red-300/80" title={submitError ?? undefined}>
+                    {es ? 'No se pudo enviar' : 'Could not submit'}
+                    {submitError ? `: ${submitError}` : ''}
+                  </span>
+                  <button
+                    onClick={sendRun}
+                    className="text-wc hover:underline underline-offset-2"
+                  >
+                    {es ? 'Reintentar' : 'Retry'}
+                  </button>
+                </span>
               )}
             </span>
           )}

@@ -4,6 +4,7 @@ import {
   timestamp,
   primaryKey,
   integer,
+  bigint,
   jsonb,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -132,8 +133,13 @@ export const careerRuns = pgTable('careerRun', {
   apps: integer('apps').notNull(),
   ballonDors: integer('ballonDors').notNull().default(0),
 
-  // the seed it came from, and proof it was not chosen
-  seed: integer('seed').notNull(),
+  // The seed it came from, and proof it was not chosen.
+  //
+  // bigint, not integer: `randomSeed()` returns an unsigned 32-bit number
+  // (0 .. 4294967295) and Postgres `integer` is signed int4, so half of every
+  // rolled seed overflowed the column and the whole run was rejected. `mode:
+  // 'number'` keeps it a JS number, which is exact well past 2^32.
+  seed: bigint('seed', { mode: 'number' }).notNull(),
   seedSource: text('seedSource').notNull(),
 
   // the story: club spells, honours, national-team record

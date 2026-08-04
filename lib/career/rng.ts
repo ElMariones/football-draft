@@ -72,13 +72,20 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = clamp(0, 1, (x - edge0) / (edge1 - edge0));
   return t * t * (3 - 2 * t);
 }
+/**
+ * A rolled seed: an unsigned 32-bit number, 1 .. 4294967295.
+ *
+ * Never 0. `makeRng` maps 0 to 1 anyway, so a zero seed would quietly produce
+ * the same world as seed 1 while being stored and displayed as a different
+ * number — and `seedFromText` already excludes it for the same reason.
+ */
 export function randomSeed(): number {
   if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.getRandomValues) {
     const arr = new Uint32Array(1);
     (globalThis as any).crypto.getRandomValues(arr);
-    return arr[0] >>> 0;
+    return (arr[0] >>> 0) || 1;
   }
-  return Math.floor(Math.random() * 0xffffffff) >>> 0;
+  return (Math.floor(Math.random() * 0xffffffff) >>> 0) || 1;
 }
 
 /**
