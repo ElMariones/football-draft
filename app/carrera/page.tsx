@@ -18,6 +18,8 @@ import PreseasonCards from '@/components/career/PreseasonCards';
 import MomentModal from '@/components/career/MomentModal';
 import LegacyPanel from '@/components/career/LegacyPanel';
 import RecordChase from '@/components/career/RecordChase';
+import Farewell from '@/components/career/Farewell';
+import Epilogue from '@/components/career/Epilogue';
 import { NationalTeamPanel } from '@/components/career/NationalTeam';
 import { AchievementToasts, AchievementsBook } from '@/components/career/Achievements';
 import Celebration from '@/components/career/Celebration';
@@ -131,6 +133,11 @@ export default function CareerPage() {
           {phase === 'moment' && <MomentModal lang={lang} />}
         </div>
       )}
+
+      {/* The ending: the last season's send-off, then what became of him. */}
+      {phase === 'farewell' && player && <Farewell lang={lang} />}
+
+      {phase === 'epilogue' && player && <Epilogue lang={lang} />}
 
       {phase === 'summary' && player && (
         <CareerSummary player={player} stages={stages} trophies={trophies} lang={lang} onReplay={reset} />

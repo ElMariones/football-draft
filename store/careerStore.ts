@@ -49,10 +49,22 @@ import {
 import { pickCelebration } from '@/components/career/Celebration';
 import { rollLeagueMoves, moveNews, resetLeagues } from '@/lib/career/promotion';
 import { recordsBroken, brokenLine } from '@/lib/career/recordbook';
+import { buildProfile } from '@/lib/career/profile';
+import {
+  buildFarewell, applyFarewell, type FarewellScene, type FarewellOption,
+} from '@/lib/career/farewell';
+import {
+  offeredPaths, pathOutcome, buildEpilogue,
+  type EpiloguePath, type PathId, type Epilogue,
+} from '@/lib/career/epilogue';
 import type { MiniGameSpec, MiniStake } from '@/components/career/MiniGame';
 
 export type CareerPhase =
-  | 'landing' | 'wizard' | 'archetype' | 'career' | 'moment' | 'retire-decision' | 'summary';
+  | 'landing' | 'wizard' | 'archetype' | 'career' | 'moment' | 'retire-decision'
+  // A career used to stop: the retirement roll came up and a summary appeared.
+  // These two are the ending — the last season's send-off, then what became of
+  // the man twenty years later.
+  | 'farewell' | 'epilogue' | 'summary';
 
 interface Offseason {
   event: CareerEvent | null;
@@ -140,6 +152,17 @@ interface CareerState {
   /** a knockout run in progress — each round decided by the player, not the dice */
   ntRun: NtRunState | null;
 
+  // ---- the ending ----
+  /** the send-off scenes for the final season, and how far through them we are */
+  farewell: { scenes: FarewellScene[]; idx: number; chosen: FarewellOption | null } | null;
+  /** what became of him: the path taken, how it went, and the twenty-years card */
+  epilogue: {
+    paths: EpiloguePath[];
+    chosen: PathId | null;
+    outcomeEn: string; outcomeEs: string;
+    card: Epilogue | null;
+  } | null;
+
   // actions
   chooseArchetype(id: string): void;
   chooseCard(id: string): void;
@@ -176,6 +199,10 @@ interface CareerState {
 
   playSeason(): void;
   retireDecision(oneMore: boolean): void;
+  chooseFarewell(optionId: string): void;
+  nextFarewell(): void;
+  choosePath(id: PathId): void;
+  finishEpilogue(): void;
   reset(): void;
 }
 
@@ -293,6 +320,42 @@ function walkNtRun(
   return { done: 'champion', caps, goals };
 }
 
+
+/**
+ * Begin the ending.
+ *
+ * Scenes are drawn from what the career actually was, so a one-club idol and a
+ * journeyman with nine shirts get different send-offs. If nothing fits — a
+ * career too short to have earned any of it — we go straight to the epilogue
+ * rather than inventing a ceremony nobody would have held.
+ */
+function startFarewell(
+  set: (partial: Partial<CareerState>) => void, get: () => CareerState,
+) {
+  const s = get();
+  if (!s.player || !s.rng) { set({ phase: 'summary' }); return; }
+  const prof = buildProfile(s.player, s.stages, s.trophies);
+  const scenes = buildFarewell(s.player, prof, s.rng);
+  if (!scenes.length) { startEpilogue(set, get); return; }
+  set({ phase: 'farewell', farewell: { scenes, idx: 0, chosen: null } });
+}
+
+/** The decision about the rest of his life, then twenty years. */
+function startEpilogue(
+  set: (partial: Partial<CareerState>) => void, get: () => CareerState,
+) {
+  const s = get();
+  if (!s.player) { set({ phase: 'summary' }); return; }
+  const prof = buildProfile(s.player, s.stages, s.trophies);
+  set({
+    phase: 'epilogue',
+    epilogue: {
+      paths: offeredPaths(prof), chosen: null,
+      outcomeEn: '', outcomeEs: '', card: null,
+    },
+  });
+}
+
 /** The rng is created per career; this just keeps the call sites readable. */
 function rng0(s: { rng: Rng | null }): Rng {
   return s.rng!;
@@ -408,6 +471,8 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   celebrating: null,
   miniGame: null,
   ntRun: null,
+  farewell: null,
+  epilogue: null,
 
   dismissCelebration() { set({ celebrating: null }); },
 
@@ -1147,7 +1212,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     get().checkAchievements();
 
     if (player.age >= CAREER.hardRetire) {
-      set({ phase: 'summary' });
+      startFarewell(set, get);
       return;
     }
     if (retire) {
@@ -1182,7 +1247,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   },
 
   retireDecision(oneMore) {
-    if (!oneMore) { set({ phase: 'summary' }); return; }
+    if (!oneMore) { startFarewell(set, get); return; }
     const s = get();
     if (s.player) {
       const player = { ...s.player, morale: clamp(5, 100, s.player.morale + 6) };
@@ -1191,13 +1256,54 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     setupOffseason(set, get);
   },
 
+  chooseFarewell(optionId) {
+    const s = get();
+    const f = s.farewell;
+    if (!f || f.chosen || !s.player) return;
+    const scene = f.scenes[f.idx];
+    const opt = scene.options.find(o => o.id === optionId);
+    if (!opt) return;
+    // Applied immediately so the consequence shown is the one that happened.
+    set({
+      player: applyFarewell(s.player, scene, opt),
+      farewell: { ...f, chosen: opt },
+    });
+  },
+
+  nextFarewell() {
+    const s = get();
+    const f = s.farewell;
+    if (!f || !f.chosen) return;
+    if (f.idx + 1 >= f.scenes.length) { startEpilogue(set, get); return; }
+    set({ farewell: { ...f, idx: f.idx + 1, chosen: null } });
+  },
+
+  choosePath(id) {
+    const s = get();
+    const e = s.epilogue;
+    if (!e || e.chosen || !s.player || !s.rng) return;
+    const prof = buildProfile(s.player, s.stages, s.trophies);
+    // Both languages are resolved now, off the same rng draw, so flipping the
+    // toggle on the ending does not silently re-roll what became of him.
+    const rngEn = makeRng(s.player.careerSeed ^ 0x5eed1);
+    const rngEs = makeRng(s.player.careerSeed ^ 0x5eed1);
+    const outcomeEn = pathOutcome(id, prof, rngEn, 'en');
+    const outcomeEs = pathOutcome(id, prof, rngEs, 'es');
+    const card = buildEpilogue(
+      s.player, s.stages, s.trophies, prof, id, makeRng(s.player.careerSeed ^ 0xc0da),
+    );
+    set({ epilogue: { ...e, chosen: id, outcomeEn, outcomeEs, card } });
+  },
+
+  finishEpilogue() { set({ phase: 'summary' }); },
+
   reset() {
     set({
       phase: 'landing', seed: 0, rng: null, deck: [], firedEventById: {},
       player: null, year: CAREER.startYear, stages: [], trophies: [], lastSeason: null, ntRun: null,
       wizard: { ...emptyWizard }, offseason: null, forced: null,
       archetypeOptions: [], moment: null, momentResult: null, seasonNews: [],
-      achievementQueue: [],
+      achievementQueue: [], farewell: null, epilogue: null,
       // note: `unlocked` is deliberately NOT reset — logros persist across runs
     });
   },
