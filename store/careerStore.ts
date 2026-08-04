@@ -9,7 +9,7 @@ import { NATIONS, getNation } from '@/data/career/nations';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { makeRng, Rng, randomSeed, seedFromText, clamp } from '@/lib/career/rng';
-import { CAREER, declineByAge, leagueGamesByTier, CONTINENTAL_GAMES } from '@/lib/career/config';
+import { CAREER, declineByAge } from '@/lib/career/config';
 import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
 } from '@/lib/career/engine';
@@ -846,6 +846,10 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     const club = getClub(os.chosenClubId)!;
     const seasonAge = player.age;
     const seasonYear = s.year;
+    // Read now, not later: clubs are mutable and `rollLeagueMoves` below moves
+    // them between divisions, so after the shuffle `club.leagueId` may name a
+    // division this season was never played in.
+    const playedLeagueId = club.leagueId;
 
     // apply the transfer choice
     const parentClub = player.clubId;
@@ -951,7 +955,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     // Divisions shuffle once the season is done, so the offers drawn next are
     // against the new table — including your own club going up or down.
     const moves = rollLeagueMoves(rng);
-    news.push(...moveNews(moves, player.clubId, s.lang));
+    news.push(...moveNews(moves, player.clubId, playedLeagueId, s.lang));
 
     // A minigame fires off the back of what actually happened this season: a
     // layoff to recover from, a chance worth burying, or a derby to win.
@@ -1043,8 +1047,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       titles: allTitles,
       eventId: os.event?.id,
       comps: clubT.comps,
-      availableGames: leagueGamesByTier(getLeague(club.leagueId)!.tier)
-        + (out.inContinental ? CONTINENTAL_GAMES : 0),
+      availableGames: out.availableGames,
       decision: os.decision,
       derbyGoals: out.derbyGoals,
       idolGain: Math.round(idolGain * 10) / 10,

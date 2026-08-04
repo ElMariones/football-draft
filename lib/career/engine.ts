@@ -26,6 +26,13 @@ export interface SeasonOutput {
   derbyGoals: number;
   /** derby fixtures played this season */
   derbyGames: number;
+  /**
+   * Fixtures the club had this season, league plus continental. Reported from
+   * here rather than recomputed later: the offseason shuffle moves clubs
+   * between divisions, so by the time the season record is written the club may
+   * already sit in a division it did not play in.
+   */
+  availableGames: number;
 }
 
 // ---- creation --------------------------------------------------------------
@@ -252,7 +259,7 @@ export function simulateSeason(p: CareerPlayer, club: CareerClub, rng: Rng): Sea
 
   return {
     apps, goals, assists, cleanSheets, rating, minutesFactor, inContinental, effOverall,
-    derbyGoals, derbyGames,
+    derbyGoals, derbyGames, availableGames,
   };
 }
 

@@ -9,7 +9,7 @@
 // it through `setClubLeague`. `resetLeagues()` puts everything back at the start
 // of a new career.
 import { CLUBS, setClubLeague, resetLeagues } from '@/data/career/clubs';
-import { LEAGUES, getLeague } from '@/data/career/leagues';
+import { LEAGUES, getLeague, leagueName } from '@/data/career/leagues';
 import type { CareerClub } from '@/data/career/types';
 import type { Rng } from './rng';
 import type { Lang } from './i18n';
@@ -92,8 +92,21 @@ export function rollLeagueMoves(rng: Rng): LeagueMove[] {
   return moves;
 }
 
-/** Headlines for the season ticker — the player's own club comes first. */
-export function moveNews(moves: LeagueMove[], playerClubId: string | null, lang: Lang): string[] {
+/**
+ * Headlines for the season ticker — the player's own club comes first.
+ *
+ * Only movement on the player's own ladder is reported. `rollLeagueMoves` runs
+ * every country in the game, so filtering by "not my club" told a Fluminense
+ * player which sides went up in England and down in Spain: true, and none of
+ * his business. A move matters when it enters or leaves the division he plays
+ * in, which is what `from`/`to` already say.
+ *
+ * `playerLeagueId` must be the league he *played* in — read it before
+ * `rollLeagueMoves`, which mutates clubs onto their new divisions.
+ */
+export function moveNews(
+  moves: LeagueMove[], playerClubId: string | null, playerLeagueId: string | null, lang: Lang,
+): string[] {
   const es = lang === 'es';
   const out: string[] = [];
   for (const m of moves) {
@@ -105,13 +118,23 @@ export function moveNews(moves: LeagueMove[], playerClubId: string | null, lang:
       : (es ? `💔 ${m.clubName} desciende. Toca reconstruir desde abajo.`
             : `💔 ${m.clubName} are relegated. Rebuilding starts a division down.`));
   }
-  // a short note on everyone else, so the world feels alive
-  const others = moves.filter(m => m.clubId !== playerClubId);
-  if (others.length) {
-    const up = others.filter(m => m.direction === 'up').map(m => m.clubName).slice(0, 2);
-    const down = others.filter(m => m.direction === 'down').map(m => m.clubName).slice(0, 2);
-    if (up.length) out.push((es ? '⬆️ Ascienden: ' : '⬆️ Promoted: ') + up.join(', '));
-    if (down.length) out.push((es ? '⬇️ Descienden: ' : '⬇️ Relegated: ') + down.join(', '));
+
+  // Everyone else on his own ladder — the sides he will and will not be facing
+  // next season. Named by the division they are moving into, so the line reads
+  // correctly whether he is in the top flight or the one below it.
+  const near = moves.filter(m =>
+    m.clubId !== playerClubId
+    && playerLeagueId != null
+    && (m.from === playerLeagueId || m.to === playerLeagueId));
+
+  for (const dir of ['up', 'down'] as const) {
+    const group = near.filter(m => m.direction === dir);
+    if (!group.length) continue;
+    const names = group.map(m => m.clubName).slice(0, 3).join(', ');
+    const into = leagueName(group[0].to, lang);
+    out.push(dir === 'up'
+      ? (es ? `⬆️ Ascienden a ${into}: ${names}` : `⬆️ Promoted to ${into}: ${names}`)
+      : (es ? `⬇️ Descienden a ${into}: ${names}` : `⬇️ Relegated to ${into}: ${names}`));
   }
   return out;
 }
