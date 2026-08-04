@@ -3,13 +3,13 @@
 import { create } from 'zustand';
 import type { Position } from '@/data/types';
 import type {
-  CareerPlayer, CareerEvent, ClubOffer, SeasonRecord, Title, Foot,
+  CareerPlayer, CareerEvent, ClubOffer, SeasonRecord, SeasonDecision, Title, Foot,
 } from '@/data/career/types';
 import { NATIONS, getNation } from '@/data/career/nations';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { makeRng, Rng, randomSeed, seedFromText, clamp } from '@/lib/career/rng';
-import { CAREER, declineByAge } from '@/lib/career/config';
+import { CAREER, declineByAge, leagueGamesByTier, CONTINENTAL_GAMES } from '@/lib/career/config';
 import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
 } from '@/lib/career/engine';
@@ -71,6 +71,13 @@ interface Offseason {
   cardChosen: string | null;
   /** what the resolved event actually changed, for on-screen feedback */
   eventDeltas: { label: string; delta: number }[];
+  /**
+   * Which branch of the event was taken and which outcome came up, by index.
+   * Stored on the season record so next summer's report can tell you how the
+   * decision you agonised over actually turned out — by id, never as frozen
+   * localized copy.
+   */
+  decision?: SeasonDecision;
 }
 
 interface Forced {
@@ -708,6 +715,11 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     let nextOffseason: Offseason = {
       ...os, eventResolved: true, eventBadges: [outcome.badge],
       eventOptionChosen: optionIndex, eventDeltas,
+      decision: {
+        eventId: os.event.id,
+        optionIndex,
+        outcomeIndex: Math.max(0, opt.outcomes.indexOf(outcome)),
+      },
     };
     if (res.moveTo) {
       const dest = getClub(res.moveTo.clubId);
@@ -1030,6 +1042,10 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       onLoan: os.chosenVerb === 'loan',
       titles: allTitles,
       eventId: os.event?.id,
+      comps: clubT.comps,
+      availableGames: leagueGamesByTier(getLeague(club.leagueId)!.tier)
+        + (out.inContinental ? CONTINENTAL_GAMES : 0),
+      decision: os.decision,
       derbyGoals: out.derbyGoals,
       idolGain: Math.round(idolGain * 10) / 10,
       idolAfter: Math.round(idolAt(player, club.id) * 10) / 10,

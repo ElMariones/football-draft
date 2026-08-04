@@ -10,6 +10,23 @@ import type { Lang } from './i18n';
 
 const L = (lang: Lang, en: string, es: string) => (lang === 'es' ? es : en);
 
+/**
+ * Look an event up by id, in the language being read right now.
+ *
+ * A season record stores only the event's id and which branch was taken, never
+ * its copy — freeze the localized strings into the record and every past season
+ * keeps the language it was played in when the toggle is flipped.
+ */
+const deckCache: Partial<Record<Lang, Map<string, CareerEvent>>> = {};
+export function eventById(id: string, lang: Lang): CareerEvent | null {
+  let m = deckCache[lang];
+  if (!m) {
+    m = new Map(buildEventDeck(lang).map(e => [e.id, e]));
+    deckCache[lang] = m;
+  }
+  return m.get(id) ?? null;
+}
+
 // Build the localized event deck. Kept as a factory so all copy is bilingual.
 export function buildEventDeck(lang: Lang): CareerEvent[] {
   const deck: CareerEvent[] = [

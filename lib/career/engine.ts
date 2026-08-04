@@ -205,7 +205,11 @@ export function simulateSeason(p: CareerPlayer, club: CareerClub, rng: Rng): Sea
   const noiseScale = 1 - p.consistency / 220;
 
   const gRate = GOAL_BASE * goalPosFactor(p.position) * ovrGoalFactor(effOverall) * leagueGoalMod(tier) * formMul;
-  let goals = Math.round(gRate * apps + rng.gauss(0, apps * 0.05 * noiseScale + 0.3));
+  // The noise only applies to players who can actually score. A goalkeeper's
+  // rate is exactly zero, so the old unconditional gaussian — clamped at zero,
+  // and therefore one-sided — handed roughly a third of keepers one to three
+  // league goals a season out of nothing at all.
+  let goals = Math.round(gRate * apps + (gRate > 0 ? rng.gauss(0, apps * 0.05 * noiseScale + 0.3) : 0));
   goals = clamp(0, apps, goals);
 
   const aRate = ASSIST_BASE * assistPosFactor(p.position) * ovrAssistFactor(effOverall) * (0.7 + club.strength / 220) * formMul;

@@ -169,6 +169,36 @@ export interface CareerPlayer {
   rolePromiseYears: number;
 }
 
+/** How far a knockout competition was survived. */
+export type CompStage = 'group' | 'r32' | 'r16' | 'qf' | 'sf' | 'final' | 'won';
+
+/**
+ * One competition, as it actually went. A binary "did you win it" throws away
+ * everything that makes a season a season: finishing second by a point, going
+ * out of the cup to a third-division side, a first European semi-final. Every
+ * club competition now records where the run ended, not just whether it ended
+ * with a trophy.
+ */
+export interface CompRun {
+  key: string;                 // 'league' | 'domestic-cup' | 'champions' | ...
+  kind: 'league' | 'cup' | 'continental';
+  /** the club did not enter at all (no continental place) */
+  entered: boolean;
+  won: boolean;
+  /** league only: final table position and how many were in it */
+  position?: number;
+  teams?: number;
+  /** knockout only: the round the run ended in */
+  stage?: CompStage;
+}
+
+/** The offseason decision that preceded a season, so its aftermath can be told. */
+export interface SeasonDecision {
+  eventId: string;
+  optionIndex: number;
+  outcomeIndex: number;
+}
+
 export interface SeasonRecord {
   year: number;
   age: number;
@@ -182,6 +212,13 @@ export interface SeasonRecord {
   onLoan: boolean;
   titles: Title[];
   eventId?: string;
+
+  /** every competition the club played, and how far it got */
+  comps?: CompRun[];
+  /** games the club had available to you across all competitions */
+  availableGames?: number;
+  /** the choice you made before the season, resolved */
+  decision?: SeasonDecision;
 
   // ---- Legend update ----
   derbyGoals?: number;

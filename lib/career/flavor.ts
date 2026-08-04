@@ -1,4 +1,4 @@
-import type { CareerPlayer, ClubOffer, SeasonRecord } from '@/data/career/types';
+import type { CareerPlayer, ClubOffer } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { Rng } from './rng';
@@ -134,19 +134,7 @@ export function offerFlavor(player: CareerPlayer, offer: ClubOffer, lang: Lang):
   return pick(lang, 'A fresh start.', 'Un nuevo comienzo.');
 }
 
-// ---- season recap flavor ---------------------------------------------------
-
-export function seasonFlavor(rec: SeasonRecord, lang: Lang): string {
-  const hasTitle = rec.titles.some(t => t.kind === 'club' || t.kind === 'national');
-  const award = rec.titles.some(t => t.kind === 'individual');
-  let base: string;
-  if (rec.rating >= 8.5) base = pick(lang, 'A dream season.', 'Una temporada de ensueño.');
-  else if (rec.rating >= 7.5) base = pick(lang, 'A brilliant campaign.', 'Un año brillante.');
-  else if (rec.rating >= 6.8) base = pick(lang, 'A solid year.', 'Un año sólido.');
-  else if (rec.rating >= 6.0) base = pick(lang, 'A quiet season.', 'Una temporada tranquila.');
-  else base = pick(lang, 'A year to forget.', 'Un año para el olvido.');
-  if (rec.onLoan) base = pick(lang, 'Sharpening up on loan. ', 'Rodaje en el préstamo. ') + base;
-  if (hasTitle) base += pick(lang, ' Silverware secured!', ' ¡Con vitrina nueva!');
-  else if (award) base += pick(lang, ' And personal glory!', ' ¡Y gloria personal!');
-  return base;
-}
+// The one-line season recap that used to live here has been replaced by the
+// full end-of-season report — see lib/career/report.ts, which reads the same
+// record but knows about the league table, the cup runs, your country and what
+// your own numbers mean for the position you actually play.

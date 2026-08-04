@@ -10,7 +10,7 @@ import CareerLanding from '@/components/career/CareerLanding';
 import CareerWizard from '@/components/career/CareerWizard';
 import CareerHud from '@/components/career/CareerHud';
 import MobileIdentityBar from '@/components/career/MobileIdentityBar';
-import CareerOffseason from '@/components/career/CareerOffseason';
+import CareerOffseason, { LastSeasonRecap } from '@/components/career/CareerOffseason';
 import CareerTimeline from '@/components/career/CareerTimeline';
 import CareerSummary from '@/components/career/CareerSummary';
 import ArchetypePicker from '@/components/career/ArchetypePicker';
@@ -104,6 +104,8 @@ export default function CareerPage() {
           </div>
 
           <div className="space-y-4 order-1 lg:order-2">
+            {/* Last season first, then what to do about the next one. */}
+            {(phase === 'career' || phase === 'moment') && <LastSeasonRecap lang={lang} />}
             {(phase === 'career' || phase === 'moment') && <PreseasonCards lang={lang} />}
             {(phase === 'career' || phase === 'moment') && <CareerOffseason lang={lang} />}
             {phase === 'retire-decision' && (

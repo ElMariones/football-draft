@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
-import type { ClubOffer, Title } from '@/data/career/types';
+import type { ClubOffer } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { getLeague, leagueName } from '@/data/career/leagues';
-import { careerT, titleLabel, Lang } from '@/lib/career/i18n';
-import { titleName } from '@/lib/career/competitions';
-import { offerFlavor, seasonFlavor } from '@/lib/career/flavor';
+import { careerT, Lang } from '@/lib/career/i18n';
+import { offerFlavor } from '@/lib/career/flavor';
 import { Crest } from './bits';
 import { LeagueBadge } from './crests';
+import SeasonReport from './SeasonReport';
 import { areRivals } from '@/data/career/rivals';
 
 function roleLabel(role: string, t: ReturnType<typeof careerT>) {
@@ -363,27 +363,16 @@ function TransferZone({ lang }: { lang: Lang }) {
   );
 }
 
-function LastSeasonRecap({ lang }: { lang: Lang }) {
-  const t = careerT(lang);
-  const { lastSeason } = useCareerStore();
-  if (!lastSeason) return null;
-  const club = getClub(lastSeason.clubId);
-  const titleTxt = lastSeason.titles.map((tt: Title) => titleName(tt, lang)).join(' · ');
-  return (
-    <motion.div
-      key={lastSeason.year}
-      initial={{ opacity: 0, y: -12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-3 text-sm flex-wrap"
-    >
-      <span className="text-white/40 text-xs uppercase tracking-widest">{lastSeason.year}</span>
-      {club && <Crest clubId={club.id} size={24} />}
-      <span className="font-semibold">{club?.name}</span>
-      <span className="text-white/60">{lastSeason.apps} {t.apps} · {lastSeason.goals} {t.goals} · {lastSeason.assists} {t.assists}</span>
-      <motion.span initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300 }} className="ml-auto font-display text-lg">{lastSeason.rating.toFixed(1)}</motion.span>
-      <span className="w-full text-white/45 text-xs italic">{seasonFlavor(lastSeason, lang)}</span>
-      {titleTxt && <span className="w-full text-gold text-xs">🏆 {titleTxt}</span>}
-    </motion.div>
-  );
+/**
+ * The season report lives above the preseason cards, in app/carrera/page.tsx —
+ * it is a retrospective, and reading last year's results *after* being asked to
+ * pick this year's training card had the two halves of the screen arguing about
+ * which direction time runs in.
+ */
+export function LastSeasonRecap({ lang }: { lang: Lang }) {
+  const { lastSeason, player } = useCareerStore();
+  if (!lastSeason || !player) return null;
+  return <SeasonReport rec={lastSeason} player={player} lang={lang} />;
 }
 
 export default function CareerOffseason({ lang }: { lang: Lang }) {
@@ -414,7 +403,6 @@ export default function CareerOffseason({ lang }: { lang: Lang }) {
 
   return (
     <div className="space-y-4 relative">
-      <LastSeasonRecap lang={lang} />
       {!offseason.isYouth && <EventZone lang={lang} />}
       <TransferZone lang={lang} />
       <motion.button
