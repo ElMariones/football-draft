@@ -119,15 +119,20 @@ export function nationRecords(code: string): { goals: number; caps: number; scor
   const h1 = hash(code, 3);
   const h2 = hash(code, 4);
   // Deliberately on the *real* scale rather than the engine's. The real books
-  // run 50-146 goals and 122-233 caps; generating 103 goals for Colombia when
-  // Brazil's real record is Pelé's 77 made an unlisted country harder than the
-  // most famous record in the sport. Consistency between the two beats
-  // consistency with the engine's own inflated international output.
+  // run 32-145 goals and 105-221 caps; generating 103 goals for Colombia when
+  // Brazil's real record is 79 made an unlisted country harder than the most
+  // famous record in the sport. Consistency between the two beats consistency
+  // with the engine's own international output.
+  //
+  // The spreads are wide on purpose. Strength predicts these badly in reality —
+  // Ireland's scorer is on 68 and Scotland's on 30 — and a narrow band left
+  // every generated country sitting in a tight 61-74 clump that no real book
+  // was anywhere near.
   const real = NATION_RECORDS[code];
   const genScorer = surnameFor(code, h1 + 3);
   return {
-    goals: real?.goals?.n ?? Math.max(48, Math.round(55 + Math.max(0, strength - 50) * 0.55) + spread(h1, -6, 6)),
-    caps: real?.apps?.n ?? Math.max(110, Math.round(122 + Math.max(0, strength - 50) * 0.7) + spread(h2, -12, 12)),
+    goals: real?.goals?.n ?? Math.max(28, Math.round(40 + Math.max(0, strength - 50) * 0.45) + spread(h1, -10, 10)),
+    caps: real?.apps?.n ?? Math.max(100, Math.round(115 + Math.max(0, strength - 50) * 0.7) + spread(h2, -20, 20)),
     scorer: real?.goals?.holder ?? genScorer,
     capped: real?.apps?.holder ?? distinct(genScorer, code, h2 + 11),
   };

@@ -16,7 +16,7 @@ import {
 } from '@/lib/career/engine';
 import { rollClubTitles, isBigTitle } from '@/lib/career/titles';
 import {
-  rollNationalTeam, intlNews, resultLabel, roundOdds, resultAfter,
+  rollNationalTeam, intlNews, resultLabel, roundOdds, resultAfter, koScoreChance,
   KO_ROUNDS, type PendingRun, type NtResult,
 } from '@/lib/career/international';
 import { rollAwards } from '@/lib/career/awards';
@@ -320,6 +320,7 @@ function pickPlayedRounds(rng: Rng): number[] {
  */
 function walkNtRun(
   run: { quality: number; playedRounds: number[] }, fromIdx: number, rng: Rng,
+  pos: Position,
 ): { playAt: number; caps: number; goals: number }
   | { done: NtResult; caps: number; goals: number } {
   let idx = fromIdx;
@@ -329,7 +330,7 @@ function walkNtRun(
     if (run.playedRounds.includes(idx)) return { playAt: idx, caps, goals };
     // simulated round: you played it, you just did not decide it
     caps += 1;
-    if (rng.chance(0.3)) goals += 1;
+    if (rng.chance(koScoreChance(pos, 0.3))) goals += 1;
     if (!rng.chance(roundOdds(run.quality, idx))) {
       return { done: resultAfter(idx, false), caps, goals };
     }
@@ -618,7 +619,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       // advance. Win and the run continues into the next round; lose and the
       // tournament is over at exactly this stage.
       const run = s.ntRun;
-      const scored = won && rng0(s).chance(0.45);
+      const scored = won && rng0(s).chance(koScoreChance(p.position, 0.45));
       const caps = run.caps + 1;
       const goals = run.goals + (scored ? 1 : 0);
       p.ntCaps += 1;
@@ -636,7 +637,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
 
         // Walk on to the next round you are actually on the pitch for, playing
         // out anything in between rather than stopping the game for it.
-        const walk = walkNtRun(run, run.idx + 1, s.rng!);
+        const walk = walkNtRun(run, run.idx + 1, s.rng!, p.position);
         p.ntCaps += walk.caps;
         p.ntGoals += walk.goals;
         const capsNow = caps + walk.caps;
@@ -1172,7 +1173,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (nt.pendingRun) {
       pendingRun = nt.pendingRun;
       const playedRounds = pickPlayedRounds(rng);
-      const walk = walkNtRun({ quality: pendingRun.quality, playedRounds }, 0, rng);
+      const walk = walkNtRun({ quality: pendingRun.quality, playedRounds }, 0, rng, player.position);
       const base: NtRunState = {
         ...pendingRun, playedRounds, idx: 0, stageIdx: 0,
         caps: walk.caps, goals: walk.goals, age: seasonAge,

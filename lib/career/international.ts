@@ -10,6 +10,7 @@
 // qualification, and how far the nation went — plus a readable reason whenever
 // the answer is no.
 import type { CareerPlayer, CareerClub } from '@/data/career/types';
+import type { Position } from '@/data/types';
 import { getNation } from '@/data/career/nations';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
@@ -98,21 +99,51 @@ export function missReason(
   return 'competition';
 }
 
-/** Caps available in a season, by standing. */
-function capsFor(role: NtRole, rng: Rng): number {
+/**
+ * Caps available in a season, by standing.
+ *
+ * These are the qualifiers and friendlies only — a tournament summer adds its
+ * own games on top, so counting a finals in here as well was double-counting.
+ * That mattered: ten a year for twenty years is 200 caps, and the real records
+ * are 125 for England and 142 for Brazil, so the engine was handing an all-time
+ * national record to nearly every career that got picked at all. The bands
+ * below are what an international actually plays outside a finals.
+ */
+function capsFor(role: NtRole, age: number, rng: Rng): number {
   const band: Record<NtRole, [number, number]> = {
-    star: [9, 12], starter: [7, 10], squad: [4, 7], fringe: [1, 3],
+    star: [6, 9], starter: [4, 7], squad: [3, 5], fringe: [1, 2],
   };
   const [lo, hi] = band[role];
-  return Math.round(rng.range(lo, hi + 1));
+  // Nobody plays every window at 35. A manager starts looking past you long
+  // before he stops picking you, so the tail of an international career thins
+  // out rather than running flat until the day you retire.
+  const wear = age >= 34 ? 0.55 : age >= 31 ? 0.8 : 1;
+  return Math.max(1, Math.round(rng.range(lo, hi + 1) * wear));
 }
 
 function goalsFor(p: CareerPlayer, role: NtRole, caps: number, rng: Rng): number {
-  if (isKeeperOrDef(p.position)) return Math.max(0, Math.round(rng.gauss(caps * 0.03, 0.4)));
-  const base = isAttacker(p.position) ? 0.42 : 0.16;
+  // A keeper does not score for his country. Sharing a rate with the defenders
+  // gave every goalkeeping career six or seven international goals.
+  if (p.position === 'GK') return rng.chance(0.002 * caps) ? 1 : 0;
+  if (isKeeperOrDef(p.position)) return Math.max(0, Math.round(rng.gauss(caps * 0.055, 0.45)));
+  const base = isAttacker(p.position) ? 0.34 : 0.15;
   const quality = clamp(0.4, 1.5, p.overall / 78);
   const share = role === 'star' ? 1.15 : role === 'starter' ? 1 : 0.6;
   return Math.max(0, Math.round(rng.gauss(caps * base * quality * share, 1.1)));
+}
+
+/**
+ * How likely you are to be the one who scores in a knockout tie.
+ *
+ * The rounds are resolved outside this module, and they used to hand the goal
+ * out on a flat coin-flip — which meant a goalkeeper could win a World Cup
+ * semi-final by scoring in it.
+ */
+export function koScoreChance(pos: Position, base: number): number {
+  if (pos === 'GK') return 0;
+  if (isKeeperOrDef(pos)) return base * 0.25;
+  if (isAttacker(pos)) return base;
+  return base * 0.55;
 }
 
 // ---- tournaments -----------------------------------------------------------
@@ -241,7 +272,7 @@ export function rollNationalTeam(
     };
   }
 
-  const caps = capsFor(role, rng);
+  const caps = capsFor(role, p.age, rng);
   const goals = goalsFor(p, role, caps, rng);
   p.ntCaps += caps;
   p.ntGoals += goals;
