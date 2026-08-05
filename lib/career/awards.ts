@@ -74,7 +74,10 @@ export function rollAwards(
   const worldContext = majorTrophy && p.reputation >= 80;
 
   // ---- Continental ----
-  if (score >= rng.gauss(0.88, 0.06) && contContext) add('best-player-continent', 'continent', 0.6);
+  // `best-player-continent` is decided *with* the Ballon d'Or further down: in
+  // Europe they are the same vote in all but name, and awarding them
+  // independently produced players who were the best on the continent but not
+  // among the best in the world, in the same season, repeatedly.
   if (g.attacker && tier <= 2 && out.goals >= goalBar + 6 && p.reputation >= 64) {
     add(tier === 1 && league.confed === 'UEFA' ? 'golden-shoe' : 'continent-top-scorer', 'continent', 0.7);
   }
@@ -142,16 +145,37 @@ export function rollAwards(
   // a generational player wins 3-6 spread across his peak, and a merely very
   // good one wins none.
   const field = rng.gauss(4.0, 0.65);
-  const ballonCase = out.apps >= 20 && p.reputation >= 72 && ballon >= field;
+  const eligible = out.apps >= 20 && p.reputation >= 72;
+  const ballonCase = eligible && ballon >= field;
   if (ballonCase) {
     titles.push({
       key: 'ballon-dor', kind: 'individual', scope: 'world', age: p.age,
       clubId: club.id, leagueId: club.leagueId,
     });
     add('the-best', 'world', 0.72);
-  } else if (out.apps >= 20 && p.reputation >= 72 && ballon >= field - 0.35) {
+  } else if (eligible && ballon >= field - 0.35) {
     // pipped to the Ballon d'Or but still the pick of a different jury
     add('the-best', 'world', 0.3);
+  }
+
+  // ---- Best in the continent ----
+  // Tied to the Ballon d'Or, and tightest in Europe, where the two are decided
+  // by overlapping electorates looking at the same games. Winning the world
+  // award and not the continental one in the same year should be a curiosity,
+  // not a routine result.
+  //
+  // Outside UEFA the link is weaker: a Ballon d'Or winner playing in South
+  // America is not automatically South America's pick, and a continental award
+  // can be won there by someone nowhere near the world vote.
+  const uefa = league.confed === 'UEFA';
+  if (ballonCase && contContext) {
+    add('best-player-continent', 'continent', uefa ? 0.94 : 0.6);
+  } else if (eligible && contContext && ballon >= field - 0.5) {
+    // just short of the world award, still the best on the continent
+    add('best-player-continent', 'continent', uefa ? 0.45 : 0.55);
+  } else if (!uefa && contContext && score >= rng.gauss(0.88, 0.06)) {
+    // the non-European route in on its own merit
+    add('best-player-continent', 'continent', 0.5);
   }
 
   return titles;

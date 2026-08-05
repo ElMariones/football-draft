@@ -43,6 +43,15 @@ export interface ClubTitleResult {
   continentalElite: boolean;
   /** every competition the club played, and how far it got */
   comps: CompRun[];
+  /**
+   * The club reached the continental final and it has *not* been decided.
+   *
+   * Deciding a European Cup final on a hidden coin flip was the least
+   * interesting thing in the game: the one night a career is remembered for
+   * happened while nobody was looking. When this is set the store hands the
+   * final to the player, and the title is only awarded if he wins it.
+   */
+  pendingFinal: { key: string; elite: boolean } | null;
 }
 
 /**
@@ -139,26 +148,31 @@ export function rollClubTitles(p: CareerPlayer, club: CareerClub, out: SeasonOut
 
   let wonContinental = false;
   let elite = false;
+  let pendingFinal: { key: string; elite: boolean } | null = null;
   if (qualifiesContinental(club)) {
     elite = club.strength >= max - 2;
     const contKey = continentalKey(league.confed, elite);
-    const contChance = clamp(0, 0.5, logistic((club.strength - 84) * 0.32));
-    const contStage = knockoutStage(CONT_LADDER, contChance, rng);
+    // The ladder now runs to the *final*, not to the trophy — the last night is
+    // the player's to win. Reaching it is deliberately rare: the old curve
+    // handed the very best clubs a 50% chance of lifting it every single year,
+    // which is how careers ended with ten European Cups when the record any
+    // player has ever managed is six.
+    const finalChance = clamp(0, 0.42, 0.42 * logistic((club.strength - 86) * 0.32));
+    const contStage = knockoutStage(CONT_LADDER, finalChance, rng);
     if (contStage === 'won') {
-      titles.push(t(contKey));
-      wonContinental = true;
-      if (elite && rng.chance(0.4)) titles.push(t('club-world-cup'));
+      // 'won' out of the ladder means the final was reached. Who lifts it is
+      // decided on the pitch.
+      pendingFinal = { key: contKey, elite };
+      comps.push({ key: contKey, kind: 'continental', entered: true, won: false, stage: 'final' });
+    } else {
+      comps.push({ key: contKey, kind: 'continental', entered: true, won: false, stage: contStage });
     }
-    comps.push({
-      key: contKey, kind: 'continental', entered: true,
-      won: wonContinental, stage: contStage,
-    });
   } else {
     comps.push({
       key: continentalKey(league.confed, false), kind: 'continental', entered: false, won: false,
     });
   }
-  return { titles, wonLeague, wonContinental, continentalElite: elite, comps };
+  return { titles, wonLeague, wonContinental, continentalElite: elite, comps, pendingFinal };
 }
 
 // ---- international ----------------------------------------------------------

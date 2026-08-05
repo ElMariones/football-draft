@@ -151,6 +151,12 @@ interface CareerState {
   miniGame: MiniGameSpec | null;
   /** a knockout run in progress — each round decided by the player, not the dice */
   ntRun: NtRunState | null;
+  /**
+   * A continental final waiting on the player. The trophy is not awarded until
+   * he wins it, so the season record and the cabinet are patched afterwards,
+   * exactly like a knockout run with the country.
+   */
+  contFinal: { key: string; elite: boolean; clubId: string; leagueId: string; age: number; stageIdx: number } | null;
 
   // ---- the ending ----
   /** the send-off scenes for the final season, and how far through them we are */
@@ -356,6 +362,41 @@ function startEpilogue(
   });
 }
 
+
+/**
+ * The continental final, as a drag-and-shoot.
+ *
+ * Difficulty is the player's own overall, so a 95 faces a keeper covering less
+ * of the goal and moving slower than the one a 68 has to beat, and his shot
+ * scatters far less. The scatter is drawn here, from the career's own rng, so
+ * the randomness stays where every other outcome in the game keeps it rather
+ * than being generated in the DOM.
+ */
+function buildFinalMini(
+  p: CareerPlayer, key: string, lang: Lang, rng: Rng,
+): MiniGameSpec {
+  // Technique matters more than raw overall for a finish, but both count.
+  const rating = p.overall * 0.65 + p.attrs.tec * 0.35;
+  const skill = clamp(0, 1, (rating - 55) / 45);
+  return {
+    kind: 'shot',
+    stake: 'continental-final',
+    luckIndex: 0, sequence: [], target: 50, width: 20,
+    label: titleLabel(key, lang),
+    round: lang === 'es' ? 'La final' : 'The final',
+    knockout: true,
+    shot: {
+      skill,
+      needed: 2,
+      shots: Array.from({ length: 3 }, () => ({
+        // a signed nudge; ShotGame scales it by how hard the shot was hit
+        scatter: clamp(-1, 1, rng.gauss(0, 0.5)),
+        phase: rng.range(0, Math.PI * 2),
+      })),
+    },
+  };
+}
+
 /** The rng is created per career; this just keeps the call sites readable. */
 function rng0(s: { rng: Rng | null }): Rng {
   return s.rng!;
@@ -473,6 +514,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   ntRun: null,
   farewell: null,
   epilogue: null,
+  contFinal: null,
 
   dismissCelebration() { set({ celebrating: null }); },
 
@@ -501,6 +543,62 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         line = es ? '🧤 Atajada imposible. El punto lo salvaste tú.' : '🧤 An impossible save. You won that point on your own.'; }
       else { p.form = clamp(15, 99, p.form - 4);
         line = es ? '🧤 Se te fue entre las manos. Vas a verla toda la semana.' : '🧤 It went straight through your hands. You will see it all week.'; }
+    } else if (g.stake === 'continental-final' && s.contFinal) {
+      // The trophy exists only now. Patch the season record, the cabinet and the
+      // idolatry it earns, the same way a knockout run with the country is
+      // closed out — the season was committed before the night was played.
+      const cf = s.contFinal;
+      const stages = [...s.stages];
+      const rec = stages[cf.stageIdx];
+      const title: Title = {
+        key: cf.key, kind: 'club', scope: 'club',
+        age: cf.age, clubId: cf.clubId, leagueId: cf.leagueId,
+      };
+      const name = titleLabel(cf.key, s.lang);
+      line = won
+        ? (es ? `🏆 ¡${name}! La ganaste tú, en la final.`
+              : `🏆 ${name}! You won it, in the final.`)
+        : (es ? `💔 Final perdida. La ${name} se escapó en la última noche.`
+              : `💔 Final lost. The ${name} slipped away on the last night.`);
+
+      if (rec) {
+        stages[cf.stageIdx] = {
+          ...rec,
+          titles: won ? [...rec.titles, title] : rec.titles,
+          comps: (rec.comps ?? []).map(c => (c.key === cf.key ? { ...c, won } : c)),
+          news: [...(rec.news ?? []), line],
+        };
+      }
+      if (won) {
+        creditTitle(p, cf.clubId, 1);
+        addIdol(p, cf.clubId, 8);
+        p.reputation = clamp(0, 100, p.reputation + 10);
+        p.morale = clamp(5, 100, p.morale + 14);
+        // the elite continental winners get their shot at the world title
+        if (cf.elite && s.rng && s.rng.chance(0.4)) {
+          const cwc: Title = {
+            key: 'club-world-cup', kind: 'club', scope: 'club',
+            age: cf.age, clubId: cf.clubId, leagueId: cf.leagueId,
+          };
+          stages[cf.stageIdx] = {
+            ...stages[cf.stageIdx],
+            titles: [...stages[cf.stageIdx].titles, cwc],
+          };
+          set({ trophies: [...s.trophies, title, cwc] });
+        } else {
+          set({ trophies: [...s.trophies, title] });
+        }
+      } else {
+        p.morale = clamp(5, 100, p.morale - 10);
+      }
+      set({
+        player: p, stages, miniGame: null, contFinal: null,
+        lastSeason: stages[cf.stageIdx] ?? s.lastSeason,
+        celebrating: won ? title : s.celebrating,
+        seasonNews: [...s.seasonNews, line],
+      });
+      get().checkAchievements();
+      return;
     } else if (g.stake === 'tournament' && s.ntRun) {
       // This is the whole point of the rework: the tie is decided here, not in
       // advance. Win and the run continues into the next round; lose and the
@@ -1076,6 +1174,30 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         autoFinish = { result: walk.done, caps: walk.caps, goals: walk.goals };
       }
     }
+    // A continental final outranks every club minigame — it is the night the
+    // career is remembered for. It yields only to a knockout run with the
+    // country, which is already a multi-round state machine; in the rare season
+    // that has both, the final falls back to the odds it was always resolved by.
+    let contFinalState: CareerState['contFinal'] = null;
+    if (!mini && clubT.pendingFinal) {
+      mini = buildFinalMini(player, clubT.pendingFinal.key, s.lang, rng);
+      contFinalState = {
+        key: clubT.pendingFinal.key, elite: clubT.pendingFinal.elite,
+        clubId: club.id, leagueId: playedLeagueId, age: seasonAge, stageIdx: 0,
+      };
+    } else if (clubT.pendingFinal) {
+      // no minigame available: decide it the old way so the season still has an
+      // answer, at the same odds the player would have faced
+      if (rng.chance(0.5)) {
+        const won: Title = {
+          key: clubT.pendingFinal.key, kind: 'club', scope: 'club',
+          age: seasonAge, clubId: club.id, leagueId: playedLeagueId,
+        };
+        allTitles.push(won);
+        for (const c of clubT.comps) if (c.key === clubT.pendingFinal.key) c.won = true;
+      }
+    }
+
     const stakes: MiniStake[] = [];
     if (mini) stakes.length = 0;
     if (player.injuryGamesNext > 0) stakes.push('injury');
@@ -1196,6 +1318,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       celebrating: pickCelebration(allTitles),
       miniGame: mini,
       ntRun: ntRunState ? { ...ntRunState, stageIdx: stages.length - 1 } : null,
+      contFinal: contFinalState
+        ? { ...contFinalState, stageIdx: stages.length - 1 }
+        : null,
     });
 
     // A run that ended without ever needing the player is closed out here, now
@@ -1303,7 +1428,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       player: null, year: CAREER.startYear, stages: [], trophies: [], lastSeason: null, ntRun: null,
       wizard: { ...emptyWizard }, offseason: null, forced: null,
       archetypeOptions: [], moment: null, momentResult: null, seasonNews: [],
-      achievementQueue: [], farewell: null, epilogue: null,
+      achievementQueue: [], farewell: null, epilogue: null, contFinal: null,
       // note: `unlocked` is deliberately NOT reset — logros persist across runs
     });
   },

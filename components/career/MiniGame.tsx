@@ -10,10 +10,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
+import ShotGame, { type ShotSpec } from './ShotGame';
 import type { Lang } from '@/lib/career/i18n';
 
-export type MiniKind = 'luck' | 'memory' | 'skill' | 'penalty';
-export type MiniStake = 'injury' | 'wonder-goal' | 'big-save' | 'derby' | 'tournament';
+export type MiniKind = 'luck' | 'memory' | 'skill' | 'penalty' | 'shot';
+export type MiniStake =
+  'injury' | 'wonder-goal' | 'big-save' | 'derby' | 'tournament' | 'continental-final';
 
 export interface MiniGameSpec {
   kind: MiniKind;
@@ -35,6 +37,8 @@ export interface MiniGameSpec {
   /** for the tournament stake: what is on the line, and against whom */
   label?: string;
   round?: string;
+  /** the drag-and-shoot final — see ShotGame */
+  shot?: ShotSpec;
 }
 
 const COPY: Record<MiniStake, { en: [string, string]; es: [string, string] }> = {
@@ -59,6 +63,10 @@ const COPY: Record<MiniStake, { en: [string, string]; es: [string, string] }> = 
     en: ['With your country', 'The whole nation has stopped to watch this.'],
     es: ['Con tu selección', 'El país entero se detuvo para ver esto.'],
   },
+  'continental-final': {
+    en: ['The final', 'One night. Beat the keeper and it is yours.'],
+    es: ['La final', 'Una noche. Bátelo y es tuya.'],
+  },
 };
 
 const KIND_COPY: Record<MiniKind, { en: string; es: string }> = {
@@ -66,6 +74,7 @@ const KIND_COPY: Record<MiniKind, { en: string; es: string }> = {
   memory: { en: 'Repeat the run', es: 'Repite la jugada' },
   skill: { en: 'Stop the power in the green', es: 'Detén la potencia en el verde' },
   penalty: { en: 'Pick your corner', es: 'Elige tu palo' },
+  shot: { en: 'Drag from the ball. Beat him.', es: 'Arrastra desde el balón. Bátelo.' },
 };
 
 export default function MiniGame({ lang }: { lang: Lang }) {
@@ -169,7 +178,9 @@ export default function MiniGame({ lang }: { lang: Lang }) {
         <motion.div
           initial={{ scale: 0.9, y: 24 }} animate={{ scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 180, damping: 20 }}
-          className="w-full max-w-md rounded-3xl border border-white/15 bg-[#0b0f14] p-6 text-center"
+          className={`w-full rounded-3xl border border-white/15 bg-[#0b0f14] p-6 text-center ${
+            miniGame.kind === 'shot' ? 'max-w-lg' : 'max-w-md'
+          }`}
         >
           <div className="text-[10px] tracking-[0.35em] text-cl uppercase">
             {es ? 'Minijuego' : 'Minigame'}
@@ -194,6 +205,13 @@ export default function MiniGame({ lang }: { lang: Lang }) {
                   ? (es ? 'Lee la jugada antes de que llegue' : 'Read the move before it arrives')
                   : KIND_COPY[miniGame.kind][es ? 'es' : 'en']}
             </p>
+          )}
+
+          {/* ---- shot: drag and beat the keeper ---- */}
+          {miniGame.kind === 'shot' && miniGame.shot && phase !== 'done' && (
+            <div className="mt-4">
+              <ShotGame spec={miniGame.shot} lang={lang} onDone={finish} />
+            </div>
           )}
 
           {/* ---- luck: three shirts ---- */}
