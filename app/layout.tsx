@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SessionProviderWrapper from '@/components/SessionProviderWrapper';
@@ -47,6 +48,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProviderWrapper>
           <ErrorBoundary>{children}</ErrorBoundary>
         </SessionProviderWrapper>
+        {/* Outside the error boundary on purpose: analytics must not be able to
+            take the page down, and a crashed page should still report itself. */}
+        <Analytics />
       </body>
     </html>
   );
