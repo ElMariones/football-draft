@@ -188,6 +188,50 @@ function Body({ shape, fill, stroke }: { shape: Shape; fill: string; stroke: str
   }
 }
 
+const RECORD_KEYS = new Set([
+  'club-top-scorer', 'club-most-apps', 'nation-top-scorer', 'nation-most-caps',
+]);
+export const isRecordTitle = (key: string) => RECORD_KEYS.has(key);
+
+/**
+ * A record is not a trophy. Nobody hands you a cup for being a club's all-time
+ * top scorer — your name goes on a board in a corridor, and stays there until
+ * somebody takes it off you. So it gets a plaque, not a cup.
+ */
+export function RecordPlaque({ title, size = 40 }: { title: Title; size?: number }) {
+  const caps = title.key === 'club-most-apps' || title.key === 'nation-most-caps';
+  return (
+    <svg
+      viewBox="0 0 60 60" width={size} height={size} role="img" aria-label={title.key}
+      className="flex-shrink-0" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.55))' }}
+    >
+      <defs>
+        <linearGradient id={`rp${title.key}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F7E7A6" />
+          <stop offset="55%" stopColor="#C9A227" />
+          <stop offset="100%" stopColor="#8A6D14" />
+        </linearGradient>
+      </defs>
+      {/* mounting board */}
+      <rect x="8" y="10" width="44" height="40" rx="3" fill="#2b2118" stroke="#8A6D14" strokeWidth="1.5" />
+      {/* the engraved plate */}
+      <rect x="13" y="15" width="34" height="30" rx="2" fill={`url(#rp${title.key})`} />
+      {/* engraved lines — a ball for goals, a shirt for appearances */}
+      {caps ? (
+        <g fill="#3b2f14">
+          <path d="M23 24 h14 v3 l-3 2 v10 h-8 V29 l-3-2 Z" />
+        </g>
+      ) : (
+        <g fill="#3b2f14">
+          <circle cx="30" cy="30" r="7" />
+          <path d="M30 25 l3.5 2.6 -1.3 4.1 h-4.4 L26.5 27.6 Z" fill="#F7E7A6" />
+        </g>
+      )}
+      <rect x="17" y="40" width="26" height="1.6" rx="0.8" fill="#3b2f14" opacity="0.55" />
+    </svg>
+  );
+}
+
 export function TrophyIcon({ title, size = 22 }: { title: Title; size?: number }) {
   const spec = specFor(title);
   const uid = `tr${(title.key + (title.clubId ?? title.nationCode ?? '')).replace(/[^a-z0-9]/gi, '')}`;

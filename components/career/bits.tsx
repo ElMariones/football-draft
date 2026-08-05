@@ -142,7 +142,8 @@ export function Jersey({
           <stop offset="100%" stopColor="#000" stopOpacity="0.10" />
         </linearGradient>
         <clipPath id={`body${uid}`}><path d={SHIRT_BODY} /></clipPath>
-        <path id={`arc${uid}`} d="M72 108 Q120 88 168 108" fill="none" />
+        {/* the name sits higher, just under the collar, the way a kit prints it */}
+        <path id={`arc${uid}`} d="M74 101 Q120 81 166 101" fill="none" />
       </defs>
 
       {/* sleeves sit behind the body */}
@@ -171,19 +172,24 @@ export function Jersey({
       {/* outline last so it sits above the shading */}
       <path d={SHIRT_BODY} fill="none" stroke="rgba(0,0,0,.35)" strokeWidth="2" />
 
-      {/* name arched above the number */}
+      {/* Name and number are printed, not drawn: a real kit outlines both in the
+          trim colour so they read against the shirt whatever colour it is. The
+          number also sits high on the back, not down by the hem — it was at 196
+          on a body that ends at 250, which looked like it had slipped. */}
       <text
-        fontFamily="Bebas Neue, Impact, sans-serif" fontSize="19"
-        fill={txt} letterSpacing="2.5" opacity="0.95"
+        fontFamily="Bebas Neue, Impact, sans-serif" fontSize="20"
+        fill={txt} stroke={secondary} strokeWidth="2.5" paintOrder="stroke"
+        strokeLinejoin="round" letterSpacing="3"
       >
         <textPath href={`#arc${uid}`} startOffset="50%" textAnchor="middle">
           {(surname || 'APELLIDO').slice(0, 12).toUpperCase()}
         </textPath>
       </text>
       <text
-        x="120" y="196" textAnchor="middle"
-        fontFamily="Bebas Neue, Impact, sans-serif" fontSize="76"
-        fill={txt} letterSpacing="-2"
+        x="120" y="181" textAnchor="middle"
+        fontFamily="Bebas Neue, Impact, sans-serif" fontSize="84"
+        fill={txt} stroke={secondary} strokeWidth="5" paintOrder="stroke"
+        strokeLinejoin="round" letterSpacing="-1"
       >
         {number || 10}
       </text>

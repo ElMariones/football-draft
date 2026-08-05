@@ -18,7 +18,7 @@ import {
 import { buildSubmission } from '@/lib/career/submission';
 import { Crest, OvrBadge, CountUp, TrophyBadge } from './bits';
 import { LeagueBadge } from './crests';
-import { TrophyIcon } from './TrophyArt';
+import { TrophyIcon, RecordPlaque, isRecordTitle } from './TrophyArt';
 import Face from './Face';
 import { NationalTeamHistory } from './NationalTeam';
 
@@ -193,12 +193,23 @@ export default function CareerSummary({
   const bestSeason = stages.reduce<SeasonRecord | undefined>(
     (b, s) => (s.goals > (b?.goals ?? -1) ? s : b), undefined);
 
-  const indGrouped = Object.entries(
-    indTitles.reduce<Record<string, { n: number; sample: Title }>>((acc, tt) => {
-      acc[tt.key] = acc[tt.key] ? { ...acc[tt.key], n: acc[tt.key].n + 1 } : { n: 1, sample: tt };
+  // Records are not awards and get their own shelf. Everything else is grouped
+  // by its *resolved* name, not its key: grouping by key collapsed a Premier
+  // League MVP and a LaLiga MVP into one row called "league-mvp", and printed
+  // the key itself for anything titleLabel had never heard of.
+  const recordTitles = indTitles.filter(x => isRecordTitle(x.key));
+  const awardTitles = indTitles.filter(x => !isRecordTitle(x.key));
+
+  const groupByName = (list: Title[]) => Object.entries(
+    list.reduce<Record<string, { n: number; sample: Title }>>((acc, tt) => {
+      const label = titleName(tt, lang);
+      acc[label] = acc[label] ? { ...acc[label], n: acc[label].n + 1 } : { n: 1, sample: tt };
       return acc;
     }, {}),
-  ).sort((a, b) => (TITLE_WEIGHT[b[0]] ?? 0) - (TITLE_WEIGHT[a[0]] ?? 0));
+  ).sort((a, b) => (TITLE_WEIGHT[b[1].sample.key] ?? 0) - (TITLE_WEIGHT[a[1].sample.key] ?? 0));
+
+  const indGrouped = groupByName(awardTitles);
+  const recGrouped = groupByName(recordTitles);
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 pb-10">
@@ -492,7 +503,7 @@ export default function CareerSummary({
                   className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 bg-white/[0.03]"
                 >
                   <TrophyIcon title={g.sample} size={24} />
-                  <span className="text-sm text-white/80 truncate">{titleLabel(g.key, lang)}</span>
+                  <span className="text-sm text-white/80 truncate">{titleName(g.sample, lang)}</span>
                   {g.n > 1 && <span className="ml-auto font-display text-gold text-lg">×{g.n}</span>}
                 </motion.div>
               ))}
@@ -502,7 +513,7 @@ export default function CareerSummary({
                   className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 bg-gold/[0.07] border border-gold/20"
                 >
                   <TrophyIcon title={tt} size={24} />
-                  <span className="text-sm text-gold truncate">{titleLabel(tt.key, lang)}</span>
+                  <span className="text-sm text-gold truncate">{titleName(tt, lang)}</span>
                   <span className="ml-auto text-[11px] text-white/40">{nationFlag(player.ntNationCode)}</span>
                 </motion.div>
               ))}
@@ -511,19 +522,37 @@ export default function CareerSummary({
         </Section>
       </div>
 
+      {/* ---------- records: a board in a corridor, not a cup ---------- */}
+      {recGrouped.length > 0 && (
+        <Section label={es ? 'Récords' : 'Records'}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {recGrouped.map(([label, v]) => (
+              <motion.div
+                key={label} {...rise(0)}
+                className="flex items-center gap-3 rounded-xl border border-gold/20 bg-[#1a1510] px-3 py-2.5"
+              >
+                <RecordPlaque title={v.sample} size={38} />
+                <span className="text-[12px] leading-snug text-white/85 min-w-0">{label}</span>
+                {v.n > 1 && <span className="ml-auto font-display text-gold leading-none">×{v.n}</span>}
+              </motion.div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {/* ---------- individual awards (previously not rendered at all) ---------- */}
       <Section label={es ? 'Premios individuales' : 'Individual awards'}>
         {indGrouped.length === 0 ? (
           <div className="text-white/30 text-xs uppercase tracking-widest py-4 text-center">{t.emptyCabinet}</div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {indGrouped.map(([key, v]) => (
+            {indGrouped.map(([label, v]) => (
               <motion.div
-                key={key} {...rise(0)} whileHover={{ scale: 1.04, y: -3 }}
+                key={label} {...rise(0)} whileHover={{ scale: 1.04, y: -3 }}
                 className="flex flex-col items-center text-center gap-1 rounded-xl border border-gold/25 bg-gold/[0.06] px-2 py-3"
               >
                 <TrophyIcon title={v.sample} size={40} />
-                <span className="text-[11px] leading-tight text-white/80">{titleLabel(key, lang)}</span>
+                <span className="text-[11px] leading-tight text-white/80">{label}</span>
                 {v.n > 1 && <span className="font-display text-gold leading-none">×{v.n}</span>}
               </motion.div>
             ))}
