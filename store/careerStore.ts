@@ -49,6 +49,9 @@ import {
 import { pickCelebration } from '@/components/career/Celebration';
 import { rollLeagueMoves, moveNews, resetLeagues } from '@/lib/career/promotion';
 import { recordsBroken, brokenLine } from '@/lib/career/recordbook';
+import {
+  buildCallup, buildRecordCeremony, applyCeremony, type Ceremony,
+} from '@/lib/career/ceremony';
 import { buildProfile } from '@/lib/career/profile';
 import {
   buildFarewell, applyFarewell, type FarewellScene, type FarewellOption,
@@ -157,6 +160,13 @@ interface CareerState {
    * exactly like a knockout run with the country.
    */
   contFinal: { key: string; elite: boolean; clubId: string; leagueId: string; age: number; stageIdx: number } | null;
+  /**
+   * The announcement currently on screen, and any waiting behind it. A season
+   * can break two records at once, and they are worth one screen each rather
+   * than one screen that mentions both.
+   */
+  ceremony: Ceremony | null;
+  ceremonyQueue: Ceremony[];
 
   // ---- the ending ----
   /** the send-off scenes for the final season, and how far through them we are */
@@ -205,6 +215,8 @@ interface CareerState {
 
   playSeason(): void;
   retireDecision(oneMore: boolean): void;
+  chooseCeremony(optionId: string): void;
+  dismissCeremony(): void;
   chooseFarewell(optionId: string): void;
   nextFarewell(): void;
   choosePath(id: PathId): void;
@@ -515,6 +527,8 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   farewell: null,
   epilogue: null,
   contFinal: null,
+  ceremony: null,
+  ceremonyQueue: [],
 
   dismissCelebration() { set({ celebrating: null }); },
 
@@ -1273,9 +1287,24 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       { stages: [...prevStages, provisional], ntGoals: player.ntGoals, ntCaps: player.ntCaps },
       club.id, seasonYear,
     );
+    const ceremonies: Ceremony[] = [];
     for (const b of broken) {
       allTitles.push(b.title);
       news.push(brokenLine(b, s.lang));
+      ceremonies.push(buildRecordCeremony(player, {
+        kind: b.chase.entry.kind,
+        clubId: b.chase.entry.clubId,
+        nationCode: b.chase.entry.nationCode,
+        holder: b.chase.entry.holder,
+        n: b.chase.entry.current,
+      }, rng));
+    }
+    // The first call-up is the one nobody forgets, and it used to arrive as a
+    // row in a side panel. `ntDebut` is set by rollNationalTeam the first time
+    // he is capped, so this fires exactly once.
+    if (player.flags?.ntDebut && !player.flags.sawFirstCallup) {
+      player.flags.sawFirstCallup = true;
+      ceremonies.unshift(buildCallup(player, rng));
     }
 
     const record: SeasonRecord = {
@@ -1321,6 +1350,8 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       contFinal: contFinalState
         ? { ...contFinalState, stageIdx: stages.length - 1 }
         : null,
+      ceremony: ceremonies[0] ?? null,
+      ceremonyQueue: ceremonies.slice(1),
     });
 
     // A run that ended without ever needing the player is closed out here, now
@@ -1381,6 +1412,25 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     setupOffseason(set, get);
   },
 
+  chooseCeremony(optionId) {
+    const s = get();
+    const c = s.ceremony;
+    if (!c || c.chosen || !s.player) return;
+    const opt = c.event.options.find(o => o.id === optionId);
+    if (!opt) return;
+    set({
+      player: applyCeremony(s.player, opt, c.clubId ?? s.player.clubId),
+      ceremony: { ...c, chosen: opt },
+    });
+  },
+
+  dismissCeremony() {
+    const s = get();
+    const [next, ...rest] = s.ceremonyQueue;
+    set({ ceremony: next ?? null, ceremonyQueue: rest });
+    if (!next) get().checkAchievements();
+  },
+
   chooseFarewell(optionId) {
     const s = get();
     const f = s.farewell;
@@ -1429,6 +1479,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       wizard: { ...emptyWizard }, offseason: null, forced: null,
       archetypeOptions: [], moment: null, momentResult: null, seasonNews: [],
       achievementQueue: [], farewell: null, epilogue: null, contFinal: null,
+      ceremony: null, ceremonyQueue: [],
       // note: `unlocked` is deliberately NOT reset — logros persist across runs
     });
   },

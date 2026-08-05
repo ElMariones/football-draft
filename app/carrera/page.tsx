@@ -24,6 +24,7 @@ import { NationalTeamPanel } from '@/components/career/NationalTeam';
 import { AchievementToasts, AchievementsBook } from '@/components/career/Achievements';
 import Celebration from '@/components/career/Celebration';
 import MiniGame from '@/components/career/MiniGame';
+import CeremonyModal from '@/components/career/CeremonyModal';
 
 export default function CareerPage() {
   const language = useGameStore(s => s.language);
@@ -143,6 +144,7 @@ export default function CareerPage() {
         <CareerSummary player={player} stages={stages} trophies={trophies} lang={lang} onReplay={reset} />
       )}
       <MiniGame lang={lang} />
+      <CeremonyModal lang={lang} />
       <Celebration title={celebrating} lang={lang} onDone={dismissCelebration} />
       <AchievementToasts lang={lang} />
     </main>

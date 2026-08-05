@@ -18,6 +18,7 @@ import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { getNation } from '@/data/career/nations';
 import { surnameFor } from '@/data/career/surnames';
+import { CLUB_RECORDS, NATION_RECORDS } from '@/data/career/realRecords';
 import type { Lang } from './i18n';
 
 // Record holders are named from the country the book belongs to. One shared
@@ -87,16 +88,27 @@ export function clubRecords(clubId: string): { goals: number; apps: number; scor
   // games for a club; a player who stays a decade reaches 400-600 of each. The
   // records sit deliberately in the gap, so they are a reward for staying and
   // not something a journeyman collects on the way past.
-  const goalBase = Math.round(150 + Math.max(0, strength - 55) * 5.2 - (tier - 1) * 8);
-  const appBase = Math.round(430 + Math.max(0, strength - 55) * 5.0 - (tier - 1) * 12);
+  // Scaled to sit alongside the real books in data/career/realRecords.ts —
+  // Real Madrid's 450 and United's 963 are the top of this range, so a
+  // generated giant has to land near them or the two systems disagree about
+  // what a big club's record looks like.
+  const goalBase = Math.round(150 + Math.max(0, strength - 55) * 7.4 - (tier - 1) * 10);
+  const appBase = Math.round(420 + Math.max(0, strength - 55) * 9.0 - (tier - 1) * 14);
 
+  // A generated number is fine for Getafe and absurd for Real Madrid, where
+  // every player already knows roughly what it is. Real figures win where we
+  // have them; the rest fall back to the formula.
+  const real = CLUB_RECORDS[clubId];
+  const genScorer = surnameFor(nationOfClub, h1);
   return {
-    goals: Math.max(120, goalBase + spread(h1, -20, 20)),
-    apps: Math.max(360, appBase + spread(h2, -45, 45)),
+    goals: real?.goals?.n ?? Math.max(120, goalBase + spread(h1, -20, 20)),
+    apps: real?.apps?.n ?? Math.max(360, appBase + spread(h2, -45, 45)),
     // A club's record holders come from the club's own country, not the
     // player's — Everton's all-time scorer is not Colombian.
-    scorer: surnameFor(nationOfClub, h1),
-    ever: distinct(surnameFor(nationOfClub, h1), nationOfClub, h2 + 7),
+    scorer: real?.goals?.holder ?? genScorer,
+    // Real books are left alone: Messi and Del Piero really do hold both, and
+    // forcing a second name is only there to stop the *generator* repeating.
+    ever: real?.apps?.holder ?? distinct(genScorer, nationOfClub, h2 + 7),
   };
 }
 
@@ -106,15 +118,18 @@ export function nationRecords(code: string): { goals: number; caps: number; scor
   const strength = nation?.strength ?? 60;
   const h1 = hash(code, 3);
   const h2 = hash(code, 4);
-  // A long international career in this engine ends around 200 caps and 100
-  // goals (measured p90: 215 caps, 109 goals), so the marks sit just above that
-  // — reachable by someone who is first choice for his country for a decade,
-  // and by nobody else.
+  // Deliberately on the *real* scale rather than the engine's. The real books
+  // run 50-146 goals and 122-233 caps; generating 103 goals for Colombia when
+  // Brazil's real record is Pelé's 77 made an unlisted country harder than the
+  // most famous record in the sport. Consistency between the two beats
+  // consistency with the engine's own inflated international output.
+  const real = NATION_RECORDS[code];
+  const genScorer = surnameFor(code, h1 + 3);
   return {
-    goals: Math.max(75, Math.round(88 + Math.max(0, strength - 50) * 0.45) + spread(h1, -7, 7)),
-    caps: Math.max(180, Math.round(198 + Math.max(0, strength - 50) * 0.35) + spread(h2, -14, 14)),
-    scorer: surnameFor(code, h1 + 3),
-    capped: distinct(surnameFor(code, h1 + 3), code, h2 + 11),
+    goals: real?.goals?.n ?? Math.max(48, Math.round(55 + Math.max(0, strength - 50) * 0.55) + spread(h1, -6, 6)),
+    caps: real?.apps?.n ?? Math.max(110, Math.round(122 + Math.max(0, strength - 50) * 0.7) + spread(h2, -12, 12)),
+    scorer: real?.goals?.holder ?? genScorer,
+    capped: real?.apps?.holder ?? distinct(genScorer, code, h2 + 11),
   };
 }
 
