@@ -6,12 +6,11 @@
 // them rather than being buried under fabricated superstars.
 import { makeRng } from './rng';
 import type { CareerSubmission } from './submission';
+import { surnamePool } from '@/data/career/surnames';
 
-const NAMES = [
-  'RIVERA', 'KOVAC', 'OKONKWO', 'SILVA', 'MÜLLER', 'TANAKA', 'DUBOIS', 'HORVAT',
-  'NGUYEN', 'ANDERSEN', 'ROSSI', 'MARQUES', 'PETROV', 'HALL', 'ÖZTÜRK', 'MENDOZA',
-  'BAKKER', 'SORENSEN', 'CONTE', 'DIALLO', 'NOVAK', 'REYES', 'WALSH', 'KAMARA',
-];
+// Names come from the nation each filler is given — pairing a fixed list with a
+// random flag produced Colombians called LINDQVIST, which is the same bug the
+// record books had.
 const NATIONS = [
   'AR', 'BR', 'ES', 'IT', 'DE', 'FR', 'EN', 'PT', 'NL', 'BE', 'HR', 'RS',
   'NG', 'SN', 'GH', 'MX', 'CO', 'UY', 'CL', 'JP', 'KR', 'NO', 'SE', 'PL',
@@ -38,8 +37,9 @@ export function makeFillerRuns(n: number, seed = 90210): CareerSubmission[] {
   const out: CareerSubmission[] = [];
 
   for (let i = 0; i < n; i++) {
-    const surname = NAMES[i % NAMES.length];
     const nationCode = NATIONS[rng.int(NATIONS.length)];
+    const pool = surnamePool(nationCode);
+    const surname = pool[rng.int(pool.length)];
     const position = POSITIONS[rng.int(POSITIONS.length)];
     const keeper = position === 'GK';
     const attacker = ['ST', 'CF', 'RW', 'LW', 'CAM'].includes(position);

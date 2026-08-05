@@ -17,14 +17,12 @@ import type { CareerPlayer, SeasonRecord, Title } from '@/data/career/types';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { getNation } from '@/data/career/nations';
+import { surnameFor } from '@/data/career/surnames';
 import type { Lang } from './i18n';
 
-const HOLDERS = [
-  'RIVERA', 'KOVAC', 'OKONKWO', 'SILVA', 'MÜLLER', 'TANAKA', 'DUBOIS', 'HORVAT',
-  'NGUYEN', 'ANDERSEN', 'ROSSI', 'MARQUES', 'PETROV', 'HALL', 'ÖZTÜRK', 'MENDOZA',
-  'BAKKER', 'SORENSEN', 'CONTE', 'DIALLO', 'NOVAK', 'REYES', 'WALSH', 'KAMARA',
-  'ESPÓSITO', 'LINDQVIST', 'ABIODUN', 'FERREIRA', 'JANKOVIĆ', 'MORENO',
-];
+// Record holders are named from the country the book belongs to. One shared
+// list gave Colombia a top scorer called LINDQVIST and a most-capped player
+// called BAKKER, which is the sort of detail a player reads closely.
 
 /** Stable hash so a record is the same number every time it is read. */
 function hash(s: string, salt: number): number {
@@ -36,6 +34,21 @@ function hash(s: string, salt: number): number {
   return h >>> 0;
 }
 const spread = (h: number, lo: number, hi: number) => lo + (h % (hi - lo + 1));
+
+/**
+ * A second holder who is not the first one.
+ *
+ * One player holding both the scoring and appearance records is realistic, but
+ * a generated book that prints the same surname twice reads as a bug rather
+ * than as a club legend.
+ */
+function distinct(taken: string, nationCode: string | undefined, h: number): string {
+  for (let i = 0; i < 6; i++) {
+    const pick = surnameFor(nationCode, h + i * 7);
+    if (pick !== taken) return pick;
+  }
+  return surnameFor(nationCode, h + 1);
+}
 
 export interface RecordEntry {
   /** what is being counted */
@@ -63,7 +76,9 @@ export interface RecordEntry {
 export function clubRecords(clubId: string): { goals: number; apps: number; scorer: string; ever: string } {
   const club = getClub(clubId);
   const strength = club?.strength ?? 60;
-  const tier = club ? getLeague(club.leagueId)?.tier ?? 3 : 3;
+  const league = club ? getLeague(club.leagueId) : null;
+  const tier = league?.tier ?? 3;
+  const nationOfClub = league?.nationCode;
 
   const h1 = hash(clubId, 1);
   const h2 = hash(clubId, 2);
@@ -78,8 +93,10 @@ export function clubRecords(clubId: string): { goals: number; apps: number; scor
   return {
     goals: Math.max(120, goalBase + spread(h1, -20, 20)),
     apps: Math.max(360, appBase + spread(h2, -45, 45)),
-    scorer: HOLDERS[h1 % HOLDERS.length],
-    ever: HOLDERS[(h2 + 7) % HOLDERS.length],
+    // A club's record holders come from the club's own country, not the
+    // player's — Everton's all-time scorer is not Colombian.
+    scorer: surnameFor(nationOfClub, h1),
+    ever: distinct(surnameFor(nationOfClub, h1), nationOfClub, h2 + 7),
   };
 }
 
@@ -96,8 +113,8 @@ export function nationRecords(code: string): { goals: number; caps: number; scor
   return {
     goals: Math.max(75, Math.round(88 + Math.max(0, strength - 50) * 0.45) + spread(h1, -7, 7)),
     caps: Math.max(180, Math.round(198 + Math.max(0, strength - 50) * 0.35) + spread(h2, -14, 14)),
-    scorer: HOLDERS[(h1 + 3) % HOLDERS.length],
-    capped: HOLDERS[(h2 + 11) % HOLDERS.length],
+    scorer: surnameFor(code, h1 + 3),
+    capped: distinct(surnameFor(code, h1 + 3), code, h2 + 11),
   };
 }
 
