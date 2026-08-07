@@ -137,6 +137,10 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     basePotential: potential,
     rolePromise: null,
     rolePromiseYears: 0,
+    sponsor: null,
+    sponsorHistory: [],
+    endorsements: [],
+    brandCooldown: 0,
   };
   p.value = computeValue(p, 4);
   p.peakValue = p.value;

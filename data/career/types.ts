@@ -184,6 +184,53 @@ export interface CareerPlayer {
   rolePromise: OfferRole | null;
   /** seasons the promise still binds the manager (1 = this coming season) */
   rolePromiseYears: number;
+
+  // ---- Brands --------------------------------------------------------------
+  /** the boot deal currently held, if any (see lib/career/sponsors.ts) */
+  sponsor: SponsorState | null;
+  /** every closed boot-deal chapter, for the panel and the epilogue */
+  sponsorHistory: SponsorSpell[];
+  /** lifestyle brand ids picked up along the way — watches, cars, airlines */
+  endorsements: string[];
+  /** seasons before another brand event may fire */
+  brandCooldown: number;
+}
+
+/**
+ * The rung you are on with your boot brand.
+ *
+ * Most professionals never get past free boots; a signature boot is genuinely
+ * rare. The ladder is deliberately the real one — see lib/career/sponsors.ts,
+ * which owns everything that decides who sits where.
+ */
+export type DealTier = 'kit' | 'squad' | 'silo' | 'signature' | 'global';
+
+export interface SponsorState {
+  brandId: string;
+  tier: DealTier;
+  /** seasons left to run, including the coming one */
+  yearsLeft: number;
+  /** guaranteed money per season, before performance */
+  annual: number;
+  signedYear: number;
+  /** paid out by this deal so far */
+  earned: number;
+  /** how happy they are with you, 0-100. Drives renewals and being dropped. */
+  standing: number;
+  /** you have a boot with your name on it */
+  signature: boolean;
+  /** brand event ids already run under this deal */
+  done: string[];
+}
+
+/** A closed chapter with a brand, kept for the panel and the epilogue. */
+export interface SponsorSpell {
+  brandId: string;
+  from: number;
+  to: number;
+  tier: DealTier;
+  earned: number;
+  signature: boolean;
 }
 
 /** How far a knockout competition was survived. */

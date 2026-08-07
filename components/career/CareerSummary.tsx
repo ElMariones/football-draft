@@ -12,6 +12,8 @@ import { formatValue, positionAbbr } from '@/lib/career/format';
 import { idolLevel } from '@/lib/career/idolatry';
 import { ATTR_KEYS, ATTR_LABEL } from '@/lib/career/attributes';
 import { patrimony } from '@/lib/career/shop';
+import { getBrand } from '@/data/career/brands';
+import { dealLabel, fmtMoney } from '@/lib/career/sponsors';
 import {
   saveRecord, rankOf, type CareerRecord, type Records,
 } from '@/lib/career/records';
@@ -19,6 +21,7 @@ import { buildSubmission } from '@/lib/career/submission';
 import { Crest, OvrBadge, CountUp, TrophyBadge } from './bits';
 import { LeagueBadge } from './crests';
 import { TrophyIcon, RecordPlaque, isRecordTitle } from './TrophyArt';
+import BrandMark from './BrandMark';
 import Face from './Face';
 import { NationalTeamHistory } from './NationalTeam';
 
@@ -52,6 +55,106 @@ function Section({ label, children, right, delay = 0 }: {
       </div>
       {children}
     </motion.section>
+  );
+}
+
+/**
+ * The other career.
+ *
+ * Twenty years of boot deals is a story with a shape — who took a chance on you
+ * at sixteen, who you left them for, whether anybody ever put your name on a
+ * boot — and it deserves more than a number in a wallet. Every chapter, in
+ * order, plus what the whole thing paid.
+ */
+function BrandLegacy({ player, lang, lastYear }: {
+  player: CareerPlayer; lang: Lang; lastYear: number;
+}) {
+  const es = lang === 'es';
+  const spells = [
+    ...(player.sponsorHistory ?? []),
+    ...(player.sponsor
+      ? [{
+          // The deal you retired holding ran to the last season you played.
+          // `yearsLeft` counts *down*, so it cannot be added to the start year.
+          brandId: player.sponsor.brandId, from: player.sponsor.signedYear,
+          to: lastYear,
+          tier: player.sponsor.tier, earned: player.sponsor.earned,
+          signature: player.sponsor.signature,
+        }]
+      : []),
+  ];
+  const others = (player.endorsements ?? []).map(getBrand).filter(Boolean);
+  if (!spells.length && !others.length) return null;
+
+  const total = spells.reduce((a, x) => a + x.earned, 0);
+  const sig = spells.find(s => s.signature);
+
+  return (
+    <Section
+      label={es ? 'Marcas' : 'Brands'}
+      right={total > 0
+        ? <span className="font-display text-gold text-sm">{fmtMoney(total)}</span>
+        : undefined}
+    >
+      {spells.length > 0 && (
+        <div className="space-y-2">
+          {spells.map((s, i) => {
+            const b = getBrand(s.brandId);
+            if (!b) return null;
+            return (
+              <motion.div
+                key={`${s.brandId}-${s.from}-${i}`} {...rise(0)}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5"
+              >
+                <BrandMark brandId={b.id} size={30} />
+                <div className="min-w-0">
+                  <div className="font-display text-sm leading-none">
+                    {b.name}
+                    {s.signature && <span className="text-gold ml-1.5">★</span>}
+                  </div>
+                  <div className="text-[10px] text-white/40 mt-1 leading-none">
+                    {dealLabel(s.tier, lang)}
+                  </div>
+                </div>
+                <div className="ml-auto text-right shrink-0">
+                  {s.earned > 0 && (
+                    <div className="font-display text-xs text-white/70 leading-none">{fmtMoney(s.earned)}</div>
+                  )}
+                  <div className="text-[10px] text-white/30 mt-1 leading-none">{s.from}–{s.to}</div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {sig && (
+        <p className="text-[11px] text-gold/85 leading-snug mt-2.5">
+          ★ {es
+            ? `${getBrand(sig.brandId)?.name} le puso tu nombre a una bota.`
+            : `${getBrand(sig.brandId)?.name} put your name on a boot.`}
+        </p>
+      )}
+
+      {others.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-white/8">
+          <div className="text-[9px] uppercase tracking-wider text-white/30 mb-2">
+            {es ? 'Y todo lo demás' : 'And everything else'}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {others.map(b => (
+              <span
+                key={b!.id}
+                className="flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.04] pl-1 pr-2 py-1"
+              >
+                <BrandMark brandId={b!.id} size={16} />
+                <span className="text-[10px] text-white/65 leading-none">{b!.name}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -539,6 +642,10 @@ export default function CareerSummary({
           </div>
         </Section>
       )}
+
+      {/* ---------- the other career: who paid to be seen with you ---------- */}
+      <BrandLegacy player={player} lang={lang}
+        lastYear={stages[stages.length - 1]?.year ?? player.sponsor?.signedYear ?? 0} />
 
       {/* ---------- individual awards (previously not rendered at all) ---------- */}
       <Section label={es ? 'Premios individuales' : 'Individual awards'}>

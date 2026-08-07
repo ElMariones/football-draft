@@ -52,6 +52,15 @@ import { recordsBroken, brokenLine } from '@/lib/career/recordbook';
 import {
   buildCallup, buildRecordCeremony, applyCeremony, type Ceremony,
 } from '@/lib/career/ceremony';
+import {
+  marketability, youthMarketability, generateBootOffers, signDeal,
+  sponsorIncome, standingAfter, wouldDrop, fmtMoney,
+} from '@/lib/career/sponsors';
+import {
+  pickBrandEvent, buildBrandBeat, applyBrandEffects, fillBrandCopy,
+  type BrandBeat, type BrandCtx,
+} from '@/lib/career/brandEvents';
+import { getBrand } from '@/data/career/brands';
 import { buildProfile } from '@/lib/career/profile';
 import {
   buildFarewell, applyFarewell, type FarewellScene, type FarewellOption,
@@ -167,6 +176,9 @@ interface CareerState {
    */
   ceremony: Ceremony | null;
   ceremonyQueue: Ceremony[];
+  /** the brand beat on screen, and anything queued behind it */
+  brand: BrandBeat | null;
+  brandQueue: BrandBeat[];
 
   // ---- the ending ----
   /** the send-off scenes for the final season, and how far through them we are */
@@ -217,6 +229,10 @@ interface CareerState {
   retireDecision(oneMore: boolean): void;
   chooseCeremony(optionId: string): void;
   dismissCeremony(): void;
+  signBootDeal(index: number): void;
+  declineBootDeals(): void;
+  chooseBrandOption(optionId: string): void;
+  dismissBrand(): void;
   chooseFarewell(optionId: string): void;
   nextFarewell(): void;
   choosePath(id: PathId): void;
@@ -530,6 +546,8 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   contFinal: null,
   ceremony: null,
   ceremonyQueue: [],
+  brand: null,
+  brandQueue: [],
 
   dismissCelebration() { set({ celebrating: null }); },
 
@@ -785,8 +803,17 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     player.peakOverall = Math.max(player.peakOverall, player.overall);
 
     const youthOffers = generateYouthOffers(player, s.rng);
+
+    // Your first boot deal, before you have kicked a professional ball. Priced
+    // on what a scout thinks you become rather than what you are — which is why
+    // a wonderkid gets a real brand at sixteen and everybody else gets a box.
+    const bootOffers = generateBootOffers(player, [], s.rng, { m: youthMarketability(player) });
+
     set({
       phase: 'career', player, archetypeOptions: [],
+      brand: bootOffers.length
+        ? { kind: 'offer', reason: 'first', offers: bootOffers, prev: null, chosen: null }
+        : null,
       offseason: {
         event: null, eventResolved: true, eventBadges: [], eventOptionChosen: null,
         offers: youthOffers,
@@ -1308,6 +1335,101 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       ceremonies.unshift(buildCallup(player, rng));
     }
 
+    // ---- brands ----
+    // The deal pays, the brand forms an opinion of the season, and every so
+    // often something happens because of it. Everything here keys off what
+    // actually occurred, which is the whole point: nobody flies a squad player
+    // to Tokyo, and the campaign only exists because you won the thing.
+    const trophiesNow = [...s.trophies, ...allTitles];
+    const brandBeats: BrandBeat[] = [];
+    const mkt = marketability(player, trophiesNow);
+
+    if (player.sponsor) {
+      const income = sponsorIncome(player.sponsor);
+      const brandName = getBrand(player.sponsor.brandId)?.name ?? '';
+      player.money = (player.money ?? 0) + income;
+      player.sponsor = {
+        ...player.sponsor,
+        earned: player.sponsor.earned + income,
+        standing: standingAfter(player, {
+          apps: out.apps, goals: out.goals, assists: out.assists,
+          cleanSheets: out.cleanSheets,
+          titles: allTitles.filter(t => t.kind === 'club').length,
+          bigTitles, rating: out.rating,
+        }, player.sponsor.standing),
+        yearsLeft: player.sponsor.yearsLeft - 1,
+      };
+      if (income > 0) {
+        news.push(s.lang === 'es'
+          ? `👟 ${brandName} te pagó ${fmtMoney(income)} por el contrato de botas.`
+          : `👟 ${brandName} paid you ${fmtMoney(income)} on the boot deal.`);
+      }
+    }
+
+    if ((player.brandCooldown ?? 0) <= 0) {
+      const ctx: BrandCtx = {
+        p: player, m: mkt, sp: player.sponsor,
+        brand: player.sponsor ? getBrand(player.sponsor.brandId) ?? null : null,
+        clubStrength: club.strength,
+        leagueTier: getLeague(playedLeagueId)?.tier ?? 4,
+        wonBallon: awards.some(a => a.key === 'ballon-dor'),
+        inTournament: !!nt.season.tournament?.qualified,
+        wonBig: bigTitles > 0,
+        brokeRecord: broken.length > 0,
+        apps: out.apps,
+        held: player.endorsements ?? [],
+      };
+      const def = pickBrandEvent(ctx, rng);
+      const beat = def ? buildBrandBeat(def, ctx, rng) : null;
+      if (def && beat) {
+        brandBeats.push(beat);
+        // Seeing it is what spends it, whichever branch you take.
+        if (def.once === 'deal' && player.sponsor) {
+          player.sponsor = { ...player.sponsor, done: [...player.sponsor.done, def.id] };
+        } else if (def.once === 'career') {
+          player.flags[`brand:${def.id}`] = true;
+        }
+        player.brandCooldown = 2;
+      }
+    } else {
+      player.brandCooldown = Math.max(0, (player.brandCooldown ?? 0) - 1);
+    }
+
+    // The deal running out is the moment the market tells you what you are now
+    // worth. A brand that has enjoyed having you renews above the odds; one that
+    // has not simply does not call.
+    if (player.sponsor && player.sponsor.yearsLeft <= 0) {
+      const sp = player.sponsor;
+      const dropped = wouldDrop(sp, mkt);
+      const brandName = getBrand(sp.brandId)?.name ?? '';
+      player.sponsorHistory = [...(player.sponsorHistory ?? []), {
+        brandId: sp.brandId, from: sp.signedYear, to: seasonYear,
+        tier: sp.tier, earned: sp.earned, signature: sp.signature,
+      }];
+      player.sponsor = null;
+      news.push(dropped
+        ? (s.lang === 'es'
+            ? `👟 ${brandName} no renueva. Tu contrato de botas termina aquí.`
+            : `👟 ${brandName} are not renewing. The boot deal ends here.`)
+        : (s.lang === 'es'
+            ? `👟 Tu contrato con ${brandName} llega a su fin. Hay que decidir.`
+            : `👟 Your ${brandName} deal is up. There is a decision to make.`));
+      const offers = generateBootOffers(player, trophiesNow, rng,
+        dropped ? {} : { renewFrom: sp });
+      if (offers.length) {
+        brandBeats.push({
+          kind: 'offer', reason: dropped ? 'dropped' : 'renew',
+          offers, prev: sp, chosen: null,
+        });
+      }
+    } else if (!player.sponsor && mkt >= 20 && rng.chance(0.55)) {
+      // Unsigned and worth signing: somebody eventually calls.
+      const offers = generateBootOffers(player, trophiesNow, rng);
+      if (offers.length) {
+        brandBeats.push({ kind: 'offer', reason: 'free', offers, prev: null, chosen: null });
+      }
+    }
+
     const record: SeasonRecord = {
       year: seasonYear, age: seasonAge, clubId: club.id,
       overallAtSeason: Math.round(out.effOverall),
@@ -1327,7 +1449,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     };
 
     player.age += 1;
-    const trophies = [...s.trophies, ...allTitles];
+    const trophies = trophiesNow;
     const stages = [...s.stages, record];
     const year = seasonYear + 1;
 
@@ -1353,6 +1475,8 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         : null,
       ceremony: ceremonies[0] ?? null,
       ceremonyQueue: ceremonies.slice(1),
+      brand: brandBeats[0] ?? null,
+      brandQueue: brandBeats.slice(1),
     });
 
     // A run that ended without ever needing the player is closed out here, now
@@ -1432,6 +1556,47 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (!next) get().checkAchievements();
   },
 
+  signBootDeal(index) {
+    const s = get();
+    const b = s.brand;
+    if (!b || b.kind !== 'offer' || b.chosen || !s.player) return;
+    const offer = b.offers[index];
+    if (!offer) return;
+    const player = { ...s.player, flags: { ...s.player.flags } };
+    player.sponsor = signDeal(offer, s.year, b.prev ?? null);
+    set({ player, brand: { ...b, chosen: offer } });
+  },
+
+  declineBootDeals() {
+    const s = get();
+    const b = s.brand;
+    if (!b || b.kind !== 'offer' || b.chosen) return;
+    set({ brand: { ...b, chosen: 'declined' } });
+  },
+
+  chooseBrandOption(optionId) {
+    const s = get();
+    const b = s.brand;
+    if (!b || b.kind !== 'event' || b.chosen || !s.player) return;
+    const opt = b.def.options.find(o => o.id === optionId);
+    if (!opt) return;
+    const res = applyBrandEffects(s.player, s.player.sponsor, opt.effects, {
+      lifestyleBrandId: b.lifestyleBrandId,
+      lifestyleFee: b.lifestyleFee,
+    });
+    set({
+      player: { ...res.player, sponsor: res.sponsor },
+      brand: { ...b, chosen: opt },
+    });
+  },
+
+  dismissBrand() {
+    const s = get();
+    const [next, ...rest] = s.brandQueue;
+    set({ brand: next ?? null, brandQueue: rest });
+    if (!next) get().checkAchievements();
+  },
+
   chooseFarewell(optionId) {
     const s = get();
     const f = s.farewell;
@@ -1481,6 +1646,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       archetypeOptions: [], moment: null, momentResult: null, seasonNews: [],
       achievementQueue: [], farewell: null, epilogue: null, contFinal: null,
       ceremony: null, ceremonyQueue: [],
+      brand: null, brandQueue: [],
       // note: `unlocked` is deliberately NOT reset — logros persist across runs
     });
   },
