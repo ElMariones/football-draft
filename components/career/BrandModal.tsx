@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
-import BrandMark, { BrandLockup } from './BrandMark';
+import BrandMark, { BrandLockup, brandAccent } from './BrandMark';
 import { getBrand } from '@/data/career/brands';
 import {
   dealLabel, dealBlurb, offerHook, offerSummary, fmtMoney,
@@ -49,7 +49,7 @@ function OfferCard({
       {/* a wash of the brand's own colour, so the cards are told apart at a glance */}
       <div
         className="absolute inset-y-0 left-0 w-1.5"
-        style={{ background: b.primary === '#111111' || b.primary === '#0B0B0B' ? b.secondary : b.primary }}
+        style={{ background: brandAccent(b.id) }}
       />
       <div className="flex items-start gap-3 pl-1.5">
         <BrandMark brandId={b.id} size={40} />
@@ -185,7 +185,7 @@ export default function BrandModal({ lang }: { lang: Lang }) {
                 <div className="relative px-5 sm:px-6 pt-6 pb-5 overflow-hidden">
                   <div
                     className="absolute inset-0 opacity-[0.16]"
-                    style={{ background: `radial-gradient(120% 80% at 20% 0%, ${b?.primary ?? '#fff'} 0%, transparent 70%)` }}
+                    style={{ background: `radial-gradient(120% 80% at 20% 0%, ${brandAccent(brand.brandId)} 0%, transparent 70%)` }}
                   />
                   <motion.div
                     initial={{ scale: 0.5, rotate: -12, opacity: 0 }}

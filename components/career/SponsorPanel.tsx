@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCareerStore } from '@/store/careerStore';
-import BrandMark from './BrandMark';
+import BrandMark, { brandAccent } from './BrandMark';
 import { getBrand, CAT_LABEL } from '@/data/career/brands';
 import {
   marketability, marketLabel, dealLabel, sponsorIncome, fmtMoney,
@@ -47,7 +47,7 @@ export default function SponsorPanel({ lang }: { lang: Lang }) {
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 relative overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 w-1"
-            style={{ background: brand.primary === '#111111' || brand.primary === '#0B0B0B' ? brand.secondary : brand.primary }}
+            style={{ background: brandAccent(brand.id) }}
           />
           <div className="flex items-center gap-2.5 pl-1.5 mb-2">
             <BrandMark brandId={brand.id} size={30} />

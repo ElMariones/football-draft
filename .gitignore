@@ -16,3 +16,6 @@ dist/
 .idea/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# generated brand-mark contact sheet (npm run brands:sheet)
+public/_brandsheet.html

@@ -2,18 +2,27 @@
 
 // Brand marks.
 //
-// ORIGINAL artwork, on purpose. The brand names in this game are real, the same
-// way the club names are real — but the club crests are generated rather than
-// copied, and these follow exactly the same rule. Every mark below is a
-// geometric glyph drawn from the brand's own colours; none of them reproduces
-// anybody's trademarked logo.
+// Three tiers, in order:
 //
-// They have to survive being 16px in a side panel and 64px in a modal, so each
-// one is a single bold silhouette on a field, with no fine detail to lose.
+//   1. A real logo image the project ships in public/brands/<brand-id>.png.
+//      Anything in there wins. Run `npm run brands` after adding one.
+//   2. The official mark geometry carried by `simple-icons` — real logos, real
+//      brand colours. The icon data is CC0; the marks themselves are the
+//      trademarks of their respective owners and are used here to identify the
+//      brands they belong to.
+//   3. A drawn geometric glyph, for the brands neither source has. These are
+//      original artwork and are NOT anybody's logo — they exist so a brand with
+//      no available mark still renders as something deliberate rather than a
+//      grey box. Every one of them is listed in DRAWN_ONLY.
+//
+// All three have to survive being 16px in a side panel and 64px in a modal, so
+// everything is a single bold silhouette on a field, with no fine detail.
 
+import { useState } from 'react';
 import { getBrand, type Glyph } from '@/data/career/brands';
+import { BRAND_LOGOS } from '@/data/career/brandLogos';
 
-/** The glyph, in a 100x100 box, drawn in the accent colour. */
+/** The drawn fallback glyph, in a 100x100 box. Original artwork, not a logo. */
 function glyphPath(g: Glyph): string {
   switch (g) {
     case 'wedge':   return 'M12 70 C34 66 62 50 88 24 C84 44 66 68 34 78 Z';
@@ -38,20 +47,85 @@ function glyphPath(g: Glyph): string {
 /** Round marks want a circular field; angular ones want a squircle. */
 const ROUND: Glyph[] = ['orbit', 'ring', 'flame', 'star'];
 
+/** Perceived lightness, so a mark on a pale field is drawn dark rather than white. */
+function isLight(hex: string): boolean {
+  const h = hex.replace('#', '');
+  if (h.length < 6) return false;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62;
+}
+
+/**
+ * The colour that identifies a brand across the UI — accent stripes, the wash
+ * behind a modal header. Prefers the brand's official hex where a real mark
+ * supplied one, and never returns something invisible on a dark background.
+ */
+export function brandAccent(brandId: string): string {
+  const b = getBrand(brandId);
+  if (!b) return '#888888';
+  const official = BRAND_LOGOS[brandId]?.hex;
+  const c = official ?? b.primary;
+  // Nike and adidas are officially black, which is not a usable accent here.
+  const h = c.replace('#', '').toLowerCase();
+  const dark = ['000000', '111111', '0b0b0b', '1a1a1a', '1d1d1d', '242b2f'];
+  return dark.includes(h) ? b.secondary : c;
+}
+
 /**
  * One brand's mark, at any size.
  *
- * `flat` drops the field and draws the glyph alone in the brand colour, for
- * places that already have a background of their own.
+ * `flat` drops the field and draws the mark alone, for places that already have
+ * a background of their own.
  */
 export default function BrandMark({
   brandId, size = 32, flat = false,
 }: { brandId: string; size?: number; flat?: boolean }) {
+  const [imgBroken, setImgBroken] = useState(false);
   const b = getBrand(brandId);
   if (!b) return null;
-  const round = ROUND.includes(b.glyph);
-  const id = `bm-${b.id}`;
+  const logo = BRAND_LOGOS[brandId];
 
+  // ---- 1. a real logo image shipped for this brand ----
+  if (logo?.file && !imgBroken) {
+    return (
+      <span
+        className="inline-grid place-items-center rounded-[22%] bg-white/95 overflow-hidden shrink-0"
+        style={{ width: size, height: size, padding: size * 0.13 }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/brands/${logo.file}`} alt={b.name}
+          width={size} height={size}
+          onError={() => setImgBroken(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        />
+      </span>
+    );
+  }
+
+  // ---- 2. the official mark, in the brand's own colour ----
+  if (logo?.path) {
+    const field = logo.hex ?? b.primary;
+    const ink = isLight(field) ? '#111111' : '#FFFFFF';
+    if (flat) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" aria-label={b.name} role="img">
+          <path d={logo.path} fill={field} />
+        </svg>
+      );
+    }
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" aria-label={b.name} role="img">
+        <rect x="0" y="0" width="24" height="24" rx="5.6" fill={field} />
+        <g transform="translate(12 12) scale(0.66) translate(-12 -12)">
+          <path d={logo.path} fill={ink} />
+        </g>
+      </svg>
+    );
+  }
+
+  // ---- 3. the drawn fallback ----
+  const round = ROUND.includes(b.glyph);
   if (flat) {
     return (
       <svg width={size} height={size} viewBox="0 0 100 100" aria-label={b.name} role="img">
@@ -59,19 +133,11 @@ export default function BrandMark({
       </svg>
     );
   }
-
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-label={b.name} role="img">
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={b.primary} />
-          {/* a second stop keeps a flat black field from reading as a hole */}
-          <stop offset="100%" stopColor={b.primary === '#111111' || b.primary === '#0B0B0B' ? '#2A2A2A' : b.primary} />
-        </linearGradient>
-      </defs>
       {round
-        ? <circle cx="50" cy="50" r="50" fill={`url(#${id})`} />
-        : <rect x="0" y="0" width="100" height="100" rx="24" fill={`url(#${id})`} />}
+        ? <circle cx="50" cy="50" r="50" fill={b.primary} />
+        : <rect x="0" y="0" width="100" height="100" rx="24" fill={b.primary} />}
       <g transform="translate(50 50) scale(0.72) translate(-50 -50)">
         <path d={glyphPath(b.glyph)} fill={b.secondary} fillRule="evenodd" />
       </g>

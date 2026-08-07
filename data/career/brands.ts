@@ -10,10 +10,14 @@
 // is worth something on its own — a watch house, a car marque, an airline — and
 // you can hold several at once.
 //
-// The marks in components/career/BrandMark.tsx are ORIGINAL artwork drawn from
-// each brand's colours and initial, in the same spirit as the club crests: the
-// names are real, the logo artwork is not a reproduction of anybody's
-// trademark.
+// Marks: see components/career/BrandMark.tsx. Where a real logo is available it
+// is used — the trademarks belong to their respective owners and appear here to
+// identify the brands they refer to. Brands with no available mark fall back to
+// an original drawn glyph, which is not anybody's logo; those are listed in
+// DRAWN_ONLY in data/career/brandLogos.ts.
+//
+// `primary`/`secondary` below are UI colours. Where a real mark supplies the
+// brand's official hex, `brandAccent()` prefers that instead.
 
 export type BrandFamily = 'boot' | 'lifestyle';
 
