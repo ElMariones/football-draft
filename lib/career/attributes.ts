@@ -86,23 +86,104 @@ export function startingAttrs(pos: Position, base: number): Attrs {
 }
 
 /**
+ * The point at which an attribute stops coming easily.
+ *
  * A specialist may sit above his overall ceiling — a winger can have 90 pace on
- * an 82 potential — but he must not run away from it. Every source of attribute
- * gain (growth, preseason cards, the shop) funnels through `gainAttrs` so a
- * 20-season drip of +3 cards can't end with 99s on an 83-potential player.
+ * an 82 potential — but he must not run away from it.
  */
 export function attrCap(potential: number): number {
   return clamp(60, 99, Math.round(potential) + 8);
 }
 
+/** What a point of gain is worth once an attribute is already past its cap. */
+const OVER_CAP_RATE = 0.25;
+/** And the most it can ever be pushed past it, however many cards you spend. */
+const OVER_CAP_ROOM = 4;
+
+/**
+ * Add to one attribute, with a *soft* ceiling.
+ *
+ * This used to be a wall: anything at the cap took `Math.min(...)` and the gain
+ * vanished. A card that said "+4 Pace" moved a 93 to a 93, which reads as the
+ * game being broken — and it is not far off, because the reward was spent and
+ * nothing came back.
+ *
+ * Now the cap slows growth instead of stopping it. Everything up to the cap
+ * lands in full; past it, four points of card buy one point of attribute. The
+ * anti-inflation intent survives — twenty seasons of +3 cards no longer end in
+ * 99s on an 83-potential player — and the number always moves.
+ */
+export function softGain(current: number, gain: number, cap: number): number {
+  if (gain <= 0) return clamp(20, 99, current + gain);
+  let v = current;
+  let left = gain;
+  if (v < cap) {
+    const room = Math.min(left, cap - v);
+    v += room;
+    left -= room;
+  }
+  if (left > 0) v = Math.min(cap + OVER_CAP_ROOM, v + left * OVER_CAP_RATE);
+  return clamp(20, 99, v);
+}
+
 export function gainAttrs(base: Attrs, delta: Partial<Attrs>, potential: number): Attrs {
   const cap = attrCap(potential);
-  const out = addAttrs(base, delta);
+  const out = { ...base };
   for (const k of ATTR_KEYS) {
-    // never claw back what a player already has — just stop it climbing
-    out[k] = Math.min(out[k], Math.max(base[k], cap));
+    const d = delta[k];
+    if (!d) continue;
+    out[k] = softGain(out[k], d, cap);
   }
   return out;
+}
+
+/**
+ * Overall, from the attributes, with a soft ceiling at your potential.
+ *
+ * Two things had to be true at once and previously neither was.
+ *
+ * First, one definition. `applyProgression` clamped overall to `potential`
+ * while the card, shop and archetype paths did not, so a preseason card raised
+ * you to 89 and the end of the season quietly put you back to 85. From the
+ * outside that is indistinguishable from the number being stuck.
+ *
+ * Second, gains have to land. A hard clamp at `potential` means that once you
+ * reach your ceiling *nothing* moves the number again — every card, every shop
+ * item and every event for the rest of the career is visibly wasted.
+ *
+ * So potential is now a soft ceiling on overall: everything up to it counts in
+ * full, and beyond it each point of attribute is worth a fraction of a point of
+ * overall. You can exceed your natural ceiling by investing in it, the number
+ * always responds, and it cannot run away — attributes are separately capped,
+ * so there is a hard maximum this can reach.
+ */
+export function softCapOverall(raw: number, potential: number): number {
+  if (raw <= potential) return raw;
+  return clamp(35, 99, Math.round(potential + (raw - potential) * 0.45));
+}
+
+export function recomputeOverall(p: {
+  attrs: Attrs; position: Position; potential: number; overall: number; peakOverall: number;
+}): void {
+  p.overall = softCapOverall(overallFrom(p.attrs, p.position), p.potential);
+  p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall));
+}
+
+/**
+ * The single way anything grants a player attributes.
+ *
+ * Every source — archetype, preseason card, shop item, event, seasonal growth —
+ * goes through here, so they all obey the same ceiling and all leave `overall`
+ * in the same state. Events used to call `addAttrs` directly and skip the cap
+ * entirely, which is why an event could take a 93 to 99 while a card could not
+ * move it at all.
+ */
+export function grantAttrs(
+  p: { attrs: Attrs; position: Position; potential: number; overall: number; peakOverall: number },
+  delta: Partial<Attrs>,
+): void {
+  p.attrs = gainAttrs(p.attrs, delta, p.potential);
+  recomputeOverall(p);
 }
 
 /**
@@ -114,9 +195,13 @@ export function gainAttrs(base: Attrs, delta: Partial<Attrs>, potential: number)
  * next time any other stat changed. Since the position weights sum to 1, adding
  * `delta` to every attribute moves the weighted mean by exactly `delta`.
  */
-export function applyOverallDelta(base: Attrs, delta: number): Attrs {
+export function applyOverallDelta(base: Attrs, delta: number, potential: number): Attrs {
+  const cap = attrCap(potential);
   const out = { ...base };
-  for (const k of ATTR_KEYS) out[k] = clamp(20, 99, out[k] + delta);
+  // Since the position weights sum to 1, adding `delta` to every attribute
+  // moves the weighted mean by `delta` — until the soft ceiling starts taking
+  // its cut, which is the point of the ceiling.
+  for (const k of ATTR_KEYS) out[k] = softGain(out[k], delta, cap);
   return out;
 }
 

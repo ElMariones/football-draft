@@ -33,7 +33,7 @@ import { buildEventDeck, selectEvent, applyEffects } from '@/lib/career/events';
 import { transferHeadline } from '@/lib/career/flavor';
 import { titleLabel, type Lang } from '@/lib/career/i18n';
 import { offerArchetypes, getArchetype, type Archetype } from '@/lib/career/archetypes';
-import { addAttrs, gainAttrs, overallFrom } from '@/lib/career/attributes';
+import { addAttrs, grantAttrs } from '@/lib/career/attributes';
 import { randomFace, type FaceGenes } from '@/lib/career/face';
 import { dealPreseason, getCard, type PreseasonCard } from '@/lib/career/preseason';
 import {
@@ -857,10 +857,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (!s.player || !s.rng) return;
     const arch = getArchetype(s.player.position, id);
     if (!arch) return;
-    const player = { ...s.player, attrs: gainAttrs(s.player.attrs, arch.delta, s.player.potential) };
+    const player = { ...s.player };
     player.archetypeId = arch.id;
-    player.overall = overallFrom(player.attrs, player.position);
-    player.peakOverall = Math.max(player.peakOverall, player.overall);
+    grantAttrs(player, arch.delta);
 
     const youthOffers = generateYouthOffers(player, s.rng);
 
@@ -893,7 +892,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (!card || !os.cards.some(c => c.id === id)) return;
 
     const p = { ...s.player };
-    if (card.attrs) p.attrs = gainAttrs(p.attrs, card.attrs, p.potential);
+    if (card.attrs) grantAttrs(p, card.attrs);
     if (card.form) p.form = clamp(15, 99, p.form + card.form);
     if (card.fitness) p.fitness = clamp(30, 99, p.fitness + card.fitness);
     if (card.morale) p.morale = clamp(5, 100, p.morale + card.morale);
@@ -901,8 +900,6 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (card.stamina) p.stamina = clamp(20, 100, p.stamina + card.stamina);
     if (card.minutesBias) p.roleBias += card.minutesBias;
     if (card.idol) addIdol(p, p.clubId, card.idol);
-    p.overall = overallFrom(p.attrs, p.position);
-    p.peakOverall = Math.max(p.peakOverall, p.overall);
 
     set({ player: p, offseason: { ...os, cardChosen: id } });
   },
@@ -936,14 +933,12 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     const p = { ...s.player };
     p.money -= item.price;
     p.owned = [...(p.owned ?? []), item.id];
-    if (item.attrs) p.attrs = gainAttrs(p.attrs, item.attrs, p.potential);
+    if (item.attrs) grantAttrs(p, item.attrs);
     if (item.fitness) p.fitness = clamp(30, 99, p.fitness + item.fitness);
     if (item.stamina) p.stamina = clamp(20, 100, p.stamina + item.stamina);
     if (item.morale) p.morale = clamp(5, 100, p.morale + item.morale);
     if (item.reputation) p.reputation = clamp(0, 100, p.reputation + item.reputation);
     if (item.idol) addIdol(p, p.clubId, item.idol);
-    p.overall = overallFrom(p.attrs, p.position);
-    p.peakOverall = Math.max(p.peakOverall, p.overall);
     set({ player: p });
     get().checkAchievements();
   },

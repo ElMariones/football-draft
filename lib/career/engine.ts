@@ -5,7 +5,10 @@ import { getLeague } from '@/data/career/leagues';
 import { rivalsOf } from '@/data/career/rivals';
 import { continentalEntry } from './continental';
 import { Rng, clamp, logistic, smoothstep } from './rng';
-import { startingAttrs, overallFrom, addAttrs, gainAttrs, ATTR_KEYS, weightsFor } from './attributes';
+import {
+  startingAttrs, overallFrom, addAttrs, gainAttrs, recomputeOverall,
+  ATTR_KEYS, weightsFor,
+} from './attributes';
 import { randomFace } from './face';
 import { rollAgeing, ageingOf, declineAt, minutesBiasAt, decayAt } from './ageing';
 import {
@@ -367,8 +370,11 @@ export function applyProgression(
     // or a 40-year-old drifts to 99 leadership on an 82 ceiling
     p.attrs = gainAttrs(p.attrs, scaled, p.potential);
   }
-  p.overall = clamp(40, 99, Math.min(p.potential, overallFrom(p.attrs, p.position)));
-  p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall));
+  // One definition of overall, shared with every other path that touches it.
+  // This line used to clamp to `potential` while the card, shop and archetype
+  // paths did not, so a card's gain was visibly applied and then silently
+  // reverted at the end of the season.
+  recomputeOverall(p);
 
   // form follows the season rating
   p.form = clamp(20, 99, p.form * 0.4 + (50 + (out.rating - 6.3) * 12) * 0.6);

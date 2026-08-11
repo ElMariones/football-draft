@@ -2,7 +2,7 @@ import type {
   CareerPlayer, CareerEvent, Effect, Title,
 } from '@/data/career/types';
 import { Rng, clamp } from './rng';
-import { applyOverallDelta, overallFrom, addAttrs } from './attributes';
+import { applyOverallDelta, overallFrom, grantAttrs, recomputeOverall } from './attributes';
 import { CAREER } from './config';
 import { injuryResistOf } from './shop';
 import { CLUBS } from '@/data/career/clubs';
@@ -808,24 +808,19 @@ export interface EffectResult {
 /**
  * Apply an attribute gain that came from an *event* rather than from training.
  *
- * Normal growth is bounded by your ceiling, and rightly so. An event reward is
- * not normal growth — it is a supplement, a coach who unlocks something, a
- * season where everything clicks — so it lifts the ceiling by exactly as much
- * as it lifts you. Without that lift the end-of-season
- * `overall = min(potential, ...)` clamp silently deleted the reward, which is
- * why "+5 OVR" appeared to do nothing.
+ * This used to call `addAttrs`, which respects no ceiling at all — so an event
+ * could take a 93 to 99 while a preseason card offering the same points could
+ * not move it. It then inflated `potential` by the lift, purely to survive the
+ * end-of-season `overall = min(potential, ...)` clamp that has since been
+ * removed.
+ *
+ * Both hacks are gone. Events now use the same soft ceiling as everything else,
+ * and potential is only raised to keep it from sitting *below* your overall —
+ * which would otherwise leave a young player with no development runway left.
  */
 function eventAttrGain(p: CareerPlayer, delta: Partial<CareerPlayer['attrs']>) {
-  const before = overallFrom(p.attrs, p.position);
-  p.attrs = addAttrs(p.attrs, delta);
-  const after = overallFrom(p.attrs, p.position);
-  const lift = after - before;
-  if (lift > 0) {
-    p.potential = clamp(40, 99, p.potential + lift);
-    p.basePotential = clamp(40, 99, (p.basePotential ?? p.potential) + lift);
-  }
-  p.overall = clamp(40, 99, Math.min(p.potential, after));
-  p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall));
+  grantAttrs(p, delta);
+  p.potential = clamp(40, 99, Math.max(p.potential, p.overall));
 }
 
 export function applyEffects(p: CareerPlayer, effects: Effect[], rng: Rng): EffectResult {
@@ -833,17 +828,10 @@ export function applyEffects(p: CareerPlayer, effects: Effect[], rng: Rng): Effe
   for (const e of effects) {
     switch (e.type) {
       case 'ovr': {
-        // shift every attribute, then let the ceiling move with it
-        const before = overallFrom(p.attrs, p.position);
-        p.attrs = applyOverallDelta(p.attrs, e.delta);
-        const after = overallFrom(p.attrs, p.position);
-        const lift = after - before;
-        if (lift > 0) {
-          p.potential = clamp(40, 99, p.potential + lift);
-          p.basePotential = clamp(40, 99, (p.basePotential ?? p.potential) + lift);
-        }
-        p.overall = clamp(40, 99, Math.min(p.potential, after));
-        p.peakOverall = Math.max(p.peakOverall, Math.round(p.overall));
+        // shift every attribute, then make sure the ceiling is not left below it
+        p.attrs = applyOverallDelta(p.attrs, e.delta, p.potential);
+        recomputeOverall(p);
+        p.potential = clamp(40, 99, Math.max(p.potential, p.overall));
         break;
       }
       case 'attr':
