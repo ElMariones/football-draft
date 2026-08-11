@@ -370,9 +370,12 @@ function TransferZone({ lang }: { lang: Lang }) {
  * which direction time runs in.
  */
 export function LastSeasonRecap({ lang }: { lang: Lang }) {
-  const { lastSeason, player } = useCareerStore();
+  const { lastSeason, player, stages } = useCareerStore();
   if (!lastSeason || !player) return null;
-  return <SeasonReport rec={lastSeason} player={player} lang={lang} />;
+  // The continental place was earned by the season *before* this one, so the
+  // report needs it to explain an absence.
+  const prev = stages.length >= 2 ? stages[stages.length - 2] : null;
+  return <SeasonReport rec={lastSeason} player={player} lang={lang} prev={prev} />;
 }
 
 export default function CareerOffseason({ lang }: { lang: Lang }) {

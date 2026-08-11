@@ -140,12 +140,21 @@ const ORIGINAL_LEAGUE: Record<string, string> = Object.fromEntries(
   CLUBS.map(c => [c.id, c.leagueId]),
 );
 
+/**
+ * Bumped every time a club changes division, so anything caching per-league
+ * facts can tell that its cache is stale.
+ */
+let generation = 0;
+export const leagueGeneration = () => generation;
+
 export function setClubLeague(clubId: string, leagueId: string) {
+  generation++;
   const c = CLUBS.find(x => x.id === clubId);
   if (c) c.leagueId = leagueId;
 }
 
 export function resetLeagues() {
+  generation++;
   for (const c of CLUBS) c.leagueId = ORIGINAL_LEAGUE[c.id] ?? c.leagueId;
 }
 

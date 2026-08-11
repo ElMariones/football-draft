@@ -2,6 +2,7 @@
 import type { Position } from '@/data/types';
 import type { NtSeason } from '@/lib/career/international';
 import type { FaceGenes } from '@/lib/career/face';
+import type { ContinentalTier } from '@/lib/career/continental';
 
 export type Foot = 'left' | 'right';
 export type Confederation = 'UEFA' | 'CONMEBOL' | 'CONCACAF' | 'AFC' | 'CAF';
@@ -202,6 +203,16 @@ export interface CareerPlayer {
   derbyCooldown: number;
   /** seasons before you face the press again */
   pressCooldown: number;
+
+  // ---- Continental qualification -------------------------------------------
+  /**
+   * The continental place held for the coming season, and the club that earned
+   * it. A place belongs to the club, not to the player: leave and you do not
+   * take it with you. See lib/career/continental.ts.
+   */
+  contPlace: { clubId: string; tier: ContinentalTier } | null;
+  /** last season's league finish, for explaining why there is no place */
+  lastFinish: { leagueId: string; position: number; teams: number } | null;
 }
 
 /**
@@ -290,6 +301,14 @@ export interface SeasonRecord {
   year: number;
   age: number;
   clubId: string;
+  /**
+   * The division actually played this season.
+   *
+   * Not derivable from the club afterwards — promotion and relegation move
+   * clubs every summer, so reading `getClub(clubId).leagueId` for an old season
+   * reports whatever division that club sits in *now*.
+   */
+  leagueId?: string;
   overallAtSeason: number;
   apps: number;
   goals: number;

@@ -57,14 +57,14 @@ function Stat({ value, label, accent }: { value: string; label: string; accent?:
 }
 
 export default function SeasonReport({
-  rec, player, lang,
-}: { rec: SeasonRecord; player: CareerPlayer; lang: Lang }) {
+  rec, player, lang, prev,
+}: { rec: SeasonRecord; player: CareerPlayer; lang: Lang; prev?: SeasonRecord | null }) {
   const t = careerT(lang);
   const es = lang === 'es';
   const club = getClub(rec.clubId);
   // The report is a pure function of the season, so it is only rebuilt when the
   // season or the language changes — never on an unrelated store update.
-  const r = useMemo(() => buildSeasonReport(rec, player, lang), [rec, player, lang]);
+  const r = useMemo(() => buildSeasonReport(rec, player, lang, prev), [rec, player, lang, prev]);
 
   const ratingTone = rec.rating >= 8.5 ? 'text-gold'
     : rec.rating >= 7.5 ? 'text-wc'

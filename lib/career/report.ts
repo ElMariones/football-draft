@@ -28,6 +28,7 @@ import { titleLabel, type Lang } from './i18n';
 import { titleName } from './competitions';
 import { eventById } from './events';
 import { clamp } from './rng';
+import { noPlaceReason } from './continental';
 
 export type Tone = 'great' | 'good' | 'ok' | 'bad' | 'neutral';
 
@@ -208,6 +209,7 @@ function leagueLine(c: CompRun, rec: SeasonRecord, lang: Lang, hash: number): Re
 
 function knockoutLine(
   c: CompRun, rec: SeasonRecord, lang: Lang, hash: number, salt: number,
+  noPlace = '',
 ): ReportLine {
   const label = compName(c, rec.clubId, lang);
   const icon = c.kind === 'cup' ? '🥇' : '🌍';
@@ -215,12 +217,10 @@ function knockoutLine(
     return {
       icon, label,
       result: L(lang, 'Not in it', 'Sin plaza'),
-      // A place is earned by *last* season's table, so a club can win the league
-      // and still have spent this year without European nights. Say so, or the
-      // line reads as a contradiction sitting under "CHAMPIONS".
-      detail: L(lang,
-        'Last season\'s finish earned no continental place. Wednesdays were free.',
-        'La clasificación del año pasado no dio plaza continental. Los miércoles quedaron libres.'),
+      // Says which finish did it, rather than asserting a rule the game was not
+      // actually applying — this line used to appear the season after winning
+      // the league, because qualification never read the table at all.
+      detail: noPlace,
       tone: 'neutral',
     };
   }
@@ -1008,7 +1008,7 @@ function verdictFor(rec: SeasonRecord, f: Facts, comps: CompRun[], lang: Lang, h
 // ---- the report --------------------------------------------------------------
 
 export function buildSeasonReport(
-  rec: SeasonRecord, player: CareerPlayer, lang: Lang,
+  rec: SeasonRecord, player: CareerPlayer, lang: Lang, prev?: SeasonRecord | null,
 ): SeasonReport {
   const hash = seasonHash(rec);
   const club = getClub(rec.clubId);
@@ -1034,7 +1034,20 @@ export function buildSeasonReport(
   const cup = comps.find(c => c.kind === 'cup');
   if (cup) clubLines.push(knockoutLine(cup, rec, lang, hash, 41));
   const cont = comps.find(c => c.kind === 'continental');
-  if (cont) clubLines.push(knockoutLine(cont, rec, lang, hash, 42));
+  if (cont) {
+    // The place was earned by the *previous* season's table, so that is the
+    // season the explanation has to come from.
+    const prevLeague = prev?.comps?.find(c => c.kind === 'league');
+    const noPlace = noPlaceReason(
+      // the division played *this* season, not whichever one the club sits in
+      // now — promotion and relegation move them every summer
+      rec.leagueId ?? club?.leagueId ?? '',
+      prev?.leagueId ?? null,
+      prevLeague?.position ?? null,
+      !!prev && prev.clubId === rec.clubId, lang,
+    );
+    clubLines.push(knockoutLine(cont, rec, lang, hash, 42, noPlace));
+  }
 
   const nt = (player.ntHistory ?? []).find(h => h.year === rec.year) ?? null;
 

@@ -5,18 +5,11 @@ import { getLeague } from '@/data/career/leagues';
 import { clubsInLeague } from '@/data/career/clubs';
 import { getNation } from '@/data/career/nations';
 import { Rng, clamp, logistic } from './rng';
-import { leagueMaxStrength, qualifiesContinental, SeasonOutput } from './engine';
+import { leagueMaxStrength, SeasonOutput } from './engine';
+import {
+  continentalEntry, continentalKeyFor, allocationFor, type ContinentalTier,
+} from './continental';
 import { isAttacker, leagueGamesByTier } from './config';
-
-function continentalKey(confed: Confederation, elite: boolean): string {
-  switch (confed) {
-    case 'UEFA': return elite ? 'champions' : 'europa';
-    case 'CONMEBOL': return elite ? 'libertadores' : 'sudamericana';
-    case 'CONCACAF': return 'concacaf-cup';
-    case 'AFC': return 'afc-cl';
-    case 'CAF': return 'caf-cl';
-  }
-}
 
 const BIG = new Set([
   'league', 'champions', 'libertadores', 'world-cup',
@@ -43,6 +36,10 @@ export interface ClubTitleResult {
   continentalElite: boolean;
   /** every competition the club played, and how far it got */
   comps: CompRun[];
+  /** where the club finished, so next season's place can be earned from it */
+  finish: { leagueId: string; position: number; teams: number };
+  /** the domestic cup was won, which is a continental place in its own right */
+  wonCup: boolean;
   /**
    * The club reached the continental final and it has *not* been decided.
    *
@@ -146,18 +143,27 @@ export function rollClubTitles(p: CareerPlayer, club: CareerClub, out: SeasonOut
     won: cupStage === 'won', stage: cupStage,
   });
 
+  // Which continental competition you are in — if any — was decided by *last*
+  // season's table, not by how strong the club happens to be. See
+  // lib/career/continental.ts.
   let wonContinental = false;
   let elite = false;
   let pendingFinal: { key: string; elite: boolean } | null = null;
-  if (qualifiesContinental(club)) {
-    elite = club.strength >= max - 2;
-    const contKey = continentalKey(league.confed, elite);
-    // The ladder now runs to the *final*, not to the trophy — the last night is
-    // the player's to win. Reaching it is deliberately rare: the old curve
-    // handed the very best clubs a 50% chance of lifting it every single year,
-    // which is how careers ended with ten European Cups when the record any
-    // player has ever managed is six.
-    const finalChance = clamp(0, 0.42, 0.42 * logistic((club.strength - 86) * 0.32));
+  const entry: ContinentalTier | null = continentalEntry(p, club);
+  if (entry) {
+    elite = entry === 'elite';
+    const contKey = continentalKeyFor(league.confed, entry);
+    // The ladder runs to the *final*, not to the trophy — the last night is the
+    // player's to win. Reaching it is deliberately rare: the old curve handed
+    // the very best clubs a 50% chance of lifting it every single year, which is
+    // how careers ended with ten European Cups when the record any player has
+    // ever managed is six.
+    //
+    // The second competition is a weaker field, so the same club goes further in
+    // it. Being dropped into it after a poor league season and winning it is one
+    // of the more satisfying routes back into the elite one.
+    const fieldEase = elite ? 0 : 6;
+    const finalChance = clamp(0, 0.5, 0.42 * logistic((club.strength + fieldEase - 86) * 0.32));
     const contStage = knockoutStage(CONT_LADDER, finalChance, rng);
     if (contStage === 'won') {
       // 'won' out of the ladder means the final was reached. Who lifts it is
@@ -167,12 +173,18 @@ export function rollClubTitles(p: CareerPlayer, club: CareerClub, out: SeasonOut
     } else {
       comps.push({ key: contKey, kind: 'continental', entered: true, won: false, stage: contStage });
     }
-  } else {
+  } else if (allocationFor(club.leagueId).elite + allocationFor(club.leagueId).secondary > 0) {
+    // Only report an absence for a division that actually has places to miss.
     comps.push({
-      key: continentalKey(league.confed, false), kind: 'continental', entered: false, won: false,
+      key: continentalKeyFor(league.confed, 'secondary'),
+      kind: 'continental', entered: false, won: false,
     });
   }
-  return { titles, wonLeague, wonContinental, continentalElite: elite, comps, pendingFinal };
+  return {
+    titles, wonLeague, wonContinental, continentalElite: elite, comps, pendingFinal,
+    finish: { leagueId: club.leagueId, position: table.position, teams: table.teams },
+    wonCup: cupStage === 'won',
+  };
 }
 
 // ---- international ----------------------------------------------------------

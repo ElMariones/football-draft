@@ -61,6 +61,7 @@ import {
   type BrandBeat, type BrandCtx,
 } from '@/lib/career/brandEvents';
 import { getBrand } from '@/data/career/brands';
+import { placeFromFinish, continentalKeyFor } from '@/lib/career/continental';
 import {
   rollDerbySeason, creditDerbySeason, derbyPayoff, derbyNews, pickRivalEvent,
   applyRivalOption, recordVs, type DerbySeason, type RivalCtx, type RivalEventDef,
@@ -646,6 +647,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       if (won) {
         creditTitle(p, cf.clubId, 1);
         addIdol(p, cf.clubId, 8);
+        // Champions defend. Winning either continental competition puts you in
+        // the elite one next season whatever the league table said.
+        p.contPlace = { clubId: cf.clubId, tier: 'elite' };
         p.reputation = clamp(0, 100, p.reputation + 10);
         p.morale = clamp(5, 100, p.morale + 14);
         // the elite continental winners get their shot at the world title
@@ -1345,7 +1349,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     // this season, which is why it is built here rather than after `stages`.
     const prevStages = s.stages;
     const provisional: SeasonRecord = {
-      year: seasonYear, age: seasonAge, clubId: club.id,
+      year: seasonYear, age: seasonAge, clubId: club.id, leagueId: playedLeagueId,
       overallAtSeason: Math.round(out.effOverall),
       apps: out.apps, goals: out.goals, assists: out.assists, cleanSheets: out.cleanSheets,
       rating: 0, onLoan: os.chosenVerb === 'loan', titles: [],
@@ -1374,6 +1378,31 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     if (player.flags?.ntDebut && !player.flags.sawFirstCallup) {
       player.flags.sawFirstCallup = true;
       ceremonies.unshift(buildCallup(player, rng));
+    }
+
+    // ---- next season's continental place ----
+    // Earned by where you finished, in the division you finished it in, against
+    // the number of places that division actually gets. This is the entire
+    // reason the league table is simulated, and until now nothing read it: the
+    // old rule was `club.strength >= leagueMax - 5`, so you could win the league
+    // and be told next season that your finish earned nothing.
+    player.lastFinish = clubT.finish;
+    const earned = placeFromFinish({
+      leagueId: clubT.finish.leagueId,
+      position: clubT.finish.position,
+      teams: clubT.finish.teams,
+      wonCup: clubT.wonCup,
+      // Holding the trophy is worth an elite place, but the final has not been
+      // played yet — resolveMiniGame upgrades this if it is won.
+      holdsTitle: null,
+    });
+    player.contPlace = earned ? { clubId: club.id, tier: earned } : null;
+    if (earned) {
+      const key = continentalKeyFor(getLeague(playedLeagueId)!.confed, earned);
+      const compName = titleLabel(key, s.lang);
+      news.push(s.lang === 'es'
+        ? `🌍 ${clubT.finish.position}º en la liga: el año que viene hay ${compName}.`
+        : `🌍 ${clubT.finish.position}th in the league — ${compName} next season.`);
     }
 
     // ---- the derby ----
@@ -1555,7 +1584,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     }
 
     const record: SeasonRecord = {
-      year: seasonYear, age: seasonAge, clubId: club.id,
+      year: seasonYear, age: seasonAge, clubId: club.id, leagueId: playedLeagueId,
       overallAtSeason: Math.round(out.effOverall),
       apps: out.apps, goals: out.goals, assists: out.assists, cleanSheets: out.cleanSheets,
       rating: Math.round(out.rating * 10) / 10,

@@ -1,8 +1,9 @@
 import type { Position } from '@/data/types';
 import type { CareerPlayer, CareerClub, Foot } from '@/data/career/types';
-import { getClub, clubsInLeague } from '@/data/career/clubs';
+import { getClub, clubsInLeague, leagueGeneration } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { rivalsOf } from '@/data/career/rivals';
+import { continentalEntry } from './continental';
 import { Rng, clamp, logistic, smoothstep } from './rng';
 import { startingAttrs, overallFrom, addAttrs, gainAttrs, ageDecay, ATTR_KEYS, weightsFor } from './attributes';
 import { randomFace } from './face';
@@ -144,6 +145,8 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     derbyRecord: {},
     derbyCooldown: 0,
     pressCooldown: 0,
+    contPlace: null,
+    lastFinish: null,
   };
   p.value = computeValue(p, 4);
   p.peakValue = p.value;
@@ -158,18 +161,22 @@ export function derbyGamesFor(club: CareerClub): number {
 
 // ---- league helpers --------------------------------------------------------
 
+// Cached because it is read several times a season, and invalidated whenever a
+// club changes division — `setClubLeague` bumps the generation. Without that
+// the cache silently kept a division's pre-promotion maximum forever, which
+// skewed both title odds and (previously) who got into Europe.
 const leagueMaxCache = new Map<string, number>();
+let cachedGeneration = -1;
 export function leagueMaxStrength(leagueId: string): number {
+  if (cachedGeneration !== leagueGeneration()) {
+    leagueMaxCache.clear();
+    cachedGeneration = leagueGeneration();
+  }
   if (leagueMaxCache.has(leagueId)) return leagueMaxCache.get(leagueId)!;
   const clubs = clubsInLeague(leagueId);
   const max = clubs.reduce((m, c) => Math.max(m, c.strength), 0);
   leagueMaxCache.set(leagueId, max);
   return max;
-}
-
-export function qualifiesContinental(club: CareerClub): boolean {
-  const max = leagueMaxStrength(club.leagueId);
-  return club.strength >= max - 5;
 }
 
 function effectiveOverall(p: CareerPlayer): number {
@@ -210,7 +217,7 @@ export function simulateSeason(p: CareerPlayer, club: CareerClub, rng: Rng): Sea
   const staminaFactor = clamp(0.7, 1, 0.7 + (p.stamina ?? 70) / 333);
   minutesFactor = clamp(0.05, 1, minutesFactor * staminaFactor);
 
-  const inContinental = qualifiesContinental(club);
+  const inContinental = continentalEntry(p, club) !== null;
   const availableGames = leagueGamesByTier(tier) + (inContinental ? CONTINENTAL_GAMES : 0);
   // Low stamina also means more knocks — extra games missed on top of injuries.
   const fatigueGames = p.stamina < 45 ? Math.round((45 - p.stamina) / 7) : 0;
