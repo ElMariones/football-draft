@@ -2,7 +2,9 @@ import type { CareerPlayer, CareerClub, ClubOffer, OfferRole } from '@/data/care
 import { CLUBS, getClub } from '@/data/career/clubs';
 import { getLeague, LEAGUES } from '@/data/career/leagues';
 import { getNation } from '@/data/career/nations';
-import { Rng } from './rng';
+import type { Lang } from './i18n';
+import { Rng, clamp } from './rng';
+import { idolAt } from './idolatry';
 
 function roleFor(p: CareerPlayer, club: CareerClub): OfferRole {
   if (club.strength <= p.overall - 1) return 'starter';
@@ -63,6 +65,86 @@ function pickDistinct(pool: CareerClub[], n: number, rng: Rng, targetStrength: n
 function clubsByNation(nationCode: string): CareerClub[] {
   const ids = homeLeagueIds(nationCode);
   return CLUBS.filter(c => ids.includes(c.leagueId));
+}
+
+// ---- will they keep you? ---------------------------------------------------
+
+export type RenewalReason = 'automatic' | 'legend' | 'declined';
+
+export interface Renewal {
+  renews: boolean;
+  /** the terms — a veteran is not offered the shirt he used to have */
+  role: OfferRole;
+  reason: RenewalReason;
+}
+
+/**
+ * Whether your club offers you another year, and on what terms.
+ *
+ * Staying was previously unconditional and always as a starter, which is how a
+ * thirty-nine-year-old ended up first choice at Paris Saint-Germain. A big club
+ * does arithmetic every summer, and the older you are the less sentiment enters
+ * into it.
+ *
+ * What buys you time is being *theirs*. An idol gets offered year-by-year deals
+ * with the minutes shrinking each time — which is exactly what happens to the
+ * ones who are allowed to finish where they belong. Everyone else is thanked
+ * and released.
+ */
+export function renewalFor(p: CareerPlayer, club: CareerClub): Renewal {
+  const idol = idolAt(p, club.id);
+  // negative means you are below the level the club plays at
+  const gap = p.overall - club.strength;
+  const big = club.strength >= 80;
+
+  // Before the mid-thirties this is not a conversation anybody has.
+  if (p.age < 33) {
+    return {
+      renews: true,
+      role: gap >= -10 ? 'starter' : gap >= -14 ? 'rotation' : 'squad',
+      reason: 'automatic',
+    };
+  }
+
+  // From thirty-three, the bar rises every year, and it rises faster the bigger
+  // the club. Standing at the club offsets it — that is the whole currency a
+  // veteran has left.
+  const over = p.age - 32;
+  const bar = (big ? 1.7 : 1.0) * over - (idol / 100) * (big ? 10 : 14);
+
+  if (gap >= bar + 2) return { renews: true, role: 'starter', reason: 'automatic' };
+  if (gap >= bar - 3) {
+    return { renews: true, role: 'rotation', reason: idol >= 60 ? 'legend' : 'automatic' };
+  }
+  // The farewell year: they will not drop you, but you are not playing much.
+  if (idol >= 65 && gap >= bar - 9) return { renews: true, role: 'squad', reason: 'legend' };
+  return { renews: false, role: 'squad', reason: 'declined' };
+}
+
+/** What the offseason card says about it. */
+export function renewalNote(r: Renewal, clubName: string, lang: Lang): string {
+  const es = lang === 'es';
+  if (!r.renews) {
+    return es
+      ? `El ${clubName} no te renueva. Hay que buscar equipo.`
+      : `${clubName} are not renewing. You need a club.`;
+  }
+  if (r.reason === 'legend') {
+    return r.role === 'squad'
+      ? (es
+        ? `El ${clubName} te ofrece un año más por lo que eres, no por lo que juegas.`
+        : `${clubName} offer another year for what you are, not for what you still do.`)
+      : (es
+        ? `El ${clubName} renueva un año más, con menos minutos.`
+        : `${clubName} renew for one more year, with fewer minutes.`);
+  }
+  if (r.role === 'rotation') {
+    return es ? 'Renovación, pero ya no eres fijo.' : 'Renewed, but you are not first choice any more.';
+  }
+  if (r.role === 'squad') {
+    return es ? 'Renovación de suplente.' : 'Renewed as a squad player.';
+  }
+  return '';
 }
 
 // ---- youth (first club at age 16) ------------------------------------------
@@ -176,8 +258,18 @@ export function generateTransferOffers(p: CareerPlayer, rng: Rng): ClubOffer[] {
     : [];
 
   // 6. the late-career money move — realistic only when older or already famous
+  // The late-career money move. Saudi and MLS are the obvious two, and a South
+  // American going home is the same move by another name — so his own continent
+  // counts as a destination rather than a step down.
+  const moneyLeagues = ['saudi-league', 'mls'];
   const moneyMove = (p.age >= 30 || p.reputation >= 70)
-    ? CLUBS.filter(c => (c.leagueId === 'saudi-league' || c.leagueId === 'mls') && inBand(c))
+    ? CLUBS.filter(c => {
+        const l = getLeague(c.leagueId);
+        if (!l || !inBand(c)) return false;
+        if (moneyLeagues.includes(c.leagueId)) return true;
+        // going back to the continent you came from, late on
+        return p.age >= 33 && l.confed === homeConfed && l.confed !== 'UEFA';
+      })
     : [];
 
   // 7. The road home. In your last years the clubs that made you come calling
@@ -212,6 +304,24 @@ export function generateTransferOffers(p: CareerPlayer, rng: Rng): ClubOffer[] {
     });
     return true;
   };
+
+  // ---- the last years ----
+  // Past the mid-thirties the market is a different market. Europe's good
+  // leagues stop calling and what is left is the money, the way home, and the
+  // clubs that already love you. Ordering the slots this way is the difference
+  // between a realistic wind-down and a 38-year-old being offered Bayern.
+  if (p.age >= 34) {
+    // the money leagues, which is where most of these careers actually go
+    if (moneyMove.length) take(moneyMove);
+    // home: your own country will always find you a shirt
+    take(homeCountry) || take(sameRegion);
+    // and the clubs that made you
+    if (homecoming.length) take(homecoming, { homecoming: true });
+    // whatever is left at your level, wherever that now is
+    if (offers.length < 3) take(sameLeague) || take(sameRegion) || take(homeCountry);
+    if (!offers.length) take(candidates(p, { min: min - 10, max }));
+    return offers;
+  }
 
   // Slot 1 — where you already are.
   take(sameLeague) || take(sameRegion);

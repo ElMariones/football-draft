@@ -149,14 +149,14 @@ export function buildEpilogue(
   // ---- the ground ----
   if (prof.homeIdol >= 88 && prof.bigTitles >= 2) {
     beats.push(pickBeat(rng, '🗿', 'gold', [
-      [`There is a bronze of you outside ${home}. You hated the photograph they worked from and said so, once, and never again.`,
-       `Hay un bronce tuyo fuera de ${home}. Odiabas la foto de la que partieron y lo dijiste una vez, y nunca más.`],
+      [`There is a bronze of you outside ${home}. It is nine feet tall, it looks nothing like you, and you have never once said so out loud.`,
+       `Hay un bronce tuyo a las puertas de ${home}. Mide tres metros, no se parece nada a ti, y jamás lo has dicho en voz alta.`],
       [`They unveiled the statue while you were still young enough to be embarrassed by it. Children climb on it every matchday.`,
        `Inauguraron la estatua cuando todavía eras lo bastante joven como para pasar vergüenza. Los niños se suben a ella cada día de partido.`],
-      [`The bronze outside ${home} got your left foot wrong and the whole city knows it. Nobody has ever asked for it to be fixed.`,
-       `Al bronce de ${home} le salió mal el pie izquierdo y toda la ciudad lo sabe. Nadie ha pedido nunca que lo arreglen.`],
-      [`Away supporters have thrown things at your statue four times. It is cleaned by volunteers, every time, before the next home game.`,
-       `A tu estatua le han tirado cosas cuatro veces. La limpian voluntarios, siempre, antes del siguiente partido en casa.`],
+      [`The sculptor put you on your weaker foot. The city noticed within a day and decided it was funnier left alone.`,
+       `El escultor te puso apoyado en la pierna mala. La ciudad se dio cuenta en un día y decidió que tenía más gracia dejarlo así.`],
+      [`Twice a season somebody throws paint at it. It is always clean again by kick-off, and nobody has ever organised that.`,
+       `Dos veces por temporada alguien le tira pintura. Siempre amanece limpia el día del partido, y eso no lo organiza nadie.`],
     ]));
   } else if (prof.homeIdol >= 78) {
     beats.push(pickBeat(rng, '🚪', 'gold', [
@@ -193,8 +193,8 @@ export function buildEpilogue(
   const titlesAtHome = prof.homeClubId ? (p.titlesByClub?.[prof.homeClubId] ?? 0) : 0;
   if (prof.homeIdol >= 85 && titlesAtHome >= 2) {
     beats.push(pickBeat(rng, '🔢', 'gold', [
-      [`${home} have not given out the number ${p.number} since. Two managers have asked. Both were told no.`,
-       `${home} no volvió a dar el dorsal ${p.number}. Dos entrenadores lo pidieron. A los dos les dijeron que no.`],
+      [`Nobody at ${home} has worn ${p.number} since the day you handed it in. Two managers have asked for it. Both were told it was not available.`,
+       `Nadie en ${home} lleva el ${p.number} desde el día que lo devolviste. Dos entrenadores lo pidieron. A los dos les dijeron que no estaba disponible.`],
       [`The ${p.number} shirt is retired at ${home}. A signing asked for it once and the kitman just laughed at him.`,
        `El dorsal ${p.number} está retirado en ${home}. Un fichaje lo pidió una vez y el utillero se rió en su cara.`],
       [`No ${home} player has worn ${p.number} since you took it off. There was never a ceremony; it simply stopped being available.`,
@@ -229,8 +229,8 @@ export function buildEpilogue(
     beats.push(pickBeat(rng, '🎵', 'gold', [
       [`They still sing it. Not often — three or four times a season, usually when they are losing.`,
        `Todavía lo cantan. No siempre — tres o cuatro veces por temporada, casi siempre cuando van perdiendo.`],
-      [`The song about you outlived the tune it was stolen from. Nobody under twenty-five knows the original.`,
-       `La canción sobre ti sobrevivió a la melodía de la que la robaron. Nadie menor de veinticinco conoce la original.`],
+      [`Your song was set to a tune everybody has forgotten. In that city it is now the only version anybody knows.`,
+       `Tu canción salió de una melodía que ya no recuerda nadie. En esa ciudad es la única versión que se conoce.`],
       [`Away ends sing your song sarcastically. The home end sings it back, louder, and means it.`,
        `Las aficiones visitantes cantan tu canción con sorna. La grada local la devuelve más fuerte, y en serio.`],
     ]));
@@ -246,12 +246,12 @@ export function buildEpilogue(
   // ---- the country ----
   if (prof.worldCups > 0) {
     beats.push(pickBeat(rng, '🏆', 'gold', [
-      [`A country that watched you lift it will show that tournament every four years for as long as there is television.`,
-       `Un país que te vio levantarla va a repetir ese torneo cada cuatro años mientras exista la televisión.`],
+      [`They replay that final every four years. Your grandchildren will watch a young man they have never met and be told it is you.`,
+       `Repiten esa final cada cuatro años. Tus nietos verán a un chaval al que no conocen y les dirán que eres tú.`],
       [`Children who were not born when you won it can name the starting eleven. You are third or fourth in the list, every time.`,
        `Niños que no habían nacido cuando la ganaste se saben el once. Sales tercero o cuarto en la lista, siempre.`],
-      [`There is a national holiday in the calendar that exists because of a month you spent working.`,
-       `Hay una fiesta nacional en el calendario que existe por un mes que pasaste trabajando.`],
+      [`There is a date in that country that people take off work, and it is a date you put there.`,
+       `Hay una fecha en ese país en la que la gente no va a trabajar, y esa fecha la pusiste tú.`],
     ]));
   } else if (prof.ntLegend) {
     beats.push(pickBeat(rng, '🌍', 'good', [
@@ -459,8 +459,8 @@ function describeRecords(
 
   if (survives) {
     return pickBeat(rng, '📖', 'gold', [
-      [`Your ${club.name} ${what.en} still stands at ${n}. Two players have got within thirty and both left.`,
-       `Tu ${what.es} en ${club.name} sigue en pie con ${n}. Dos jugadores llegaron a treinta y ambos se fueron.`],
+      [`Your ${club.name} ${what.en} still stands at ${n}. The closest anybody has come is thirty short, and he left in January.`,
+       `Tu ${what.es} en ${club.name} sigue en pie: ${n}. Lo más cerca que ha estado alguien es a treinta, y se fue en enero.`],
       [`Nobody has come near ${n} at ${club.name}. The club puts the number on a graphic every time somebody has a good season.`,
        `Nadie se ha acercado a ${n} en ${club.name}. El club saca ese número en un gráfico cada vez que alguien hace una buena temporada.`],
       [`${n}. The board in the ${club.name} corridor has not been reprinted since you left it.`,

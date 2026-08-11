@@ -3,6 +3,7 @@ import type { Position } from '@/data/types';
 import type { NtSeason } from '@/lib/career/international';
 import type { FaceGenes } from '@/lib/career/face';
 import type { ContinentalTier } from '@/lib/career/continental';
+import type { AgeingProfile } from '@/lib/career/ageing';
 
 export type Foot = 'left' | 'right';
 export type Confederation = 'UEFA' | 'CONMEBOL' | 'CONCACAF' | 'AFC' | 'CAF';
@@ -213,6 +214,15 @@ export interface CareerPlayer {
   contPlace: { clubId: string; tier: ContinentalTier } | null;
   /** last season's league finish, for explaining why there is no place */
   lastFinish: { leagueId: string; position: number; teams: number } | null;
+
+  // ---- Ageing --------------------------------------------------------------
+  /**
+   * How this body ages, rolled once from the career seed.
+   *
+   * Decline used to be one shared table, so every career fell apart on the same
+   * schedule. See lib/career/ageing.ts.
+   */
+  ageing: AgeingProfile;
 }
 
 /**
@@ -341,7 +351,14 @@ export interface SeasonRecord {
 // ---- Transfers -------------------------------------------------------------
 
 export type OfferVerb = 'sign' | 'stay' | 'loan';
-export type OfferRole = 'starter' | 'rotation' | 'prospect';
+/**
+ * What the club is signing you for.
+ *
+ * `prospect` and `squad` are the same minutes and opposite stories: one is a
+ * teenager being developed, the other a veteran being kept around. Calling a
+ * thirty-eight-year-old a prospect read as a bug.
+ */
+export type OfferRole = 'starter' | 'rotation' | 'prospect' | 'squad';
 
 export interface ClubOffer {
   clubId: string;

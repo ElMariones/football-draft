@@ -5,11 +5,12 @@ import { getLeague } from '@/data/career/leagues';
 import { rivalsOf } from '@/data/career/rivals';
 import { continentalEntry } from './continental';
 import { Rng, clamp, logistic, smoothstep } from './rng';
-import { startingAttrs, overallFrom, addAttrs, gainAttrs, ageDecay, ATTR_KEYS, weightsFor } from './attributes';
+import { startingAttrs, overallFrom, addAttrs, gainAttrs, ATTR_KEYS, weightsFor } from './attributes';
 import { randomFace } from './face';
+import { rollAgeing, ageingOf, declineAt, minutesBiasAt, decayAt } from './ageing';
 import {
-  CAREER, developmentByAge, declineByAge, leagueGamesByTier, CONTINENTAL_GAMES,
-  ageMinutesBias, isKeeperOrDef, leaguePremium, ageValueMul, valueBase,
+  CAREER, developmentByAge, leagueGamesByTier, CONTINENTAL_GAMES,
+  isKeeperOrDef, leaguePremium, ageValueMul, valueBase,
   GOAL_BASE, ASSIST_BASE, goalPosFactor, assistPosFactor, ovrGoalFactor, ovrAssistFactor,
   leagueGoalMod,
 } from './config';
@@ -147,6 +148,9 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     pressCooldown: 0,
     contPlace: null,
     lastFinish: null,
+    // Rolled here, from the career's own stream, so the seed decides whether
+    // this is a body that lasts to forty or one that is finished at thirty-two.
+    ageing: rollAgeing(rng),
   };
   p.value = computeValue(p, 4);
   p.peakValue = p.value;
@@ -195,7 +199,7 @@ export function simulateSeason(p: CareerPlayer, club: CareerClub, rng: Rng): Sea
   const starterLevel = club.strength - 2;
   const roleScore =
     (effOverall - starterLevel) +
-    ageMinutesBias(p.age) +
+    minutesBiasAt(ageingOf(p), p.age) +
     (p.morale - 50) / 12 +
     (p.fitness - 70) / 15 +
     p.roleBias;
@@ -352,10 +356,11 @@ export function applyProgression(
     for (const key of ATTR_KEYS) delta[key] = share[key] * scale;
     p.attrs = gainAttrs(p.attrs, delta, p.potential);
   }
-  // Ageing bites the attributes themselves, scaled by the existing curve.
-  const decline = declineByAge(p.age);
+  // Ageing bites the attributes themselves, on this career's own curve.
+  const ageing = ageingOf(p);
+  const decline = declineAt(ageing, p.age);
   if (decline > 0) {
-    const dec = ageDecay(p.age);
+    const dec = decayAt(ageing, p.age);
     const scaled: Record<string, number> = {};
     for (const [key, v] of Object.entries(dec)) scaled[key] = (v as number) * 1.15;
     // the curve hands veterans a little leadership back each year — cap it too,

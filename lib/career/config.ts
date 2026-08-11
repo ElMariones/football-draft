@@ -2,6 +2,8 @@
 import type { Position } from '@/data/types';
 import { clamp } from './rng';
 
+// `declineByAge` and `ageMinutesBias` used to live here. Both were one curve
+// shared by every career; they are now per-career and live in lib/career/ageing.ts.
 export const CAREER = {
   startAge: 16,
   startYear: 2024,
@@ -39,16 +41,6 @@ export function developmentByAge(age: number): number {
 }
 
 // Age-related OVR decline per season (0 until ~30, ramps after).
-export function declineByAge(age: number): number {
-  if (age <= 27) return 0;
-  // The old curve started at 30 and was so gentle that average overall still
-  // rose into the late thirties. A player now clearly fades after his peak.
-  const table: Record<number, number> = {
-    28: 0.2, 29: 0.5, 30: 1.0, 31: 1.5, 32: 2.1, 33: 2.7,
-    34: 3.3, 35: 3.9, 36: 4.5, 37: 5.1,
-  };
-  return table[age] ?? 5.6;
-}
 
 // How many games a club plays in a season (league) by league tier.
 export function leagueGamesByTier(tier: number): number {
@@ -59,13 +51,6 @@ export function leagueGamesByTier(tier: number): number {
 export const CONTINENTAL_GAMES = 12;
 
 // Age effect on how many minutes you get (youth eased in, veterans fade).
-export function ageMinutesBias(age: number): number {
-  if (age <= 16) return -13;
-  const table: Record<number, number> = {
-    17: -8, 18: -5, 19: -2, 32: -1, 33: -2, 34: -4, 35: -6, 36: -8, 37: -10,
-  };
-  return table[age] ?? (age >= 38 ? -13 : 0);
-}
 
 // Goal output is steeply gated by overall — calibrated to the reference game,
 // where a striker scores ~0.02 goals/game at OVR 50, ~0.24 at 67, ~0.6 at 85.

@@ -4,13 +4,17 @@ import { create } from 'zustand';
 import type { Position } from '@/data/types';
 import type {
   CareerPlayer, CareerEvent, ClubOffer, SeasonRecord, SeasonDecision, Title, Foot,
+  OfferRole,
 } from '@/data/career/types';
 import { NATIONS, getNation } from '@/data/career/nations';
 import { getClub } from '@/data/career/clubs';
 import { getLeague } from '@/data/career/leagues';
 import { makeRng, Rng, randomSeed, seedFromText, clamp } from '@/lib/career/rng';
 import { dailySeed, dayKey } from '@/lib/career/daily';
-import { CAREER, declineByAge } from '@/lib/career/config';
+import { CAREER } from '@/lib/career/config';
+import {
+  ageingOf, hardRetireAge, retireChance, bodyNote,
+} from '@/lib/career/ageing';
 import {
   createPlayer, simulateSeason, applyProgression, SeasonOutput,
 } from '@/lib/career/engine';
@@ -21,6 +25,7 @@ import {
 } from '@/lib/career/international';
 import { rollAwards } from '@/lib/career/awards';
 import {
+  renewalFor, type Renewal,
   generateYouthOffers, generateLoanOffers, generateTransferOffers,
   fillForcedSlots, roleBiasFor,
 } from '@/lib/career/offers';
@@ -100,11 +105,13 @@ interface Offseason {
   eventOptionChosen: number | null;
   offers: ClubOffer[];
   canStay: boolean;
+  /** the terms your club offered, if they offered anything */
+  renewal: Renewal | null;
   isYouth: boolean;
   flavor: string;
   chosenClubId: string | null;
   chosenVerb: 'sign' | 'stay' | 'loan' | null;
-  chosenRole: 'starter' | 'rotation' | 'prospect';
+  chosenRole: OfferRole;
   /** set once a forced move is accepted — the window is closed, no going back */
   forcedLocked: boolean;
   // ---- Legend update ----
@@ -870,7 +877,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       offseason: {
         event: null, eventResolved: true, eventBadges: [], eventOptionChosen: null,
         offers: youthOffers,
-        canStay: false, isYouth: true,
+        canStay: false, renewal: null, isYouth: true,
         flavor: transferHeadline(player, youthOffers, { youth: true, loan: false }, s.lang, s.rng),
         chosenClubId: null, chosenVerb: null, chosenRole: 'starter', forcedLocked: false,
         cards: [], cardChosen: null, eventDeltas: [],
@@ -1013,7 +1020,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
           offers: os.offers.some(o => o.clubId === dest.id && o.verb === 'sign')
             ? os.offers
             : [...os.offers, offer],
-          canStay: false,
+          canStay: false, renewal: null,
           chosenClubId: dest.id,
           chosenVerb: 'sign',
           chosenRole: res.moveTo.role,
@@ -1049,8 +1056,14 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   stay() {
     const s = get();
     const os = s.offseason;
-    if (!os || os.forcedLocked || !s.player?.clubId) return;
-    set({ offseason: { ...os, chosenClubId: s.player.clubId, chosenVerb: 'stay', chosenRole: 'starter' } });
+    if (!os || os.forcedLocked || !s.player?.clubId || !os.canStay) return;
+    set({
+      offseason: {
+        ...os, chosenClubId: s.player.clubId, chosenVerb: 'stay',
+        // On the terms offered, not on the terms you used to have.
+        chosenRole: os.renewal?.role ?? 'starter',
+      },
+    });
   },
   clearChoice() {
     const s = get();
@@ -1388,6 +1401,15 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       ceremonies.unshift(buildCallup(player, rng));
     }
 
+    // From thirty on, the body starts telling you which kind of career this was
+    // going to be. Said out loud every other season, because the roll that
+    // decides whether you are Modrić or finished at thirty-three is otherwise
+    // completely invisible until it has already happened to you.
+    if (seasonAge >= 30 && seasonAge % 2 === 0) {
+      const note = bodyNote(ageingOf(player), seasonAge, s.lang);
+      if (note) news.push(`🦵 ${note}`);
+    }
+
     // ---- next season's continental place ----
     // Earned by where you finished, in the division you finished it in, against
     // the number of places that division actually gets. This is the entire
@@ -1614,16 +1636,14 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     const stages = [...s.stages, record];
     const year = seasonYear + 1;
 
-    // retirement check
+    // Retirement, on this career's own clock rather than a shared one. A body
+    // rolled to last plays into its late thirties; one that was not is done at
+    // thirty-two, and both are the same code path.
+    const ageing = ageingOf(player);
+    const hardStop = hardRetireAge(ageing);
     let retire = false;
-    if (player.age >= CAREER.hardRetire) retire = true;
-    else if (player.age >= CAREER.retireFrom) {
-      const dec = declineByAge(player.age);
-      const chance = clamp(0, 0.9,
-        (player.age - CAREER.retireFrom) * 0.15 + dec * 0.08 +
-        (player.morale < 40 ? 0.15 : 0) + (player.overall < 68 ? 0.15 : 0));
-      if (rng.chance(chance)) retire = true;
-    }
+    if (player.age >= hardStop) retire = true;
+    else if (rng.chance(retireChance(ageing, player, out.apps))) retire = true;
 
     set({
       player, stages, trophies, lastSeason: record, year, seasonNews: news,
@@ -1656,7 +1676,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     }
     get().checkAchievements();
 
-    if (player.age >= CAREER.hardRetire) {
+    if (player.age >= hardStop) {
       startFarewell(set, get);
       return;
     }
@@ -1898,6 +1918,12 @@ function setupOffseason(
   const player = s.player;
   const rng = s.rng;
 
+  // Does your club even want another year? Staying used to be unconditional and
+  // always as a starter, which is how a thirty-nine-year-old stayed first choice
+  // at a European champion.
+  const currentClub = player.clubId ? getClub(player.clubId) : null;
+  const renewal = currentClub ? renewalFor(player, currentClub) : null;
+
   const event = selectEvent(player, s.deck, rng, s.firedEventById, s.year);
 
   const strengthGap = currentClubStrength(player) - player.overall;
@@ -1944,7 +1970,8 @@ function setupOffseason(
       eventBadges: [],
       eventOptionChosen: null,
       offers,
-      canStay: !!player.clubId,
+      canStay: renewal?.renews ?? false,
+      renewal,
       isYouth: false,
       flavor: transferHeadline(player, offers, { youth: false, loan: loanPhase }, s.lang, rng),
       chosenClubId: null,

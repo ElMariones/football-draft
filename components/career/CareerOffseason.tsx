@@ -14,7 +14,10 @@ import SeasonReport from './SeasonReport';
 import { areRivals } from '@/data/career/rivals';
 
 function roleLabel(role: string, t: ReturnType<typeof careerT>) {
-  return role === 'starter' ? t.roleStarter : role === 'rotation' ? t.roleRotation : t.roleProspect;
+  return role === 'starter' ? t.roleStarter
+    : role === 'rotation' ? t.roleRotation
+      : role === 'squad' ? t.roleSquad
+        : t.roleProspect;
 }
 
 function OfferCard({

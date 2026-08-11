@@ -58,6 +58,7 @@ const EN = {
   roleStarter: 'Starter',
   roleRotation: 'Rotation',
   roleProspect: 'Prospect',
+  roleSquad: 'Squad player',
   noOffers: 'No club is biting right now. Reroll or stay put.',
   // timeline / summary
   timeline: 'Career timeline',
@@ -127,6 +128,7 @@ const ES: typeof EN = {
   roleStarter: 'Titular',
   roleRotation: 'Rotación',
   roleProspect: 'Promesa',
+  roleSquad: 'Jugador de plantilla',
   noOffers: 'Ningún club te busca ahora. Vuelve a tirar o quedate.',
   timeline: 'Trayectoria',
   choosing: 'Eligiendo club…',

@@ -120,18 +120,6 @@ export function applyOverallDelta(base: Attrs, delta: number): Attrs {
   return out;
 }
 
-/** Ageing: attributes decay at different rates (pace goes first, vision lasts). */
-export function ageDecay(age: number): Partial<Attrs> {
-  if (age <= 29) return {};
-  const s = Math.min(4, (age - 29) * 0.6); // ramps with age
-  return {
-    pac: -s * 1.3,
-    phy: -s * 0.9,
-    tec: -s * 0.4,
-    vis: -s * 0.1,
-    lea: +0.3, // you get smarter as you slow down
-  };
-}
 
 /** Highest attribute — used for nicknames and the summary profile. */
 export function topAttr(attrs: Attrs): AttrKey {
