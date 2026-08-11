@@ -83,81 +83,12 @@ export function offeredPaths(prof: CareerProfile): EpiloguePath[] {
 export function pathLabel(p: EpiloguePath, lang: Lang) { return lang === 'es' ? p.es : p.en; }
 export function pathBlurb(p: EpiloguePath, lang: Lang) { return lang === 'es' ? p.blurbEs : p.blurbEn; }
 
-/** How the chosen life actually went. Seeded, so a career has one answer. */
-export function pathOutcome(id: PathId, prof: CareerProfile, rng: Rng, lang: Lang): string {
-  const es = lang === 'es';
-  const pick = <T,>(a: T[]) => a[rng.int(a.length)];
-  const home = getClub(prof.homeClubId ?? '')?.name ?? '';
-
-  switch (id) {
-    case 'manager':
-      return pick(es ? [
-        `Te fue mal dos años en un club pequeño, y luego bien durante mucho tiempo. Ganaste menos como técnico de lo que ganaste jugando, y te dolió más.`,
-        `Nunca llegaste a un banquillo grande. Doce temporadas en la categoría de abajo y cuatro ascensos, que es más de lo que consiguen casi todos.`,
-        prof.bigTitles >= 3
-          ? `Volviste a ${home || 'tu club'} como entrenador siete años después. Duraste dieciocho meses y te fuiste peor de lo que llegaste.`
-          : `Aguantaste seis años entre segundas divisiones y te retiraste del banquillo sin ruido, que es como se retira casi todo el mundo.`,
-      ] : [
-        `Two bad years at a small club, then a long good spell. You won less as a manager than you did as a player, and it hurt more.`,
-        `You never got a big job. Twelve seasons in the division below and four promotions, which is more than most of them manage.`,
-        prof.bigTitles >= 3
-          ? `You went back to ${home || 'your club'} as manager seven years later. You lasted eighteen months and left worse than you arrived.`
-          : `Six years in the lower leagues, then you stepped away from the dugout quietly, which is how nearly everybody goes.`,
-      ]);
-    case 'pundit':
-      return pick(es ? [
-        `Resultaste ser bueno. Directo sin ser cruel, que es más raro de lo que parece. Veinte años en pantalla y una generación entera que te conoce solo por eso.`,
-        `Duraste cuatro temporadas y lo odiaste cada semana. Lo dejaste en directo, sin avisar a nadie, y no volviste.`,
-        `Te hiciste famoso por una frase sobre un penalti que ni siquiera recordabas haber dicho.`,
-      ] : [
-        `You turned out to be good at it. Blunt without being cruel, which is rarer than it sounds. Twenty years on screen and a whole generation who know you only for that.`,
-        `You lasted four seasons and hated every week of it. You quit live on air without warning anybody, and never went back.`,
-        `You became famous for one line about a penalty that you did not even remember saying.`,
-      ]);
-    case 'academy':
-      return pick(es ? [
-        `Doce años con los sub-16. Cuatro de tus chicos llegaron a primera y uno jugó un Mundial. Ninguno de los cuatro habla de ti en las entrevistas, y a ti te parece bien.`,
-        `Descubriste que se te daba mejor esto que jugar. La gente del club lo supo antes que tú.`,
-        `Un chico al que entrenaste te rompió un récord que tú tenías. Estabas en la grada, de pie, antes que nadie.`,
-      ] : [
-        `Twelve years with the under-16s. Four of your boys reached the first team and one played at a World Cup. None of the four mention you in interviews, and you are fine with that.`,
-        `You turned out to be better at this than you were at playing. The people at the club knew it before you did.`,
-        `A boy you coached broke a record you held. You were in the stand, on your feet, before anybody else.`,
-      ]);
-    case 'director':
-      return pick(es ? [
-        `Firmaste a cuarenta jugadores. Acertaste con nueve, que en ese trabajo es una carrera excelente.`,
-        `Duraste tres años y te echaron por una decisión que resultó ser la correcta dos temporadas después.`,
-        `Reconstruiste ${home || 'el club'} desde el descenso hasta Europa. Nadie escribe canciones sobre los directores deportivos.`,
-      ] : [
-        `You signed forty players. You got nine of them right, which in that job is an excellent career.`,
-        `You lasted three years and were sacked over a decision that turned out to be correct two seasons later.`,
-        `You rebuilt ${home || 'the club'} from relegation to Europe. Nobody writes songs about sporting directors.`,
-      ]);
-    case 'abroad':
-      return pick(es ? [
-        `Dos temporadas más en una liga que nadie de tu país ve, cobrando bien y jugando todo. Fueron los años más felices.`,
-        `Un año, once partidos y una rodilla que dijo basta en un campo a cinco mil kilómetros de casa.`,
-        `Te quedaste a vivir allí. Sigues allí.`,
-      ] : [
-        `Two more seasons in a league nobody at home watches, paid well and playing every week. They were the happiest years.`,
-        `One year, eleven games, and a knee that finally said no on a pitch five thousand miles from home.`,
-        `You stayed. You are still there.`,
-      ]);
-    case 'away':
-      return pick(es ? [
-        `No volviste a pisar un estadio en once años. Cuando volviste fue de la mano de tu hija, y ella no sabía que la grada te iba a reconocer.`,
-        `Montaste un negocio que no tenía nada que ver con el fútbol y funcionó. Casi nadie de tu vida nueva sabe a qué te dedicabas.`,
-        `Desapareciste tan bien que un periódico publicó un reportaje titulado "¿Dónde está?" catorce años después.`,
-      ] : [
-        `You did not set foot in a stadium for eleven years. When you finally did it was holding your daughter's hand, and she had no idea the stand was going to recognise you.`,
-        `You started a business with nothing to do with football and it worked. Almost nobody in your new life knows what you used to do.`,
-        `You disappeared so completely that a newspaper ran a "where is he now?" feature fourteen years later.`,
-      ]);
-  }
-}
-
-// ---- twenty years later -----------------------------------------------------
+// ---- twenty years later
+//
+// `pathOutcome` used to live here: three fixed sentences per path, drawn at
+// random, which is what made every ending land the same way. The second life is
+// now played out chapter by chapter in lib/career/afterlife.ts, and what is
+// left here is the part that was always good — what the world kept of you. -----------------------------------------------------
 
 export interface EpilogueBeat {
   icon: string;

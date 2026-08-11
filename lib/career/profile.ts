@@ -57,6 +57,8 @@ export interface CareerProfile {
   individual: number;
   bigTitles: number;
   totalTitles: number;
+  /** club and national silverware only — no individual awards, no records */
+  teamTitles: number;
   records: number;
   /** runner-up: cup and continental finals, league seconds, tournament finals */
   finalsLost: number;
@@ -153,7 +155,13 @@ export function buildProfile(
     if (h.tournament?.result === 'runner-up') finalsLost++;
   }
 
+  // Every title ever won, including the individual gongs and the record
+  // plaques. Kept for scoring; anything writing prose about "trophies" should
+  // use `teamTitles`, because "59 trophies" for a man with 10 leagues and
+  // 40-odd top-scorer awards is not a sentence anybody believes.
   const totalTitles = trophies.length;
+  const teamTitles = trophies.filter(
+    t => (t.kind === 'club' || t.kind === 'national') && !RECORD_KEYS.has(t.key)).length;
   const neverWon = leagues + cups + continental + worldCups + continentalNations === 0;
 
   const oneClubMan = clubCount <= 2 && !!longestSpell && longestSpell.seasons >= seasons * 0.7;
@@ -188,7 +196,7 @@ export function buildProfile(
     finalClubId: p.clubId ?? (stages[stages.length - 1]?.clubId ?? null),
     clubCount, longestSpell, homeSpell, oneClubMan, mercenary, traitor, wentHome,
     leagues, cups, continental, worldCups, continentalNations, ballon, individual,
-    bigTitles, totalTitles, records, finalsLost, neverWon,
+    bigTitles, totalTitles, teamTitles, records, finalsLost, neverWon,
     seasons, goals: p.goals, assists: p.assists, apps: p.apps,
     ntCaps: p.ntCaps, ntGoals: p.ntGoals, peakOverall: p.peakOverall,
     clutchWon: p.clutchWon ?? 0,

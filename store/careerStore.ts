@@ -75,9 +75,14 @@ import {
   buildFarewell, applyFarewell, type FarewellScene, type FarewellOption,
 } from '@/lib/career/farewell';
 import {
-  offeredPaths, pathOutcome, buildEpilogue,
+  offeredPaths, buildEpilogue,
   type EpiloguePath, type PathId, type Epilogue,
 } from '@/lib/career/epilogue';
+import {
+  drawChapters, startAfterlife, applyAfterlifeChoice, secondLifeSummary,
+  type Afterlife, type AfterlifeOption,
+} from '@/lib/career/afterlife';
+import { buildDossier, type Dossier } from '@/lib/career/dossier';
 import type { MiniGameSpec, MiniStake } from '@/components/career/MiniGame';
 
 export type CareerPhase =
@@ -201,12 +206,21 @@ interface CareerState {
   // ---- the ending ----
   /** the send-off scenes for the final season, and how far through them we are */
   farewell: { scenes: FarewellScene[]; idx: number; chosen: FarewellOption | null } | null;
-  /** what became of him: the path taken, how it went, and the twenty-years card */
+  /**
+   * What became of him: the path taken, the second life played out chapter by
+   * chapter, and the closing dossier.
+   */
   epilogue: {
     paths: EpiloguePath[];
     chosen: PathId | null;
-    outcomeEn: string; outcomeEs: string;
+    /** the second life in progress — null until a path is picked */
+    life: Afterlife | null;
+    /** the option chosen for the chapter on screen, before advancing */
+    pending: AfterlifeOption | null;
+    /** the twenty-years beats, kept for the dossier */
     card: Epilogue | null;
+    /** built once the last chapter is answered */
+    dossier: Dossier | null;
   } | null;
 
   // actions
@@ -258,6 +272,8 @@ interface CareerState {
   chooseFarewell(optionId: string): void;
   nextFarewell(): void;
   choosePath(id: PathId): void;
+  chooseAfterlifeOption(optionId: string): void;
+  nextAfterlifeChapter(): void;
   finishEpilogue(): void;
   reset(): void;
 }
@@ -408,7 +424,7 @@ function startEpilogue(
     phase: 'epilogue',
     epilogue: {
       paths: offeredPaths(prof), chosen: null,
-      outcomeEn: '', outcomeEs: '', card: null,
+      life: null, pending: null, card: null, dossier: null,
     },
   });
 }
@@ -1766,18 +1782,56 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   choosePath(id) {
     const s = get();
     const e = s.epilogue;
-    if (!e || e.chosen || !s.player || !s.rng) return;
+    if (!e || e.chosen || !s.player) return;
     const prof = buildProfile(s.player, s.stages, s.trophies);
-    // Both languages are resolved now, off the same rng draw, so flipping the
-    // toggle on the ending does not silently re-roll what became of him.
-    const rngEn = makeRng(s.player.careerSeed ^ 0x5eed1);
-    const rngEs = makeRng(s.player.careerSeed ^ 0x5eed1);
-    const outcomeEn = pathOutcome(id, prof, rngEn, 'en');
-    const outcomeEs = pathOutcome(id, prof, rngEs, 'es');
+    // Seeded off the career, so re-reading an ending never re-rolls it.
+    const chapters = drawChapters(id, prof, makeRng(s.player.careerSeed ^ 0x5eed1));
     const card = buildEpilogue(
       s.player, s.stages, s.trophies, prof, id, makeRng(s.player.careerSeed ^ 0xc0da),
     );
-    set({ epilogue: { ...e, chosen: id, outcomeEn, outcomeEs, card } });
+    set({
+      epilogue: {
+        ...e, chosen: id, card,
+        life: startAfterlife(id, prof, chapters),
+        pending: null, dossier: null,
+      },
+    });
+  },
+
+  chooseAfterlifeOption(optionId) {
+    const s = get();
+    const e = s.epilogue;
+    if (!e?.life || e.pending) return;
+    const chapter = e.life.chapters[e.life.idx];
+    const opt = chapter?.options.find(o => o.id === optionId);
+    if (!opt) return;
+    set({ epilogue: { ...e, life: applyAfterlifeChoice(e.life, opt), pending: opt } });
+  },
+
+  /**
+   * Move to the next chapter, or close the book.
+   *
+   * The dossier is only assembled once, at the end, because it reports on the
+   * second life as a whole — it cannot be built until every chapter has been
+   * answered.
+   */
+  nextAfterlifeChapter() {
+    const s = get();
+    const e = s.epilogue;
+    if (!e?.life || !e.pending || !s.player) return;
+    const life = { ...e.life, idx: e.life.idx + 1 };
+
+    if (life.idx < life.chapters.length) {
+      set({ epilogue: { ...e, life, pending: null } });
+      return;
+    }
+    const prof = buildProfile(s.player, s.stages, s.trophies);
+    const dossier = buildDossier(
+      s.player, s.stages, s.trophies, prof, life, e.card?.beats ?? [],
+      secondLifeSummary(life, prof, 'en'),
+      secondLifeSummary(life, prof, 'es'),
+    );
+    set({ epilogue: { ...e, life, pending: null, dossier } });
   },
 
   finishEpilogue() { set({ phase: 'summary' }); },
