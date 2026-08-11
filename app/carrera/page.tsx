@@ -26,6 +26,9 @@ import Celebration from '@/components/career/Celebration';
 import MiniGame from '@/components/career/MiniGame';
 import CeremonyModal from '@/components/career/CeremonyModal';
 import BrandModal from '@/components/career/BrandModal';
+import RivalModal from '@/components/career/RivalModal';
+import PressModal from '@/components/career/PressModal';
+import RivalryPanel from '@/components/career/RivalryPanel';
 import SponsorPanel from '@/components/career/SponsorPanel';
 
 export default function CareerPage() {
@@ -107,6 +110,7 @@ export default function CareerPage() {
             <CareerHud player={player} trophies={trophies} lang={lang} />
             <LegacyPanel lang={lang} />
             <RecordChase lang={lang} />
+            <RivalryPanel lang={lang} />
             <SponsorPanel lang={lang} />
             <NationalTeamPanel lang={lang} />
           </div>
@@ -149,6 +153,8 @@ export default function CareerPage() {
       <MiniGame lang={lang} />
       <CeremonyModal lang={lang} />
       <BrandModal lang={lang} />
+      <RivalModal lang={lang} />
+      <PressModal lang={lang} />
       <Celebration title={celebrating} lang={lang} onDone={dismissCelebration} />
       <AchievementToasts lang={lang} />
     </main>

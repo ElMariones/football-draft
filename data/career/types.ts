@@ -194,6 +194,29 @@ export interface CareerPlayer {
   endorsements: string[];
   /** seasons before another brand event may fire */
   brandCooldown: number;
+
+  // ---- Rivalries and the press ---------------------------------------------
+  /** career derby record, keyed by rival club id (see lib/career/rivalry.ts) */
+  derbyRecord: Record<string, DerbyRecord>;
+  /** seasons before another derby story may fire */
+  derbyCooldown: number;
+  /** seasons before you face the press again */
+  pressCooldown: number;
+}
+
+/**
+ * What you have done to one particular rival, across the whole career.
+ *
+ * `heat` is the bad blood: it rises with goals, wins and every polemic you
+ * choose to be part of, and it is what decides whether the fixture generates a
+ * story at all.
+ */
+export interface DerbyRecord {
+  w: number;
+  d: number;
+  l: number;
+  goals: number;
+  heat: number;
 }
 
 /**

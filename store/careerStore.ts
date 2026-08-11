@@ -61,6 +61,15 @@ import {
   type BrandBeat, type BrandCtx,
 } from '@/lib/career/brandEvents';
 import { getBrand } from '@/data/career/brands';
+import {
+  rollDerbySeason, creditDerbySeason, derbyPayoff, derbyNews, pickRivalEvent,
+  applyRivalOption, recordVs, type DerbySeason, type RivalCtx, type RivalEventDef,
+} from '@/lib/career/rivalry';
+import {
+  buildPressConference, answerPress, type PressConference, type PressSituation,
+  type PressCtx, type PressTone,
+} from '@/lib/career/pressroom';
+import { derbyBetween } from '@/data/career/derbies';
 import { buildProfile } from '@/lib/career/profile';
 import {
   buildFarewell, applyFarewell, type FarewellScene, type FarewellOption,
@@ -179,6 +188,15 @@ interface CareerState {
   /** the brand beat on screen, and anything queued behind it */
   brand: BrandBeat | null;
   brandQueue: BrandBeat[];
+  /** a derby story waiting to be answered */
+  rival: {
+    def: RivalEventDef; rivalId: string;
+    chosen: RivalEventDef['options'][number] | null;
+  } | null;
+  /** the press conference waiting in the room */
+  press: PressConference | null;
+  /** last season's derbies, for the report and the panel */
+  lastDerbies: DerbySeason | null;
 
   // ---- the ending ----
   /** the send-off scenes for the final season, and how far through them we are */
@@ -231,6 +249,10 @@ interface CareerState {
   dismissCeremony(): void;
   signBootDeal(index: number): void;
   declineBootDeals(): void;
+  chooseRivalOption(optionId: string): void;
+  dismissRival(): void;
+  answerPressConference(tone: PressTone): void;
+  dismissPress(): void;
   chooseBrandOption(optionId: string): void;
   dismissBrand(): void;
   chooseFarewell(optionId: string): void;
@@ -548,6 +570,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
   ceremonyQueue: [],
   brand: null,
   brandQueue: [],
+  rival: null,
+  press: null,
+  lastDerbies: null,
 
   dismissCelebration() { set({ celebrating: null }); },
 
@@ -1335,6 +1360,46 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       ceremonies.unshift(buildCallup(player, rng));
     }
 
+    // ---- the derby ----
+    // Played out properly rather than counted: two legs against every rival in
+    // your own division, decided by the two clubs and by what you are worth on
+    // the night. The record follows the career, and the bad blood follows it
+    // further than the record does.
+    const playerLift = clamp(-2, 8, (out.effOverall - 74) * 0.35 + (out.rating - 6.8) * 1.4);
+    const derbies = rollDerbySeason(club.id, playedLeagueId, playerLift, out.derbyGoals, rng);
+    let rivalBeat: CareerState['rival'] = null;
+    if (derbies.fixtures.length) {
+      Object.assign(player, creditDerbySeason(player, derbies));
+      const pay = derbyPayoff(derbies);
+      player.reputation = clamp(0, 100, player.reputation + pay.reputation);
+      if (pay.idol) addIdol(player, club.id, pay.idol);
+      news.push(...derbyNews(derbies, s.lang));
+
+      // A derby only tells a story once in a while, and the bigger the fixture
+      // the more often it has one to tell.
+      const rivalId = derbies.topRivalId;
+      if (rivalId && (player.derbyCooldown ?? 0) <= 0) {
+        const rec = recordVs(player, rivalId);
+        const derby = derbyBetween(club.id, rivalId);
+        const chance = clamp(0.18, 0.7, 0.14 + (derby?.heat ?? 4) * 0.04 + rec.heat * 0.003);
+        if (rng.chance(chance)) {
+          const ctx: RivalCtx = {
+            p: player, rivalId, derby, heat: rec.heat, season: derbies,
+            exPlayer: player.clubsPlayed.includes(rivalId),
+            rec,
+          };
+          const def = pickRivalEvent(ctx, rng);
+          if (def) {
+            rivalBeat = { def, rivalId, chosen: null };
+            if (def.once === 'career') player.flags[`derby:${def.id}`] = true;
+            player.derbyCooldown = 2;
+          }
+        }
+      } else {
+        player.derbyCooldown = Math.max(0, (player.derbyCooldown ?? 0) - 1);
+      }
+    }
+
     // ---- brands ----
     // The deal pays, the brand forms an opinion of the season, and every so
     // often something happens because of it. Everything here keys off what
@@ -1430,6 +1495,49 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       }
     }
 
+    // ---- the press ----
+    // The situation is whatever the biggest thing that happened to you was, in
+    // that order, so the room asks about the Ballon d'Or rather than about
+    // preseason fitness the week you won one.
+    let pressBeat: PressConference | null = null;
+    if ((player.pressCooldown ?? 0) <= 0) {
+      const lostFinal = clubT.comps.some(cp => cp.stage === 'final' && !cp.won)
+        || nt.season.tournament?.result === 'runner-up';
+      // Only the awards a non-football person has heard of get their own press
+      // conference. Sharing the top of this chain with every minor gong meant
+      // 'award' won 46% of the time and half the deck was never asked.
+      const bigAward = awards.some(a =>
+        a.key === 'ballon-dor' || a.key === 'the-best' || a.key === 'golden-shoe'
+        || a.key === 'world-cup-golden-ball');
+      const slump = out.apps < 18 || out.rating < 6.4;
+      const situation: PressSituation | null =
+        bigAward ? 'award'
+          : broken.length ? 'record'
+            : lostFinal ? 'final-lost'
+              : bigTitles > 0 ? 'title'
+                : os.chosenVerb === 'sign' && !os.isYouth ? 'transfer'
+                  : (derbies.top?.heat ?? 0) >= 8 ? 'derby-week'
+                    : nt.season.tournament?.qualified ? 'international'
+                      : slump ? 'slump'
+                        : player.age >= 33 ? 'veteran'
+                          // you have been here long enough to have re-signed
+                          : (player.stayStreak ?? 0) >= 4 && rng.chance(0.5) ? 'contract'
+                            : awards.length ? 'award'
+                              : null;
+      if (situation && rng.chance(0.75)) {
+        const ctx: PressCtx = {
+          p: player, situation, trophies: trophiesNow, seasons: s.stages.length + 1,
+          apps: out.apps, goals: out.goals,
+          rivalId: derbies.topRivalId ?? mainRival(club.id),
+          tenure: player.stayStreak ?? 1,
+        };
+        pressBeat = buildPressConference(ctx, rng);
+        if (pressBeat) player.pressCooldown = 1;
+      }
+    } else {
+      player.pressCooldown = Math.max(0, (player.pressCooldown ?? 0) - 1);
+    }
+
     const record: SeasonRecord = {
       year: seasonYear, age: seasonAge, clubId: club.id,
       overallAtSeason: Math.round(out.effOverall),
@@ -1477,6 +1585,9 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       ceremonyQueue: ceremonies.slice(1),
       brand: brandBeats[0] ?? null,
       brandQueue: brandBeats.slice(1),
+      rival: rivalBeat,
+      press: pressBeat,
+      lastDerbies: derbies.fixtures.length ? derbies : null,
     });
 
     // A run that ended without ever needing the player is closed out here, now
@@ -1574,6 +1685,39 @@ export const useCareerStore = create<CareerState>((set, get) => ({
     set({ brand: { ...b, chosen: 'declined' } });
   },
 
+  chooseRivalOption(optionId) {
+    const s = get();
+    const r = s.rival;
+    if (!r || r.chosen || !s.player) return;
+    const opt = r.def.options.find(o => o.id === optionId);
+    if (!opt) return;
+    set({
+      player: applyRivalOption(s.player, r.rivalId, opt),
+      rival: { ...r, chosen: opt },
+    });
+  },
+
+  dismissRival() {
+    set({ rival: null });
+    get().checkAchievements();
+  },
+
+  answerPressConference(tone) {
+    const s = get();
+    const conf = s.press;
+    if (!conf || conf.chosen || !s.player || !s.rng) return;
+    const res = answerPress(s.player, conf, tone, s.rng);
+    set({
+      player: res.player,
+      press: { ...conf, chosen: res.answer, reaction: res.reaction },
+    });
+  },
+
+  dismissPress() {
+    set({ press: null });
+    get().checkAchievements();
+  },
+
   chooseBrandOption(optionId) {
     const s = get();
     const b = s.brand;
@@ -1647,6 +1791,7 @@ export const useCareerStore = create<CareerState>((set, get) => ({
       achievementQueue: [], farewell: null, epilogue: null, contFinal: null,
       ceremony: null, ceremonyQueue: [],
       brand: null, brandQueue: [],
+      rival: null, press: null, lastDerbies: null,
       // note: `unlocked` is deliberately NOT reset — logros persist across runs
     });
   },
@@ -1677,10 +1822,31 @@ function setupOffseason(
     delete player.flags.bosman;
   }
 
+  // Media day. The one press conference that is not a reaction to anything —
+  // everybody is fit, nobody has lost yet, and the questions are about what you
+  // intend to do rather than what you did.
+  //
+  // It never displaces a conference the season just earned: this used to be set
+  // unconditionally, and because it is null most summers it silently wiped the
+  // post-season one, which made 96% of every career's press preseason.
+  let mediaDay: PressConference | null = s.press;
+  if (!mediaDay && player.clubId && (player.pressCooldown ?? 0) <= 0
+      && s.stages.length >= 1 && rng.chance(0.22)) {
+    mediaDay = buildPressConference({
+      p: player, situation: 'preseason', trophies: s.trophies, seasons: s.stages.length,
+      apps: s.stages[s.stages.length - 1]?.apps ?? 0,
+      goals: s.stages[s.stages.length - 1]?.goals ?? 0,
+      rivalId: mainRival(player.clubId),
+      tenure: player.stayStreak ?? 1,
+    }, rng);
+    if (mediaDay) player.pressCooldown = 1;
+  }
+
   set({
     phase: 'career',
     player: { ...player },
     forced: null,
+    press: mediaDay,
     offseason: {
       event,
       eventResolved: !event,

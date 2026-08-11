@@ -141,6 +141,9 @@ export function createPlayer(o: CreateOpts): CareerPlayer {
     sponsorHistory: [],
     endorsements: [],
     brandCooldown: 0,
+    derbyRecord: {},
+    derbyCooldown: 0,
+    pressCooldown: 0,
   };
   p.value = computeValue(p, 4);
   p.peakValue = p.value;
