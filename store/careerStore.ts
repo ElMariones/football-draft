@@ -460,6 +460,10 @@ function buildFinalMini(
         // a signed nudge; ShotGame scales it by how hard the shot was hit
         scatter: clamp(-1, 1, rng.gauss(0, 0.5)),
         phase: rng.range(0, Math.PI * 2),
+        // Each shot gets its own keeper. Three attempts against a keeper moving
+        // at exactly one speed is a timing puzzle you solve once and then repeat
+        // twice; varying it means every attempt has to be read fresh.
+        speed: clamp(0.72, 1.45, rng.gauss(1.05, 0.2)),
       })),
     },
   };
@@ -640,7 +644,11 @@ export const useCareerStore = create<CareerState>((set, get) => ({
         stages[cf.stageIdx] = {
           ...rec,
           titles: won ? [...rec.titles, title] : rec.titles,
-          comps: (rec.comps ?? []).map(c => (c.key === cf.key ? { ...c, won } : c)),
+          // The stage has to move with the result. It was left on 'final' — the
+          // stage the run *reached* — so a won final rendered as "Runners-up"
+          // sitting directly above copy saying you had lifted it.
+          comps: (rec.comps ?? []).map(c =>
+            (c.key === cf.key ? { ...c, won, stage: won ? 'won' as const : 'final' as const } : c)),
           news: [...(rec.news ?? []), line],
         };
       }

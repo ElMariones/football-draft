@@ -28,8 +28,12 @@ const BALL_R = 10;
 export interface ShotSpec {
   /** 0 (a 50-overall) .. 1 (a 99-overall) */
   skill: number;
-  /** pre-rolled per attempt, so the engine owns the randomness */
-  shots: { scatter: number; phase: number }[];
+  /**
+   * Pre-rolled per attempt, so the engine owns the randomness. `speed` is a
+   * multiplier on how fast the keeper works the line, so no two attempts are
+   * the same timing problem.
+   */
+  shots: { scatter: number; phase: number; speed?: number }[];
   needed: number;
 }
 
@@ -104,7 +108,15 @@ export default function ShotGame({
   // keeper position, driven by rAF
   const [keeperX, setKeeperX] = useState(GW / 2);
   const keeperRef = useRef(GW / 2);
-  const [keeperDive, setKeeperDive] = useState(0);
+  /**
+   * Where he is frozen once the ball arrives, or null while he is still moving.
+   *
+   * He used to lunge at the ball after the shot — a scripted slide that did not
+   * match where he actually was when it was judged, so a save looked like the
+   * keeper teleporting. He now simply works his line and stops on the frame the
+   * ball reaches him, at exactly the position the outcome was decided from.
+   */
+  const [frozenX, setFrozenX] = useState<number | null>(null);
   const raf = useRef<number>();
   const startedAt = useRef(0);
 
@@ -115,19 +127,22 @@ export default function ShotGame({
   const done = attempt >= spec.shots.length;
   const won = scored >= spec.needed;
 
-  // ---- the keeper never stops ----
+  // this attempt's keeper is a little faster or slower than the last one
+  const thisSpeed = keeperSpeed * (shot.speed ?? 1);
+
+  // ---- the keeper works his line until the ball arrives ----
   useEffect(() => {
-    if (phase === 'over') return;
+    if (phase === 'over' || phase === 'beat') return;
     startedAt.current = performance.now();
     const loop = (now: number) => {
-      const x = keeperAt(now - startedAt.current, shot.phase, keeperSpeed, keeperW);
+      const x = keeperAt(now - startedAt.current, shot.phase, thisSpeed, keeperW);
       keeperRef.current = x;
       setKeeperX(x);
       raf.current = requestAnimationFrame(loop);
     };
     raf.current = requestAnimationFrame(loop);
     return () => { if (raf.current) cancelAnimationFrame(raf.current); };
-  }, [phase, keeperSpeed, keeperW, shot.phase]);
+  }, [phase, thisSpeed, keeperW, shot.phase]);
 
   // ---- aiming ----
   const toLocal = useCallback((clientX: number, clientY: number) => {
@@ -173,10 +188,13 @@ export default function ShotGame({
     // The outcome is on a timer and the animation is on frames. Frames are a
     // courtesy the browser withdraws whenever it likes; the final is not.
     const settle = () => {
-      const keeper = keeperAt(impactAt, shot.phase, keeperSpeed, keeperW);
+      const keeper = keeperAt(impactAt, shot.phase, thisSpeed, keeperW);
       const outcome = judgeShot({ finalX, finalY, keeperX: keeper, keeperW, dive });
+      // Freeze him exactly where the outcome was decided, so what is on screen
+      // is what was judged.
+      setFrozenX(keeper);
+      setKeeperX(keeper);
       setBall({ x: finalX, y: finalY });
-      setKeeperDive(Math.max(-dive, Math.min(dive, finalX - keeper)));
       setResults(r => [...r, outcome]);
       if (outcome === 'goal') setScored(sc => sc + 1);
       setPhase('beat');
@@ -186,12 +204,6 @@ export default function ShotGame({
     const fly = (now: number) => {
       const k = Math.min(1, (now - t0) / travel);
       setBall({ x: lerp(from.x, finalX, k), y: lerp(from.y, finalY, k) });
-      // he commits late, and only if it is within reach
-      if (k > 0.45) {
-        const keeper = keeperAt((t0 - startedAt.current) + k * travel, shot.phase, keeperSpeed, keeperW);
-        const lunge = Math.max(-dive, Math.min(dive, finalX - keeper)) * ((k - 0.45) / 0.55);
-        setKeeperDive(lunge);
-      }
       if (k < 1) requestAnimationFrame(fly);
     };
     requestAnimationFrame(fly);
@@ -208,11 +220,12 @@ export default function ShotGame({
       return;
     }
     setAttempt(n);
-    setAim(null); setBall(null); setKeeperDive(0);
+    setAim(null); setBall(null); setFrozenX(null);
     setPhase('aim');
   };
 
   const last = results[results.length - 1];
+  const parried = phase === 'beat' && last === 'save' && !!ball;
 
   return (
     <div className="select-none">
@@ -242,15 +255,21 @@ export default function ShotGame({
       </div>
 
       {/* ---- the goal ---- */}
-      <div
+      <motion.div
         ref={wrap}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={release}
         onPointerCancel={release}
-        className={`relative w-full rounded-2xl overflow-hidden border border-white/10 ${
-          phase === 'aim' ? 'cursor-crosshair' : 'cursor-default'
-        }`}
+        animate={phase === 'beat' && last !== 'wide'
+          ? { x: last === 'goal' ? [0, -5, 5, -3, 0] : [0, 3, -3, 0] }
+          : { x: 0 }}
+        transition={{ duration: 0.35 }}
+        className={`relative w-full rounded-2xl overflow-hidden border transition-colors ${
+          phase === 'beat' && last === 'goal' ? 'border-wc/60'
+            : phase === 'beat' && last === 'save' ? 'border-red-400/60'
+              : 'border-white/10'
+        } ${phase === 'aim' ? 'cursor-crosshair' : 'cursor-default'}`}
         style={{ aspectRatio: `${GW} / ${VIEW_H}`, touchAction: 'none' }}
       >
         <svg viewBox={`0 0 ${GW} ${VIEW_H}`} className="absolute inset-0 w-full h-full">
@@ -294,14 +313,18 @@ export default function ShotGame({
           <circle cx={GW / 2} cy={LINE_Y + 96} r="2.5" fill="rgba(255,255,255,0.35)" />
 
           {/* keeper — feet on the goal line, arms spanning what he covers */}
-          <g transform={`translate(${keeperX + keeperDive}, ${LINE_Y - 52})`}>
+          <g transform={`translate(${frozenX ?? keeperX}, ${LINE_Y - 52})`}>
             <ellipse cx="0" cy="53" rx={keeperW / 2.6} ry="4" fill="rgba(0,0,0,0.35)" />
-            <g transform={`rotate(${keeperDive * 0.2})`}>
-              <rect x={-keeperW / 2} y="10" width={keeperW} height="8" rx="4" fill="#F5C542" />
-              <circle cx={-keeperW / 2} cy="14" r="4.5" fill="#e8b98a" />
-              <circle cx={keeperW / 2} cy="14" r="4.5" fill="#e8b98a" />
-            </g>
-            <rect x="-8" y="8" width="16" height="28" rx="6" fill="#F5C542" />
+            {/* he flares up on a save, so it is obvious he got a hand to it */}
+            {phase === 'beat' && last === 'save' && (
+              <ellipse cx="0" cy="20" rx={keeperW / 1.7} ry="30" fill="rgba(248,113,113,0.28)" />
+            )}
+            <rect x={-keeperW / 2} y="10" width={keeperW} height="8" rx="4"
+              fill={phase === 'beat' && last === 'save' ? '#FCA5A5' : '#F5C542'} />
+            <circle cx={-keeperW / 2} cy="14" r="4.5" fill="#e8b98a" />
+            <circle cx={keeperW / 2} cy="14" r="4.5" fill="#e8b98a" />
+            <rect x="-8" y="8" width="16" height="28" rx="6"
+              fill={phase === 'beat' && last === 'save' ? '#FCA5A5' : '#F5C542'} />
             <circle cx="0" cy="2" r="7" fill="#e8b98a" />
             <rect x="-6.5" y="35" width="5" height="17" rx="2.5" fill="#1b1b1b" />
             <rect x="1.5" y="35" width="5" height="17" rx="2.5" fill="#1b1b1b" />
@@ -320,12 +343,55 @@ export default function ShotGame({
             </g>
           )}
 
-          {/* ball */}
+          {/* the net takes the ball — a bulge that snaps and settles */}
+          {phase === 'beat' && last === 'goal' && ball && (
+            <motion.g
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              style={{ transformOrigin: `${ball.x}px ${ball.y}px` }}
+            >
+              <motion.ellipse
+                cx={ball.x} cy={ball.y} fill="rgba(255,255,255,0.16)"
+                initial={{ rx: 2, ry: 2 }}
+                animate={{ rx: [2, 34, 26], ry: [2, 30, 23] }}
+                transition={{ duration: 0.45, times: [0, 0.45, 1] }}
+              />
+              {/* the strings snapping tight around it */}
+              {[0, 45, 90, 135].map(a => (
+                <motion.line
+                  key={a}
+                  x1={ball.x - 30 * Math.cos((a * Math.PI) / 180)}
+                  y1={ball.y - 30 * Math.sin((a * Math.PI) / 180)}
+                  x2={ball.x + 30 * Math.cos((a * Math.PI) / 180)}
+                  y2={ball.y + 30 * Math.sin((a * Math.PI) / 180)}
+                  stroke="rgba(255,255,255,0.4)" strokeWidth="1"
+                  initial={{ pathLength: 0, opacity: 0.9 }}
+                  animate={{ pathLength: 1, opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                />
+              ))}
+            </motion.g>
+          )}
+
+          {/*
+            Ball. The position stays a plain SVG transform so it is correct on
+            the very first paint — driving it from framer's `animate` left the
+            ball at the origin until an animation frame arrived, which in a
+            backgrounded tab is never. The parry is a *relative* offset on an
+            inner group, so it can animate without owning the position.
+          */}
           <g transform={`translate(${ball?.x ?? GW / 2}, ${ball?.y ?? BALL_Y})`}>
-            <ellipse cx="0" cy={BALL_R + 3} rx={BALL_R * 0.8} ry="3" fill="rgba(0,0,0,0.35)" />
-            <circle r={BALL_R} fill="#fff" />
-            <circle r={BALL_R} fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
-            <path d="M-4 -4 L4 -4 L6 3 L0 7 L-6 3 Z" fill="#111" opacity="0.85" />
+            <motion.g
+              initial={false}
+              animate={parried
+                ? { x: (ball?.x ?? GW / 2) < GW / 2 ? -58 : 58, y: [0, -24, LINE_Y + 34 - (ball?.y ?? 0)] }
+                : { x: 0, y: 0 }}
+              transition={parried ? { duration: 0.55, ease: 'easeOut' } : { duration: 0 }}
+            >
+              <ellipse cx="0" cy={BALL_R + 3} rx={BALL_R * 0.8} ry="3" fill="rgba(0,0,0,0.35)" />
+              <circle r={BALL_R} fill="#fff" />
+              <circle r={BALL_R} fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
+              <path d="M-4 -4 L4 -4 L6 3 L0 7 L-6 3 Z" fill="#111" opacity="0.85" />
+            </motion.g>
           </g>
         </svg>
 
@@ -339,26 +405,52 @@ export default function ShotGame({
           </div>
         )}
 
-        {/* result flash */}
+        {/* result flash — the whole panel reacts, not just a word */}
         <AnimatePresence>
           {phase === 'beat' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 grid place-items-center pointer-events-none"
-            >
-              <div className={`font-display text-5xl sm:text-6xl drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] ${
-                last === 'goal' ? 'text-wc' : last === 'save' ? 'text-red-300' : 'text-white/70'
-              }`}>
-                {last === 'goal' ? (es ? '¡GOL!' : 'GOAL!')
-                  : last === 'save' ? (es ? 'ATAJADA' : 'SAVED')
-                    : (es ? 'FUERA' : 'WIDE')}
-              </div>
-            </motion.div>
+            <>
+              {/*
+                A vignette rather than a flat fill. Washing the whole panel in
+                colour hid the one thing worth looking at — the ball in the net,
+                or the keeper's hand on it — so the colour comes in from the
+                edges and leaves the goalmouth clear.
+              */}
+              <motion.div
+                key="wash"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 0.7, times: [0, 0.12, 1] }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: `radial-gradient(120% 90% at 50% 55%, transparent 32%, ${
+                    last === 'goal' ? 'rgba(0,223,162,0.62)'
+                      : last === 'save' ? 'rgba(239,68,68,0.62)'
+                        : 'rgba(255,255,255,0.35)'
+                  } 100%)`,
+                }}
+              />
+              <motion.div
+                key="word"
+                initial={{ opacity: 0, scale: last === 'goal' ? 0.4 : 1.6, rotate: last === 'goal' ? -8 : 0 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 14 }}
+                exit={{ opacity: 0 }}
+                /* sits above the goalmouth rather than across it */
+                className="absolute inset-x-0 top-[6%] grid place-items-center pointer-events-none"
+              >
+                <div className={`font-display text-4xl sm:text-5xl drop-shadow-[0_2px_14px_rgba(0,0,0,0.95)] ${
+                  last === 'goal' ? 'text-wc' : last === 'save' ? 'text-red-300' : 'text-white/70'
+                }`}>
+                  {last === 'goal' ? (es ? '¡GOL!' : 'GOAL!')
+                    : last === 'save' ? (es ? 'ATAJADA' : 'SAVED')
+                      : (es ? 'FUERA' : 'WIDE')}
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* ---- prompt / advance ---- */}
       <div className="mt-3 min-h-[52px] grid place-items-center">

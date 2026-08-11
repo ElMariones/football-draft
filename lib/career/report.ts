@@ -225,7 +225,11 @@ function knockoutLine(
     };
   }
   const stage = c.stage ?? 'group';
-  const result = stageLabel(stage, lang);
+  // Winning is the result, whatever stage the record says the run reached. A
+  // continental final is stored as stage 'final' and only patched to 'won' when
+  // the shootout is played, so trusting the stage alone printed "Runners-up"
+  // over a paragraph about lifting the trophy.
+  const result = stageLabel(c.won ? 'won' : stage, lang);
   if (c.won) {
     return {
       icon: '🏆', label, result,
